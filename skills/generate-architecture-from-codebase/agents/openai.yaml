@@ -1,0 +1,7 @@
+interface:
+  display_name: "Generate Architecture from Codebase"
+  short_description: "Discover codebase architecture and emit diagram specs"
+  default_prompt: "Use $generate-architecture-from-codebase to inspect this repository and produce structured architecture diagram specs."
+
+policy:
+  allow_implicit_invocation: true
