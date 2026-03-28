@@ -1,7 +1,0 @@
-interface:
-  display_name: "Generate Architecture from Codebase"
-  short_description: "Discover codebase architecture and emit structured architecture artifacts"
-  default_prompt: "Use $generate-architecture-from-codebase to inspect this repository and produce a canonical architecture model plus derived structured views."
-
-policy:
-  allow_implicit_invocation: true

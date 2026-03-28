@@ -1,5 +1,5 @@
 ---
-name: generate-architecture-from-codebase
+name: generate-architecture
 description: Discover and model the architecture of an unfamiliar codebase, then emit a canonical architecture model plus derived structured view files for multiple audiences. Use this skill when asked to explore a repository, identify runtime boundaries, data ownership, key workflows, or generate architecture artifacts from source code.
 ---
 

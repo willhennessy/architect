@@ -36,7 +36,7 @@ Schema:
 ```yaml
 version: 2
 system_name: "<system name>"
-generated_by_skill: "generate-architecture-from-codebase"
+generated_by_skill: "generate-architecture"
 mode: "<initial|update>"
 repo_archetype: "<library_package|frontend_only_app|modular_monolith|service_oriented_backend|full_stack_product|infrastructure_repo>"
 modeling_style:
