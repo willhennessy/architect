@@ -1,0 +1,168 @@
+version: 2
+id: "sequence-bundle-construction-and-submission"
+type: "sequence"
+title: "Bundle Construction And Submission"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how a new block leads to bundle construction, submission, and pool feedback."
+scope: "Pool-driven builder loop from new head notification through transaction submission"
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "pool-chain-watcher"
+  - "pool-user-operation-mempools"
+  - "pool-api"
+  - "builder-bundle-sender-workers"
+  - "builder-assigner"
+  - "builder-bundle-proposers"
+  - "builder-signer-manager"
+  - "builder-transaction-tracker"
+  - "evm-json-rpc-node"
+steps:
+  - order: 1
+    source_id: "pool-chain-watcher"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "pool-chain-watcher-calls-evm-json-rpc-node"
+    label: "Pool polls the configured chain endpoint and detects a new head or reorg."
+    sync_async: "sync"
+    data_objects:
+      - "block header"
+      - "reorg update"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-task"
+      - "ev-doc-pool"
+  - order: 2
+    source_id: "pool-chain-watcher"
+    target_id: "pool-user-operation-mempools"
+    relationship_id: "pool-chain-watcher-updates-pool-user-operation-mempools"
+    label: "Pool applies mined and unmined operation updates to local mempool state."
+    sync_async: "async"
+    data_objects:
+      - "chain update"
+      - "mined user operation set"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-task"
+      - "ev-doc-pool"
+  - order: 3
+    source_id: "pool-api"
+    target_id: "builder-bundle-sender-workers"
+    relationship_id: "pool-api-publishes-to-builder-bundle-sender-workers"
+    label: "Pool publishes the new-head trigger to builder workers."
+    sync_async: "async"
+    data_objects:
+      - "new head"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-proto"
+      - "ev-builder-bundle-sender"
+  - order: 4
+    source_id: "builder-bundle-sender-workers"
+    target_id: "builder-assigner"
+    relationship_id: "builder-bundle-sender-workers-calls-builder-assigner"
+    label: "A worker asks the assigner for an entry point and sender-safe work assignment."
+    sync_async: "sync"
+    data_objects:
+      - "entry point assignment"
+      - "sender lock state"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-task"
+      - "ev-doc-builder"
+  - order: 5
+    source_id: "builder-bundle-sender-workers"
+    target_id: "pool-api"
+    relationship_id: "builder-bundle-sender-workers-calls-pool-api"
+    label: "The worker requests the best candidate operations from the pool for its assignment."
+    sync_async: "sync"
+    data_objects:
+      - "candidate operation summaries"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-bundle-sender"
+      - "ev-pool-proto"
+  - order: 6
+    source_id: "builder-bundle-sender-workers"
+    target_id: "builder-bundle-proposers"
+    relationship_id: "builder-bundle-sender-workers-calls-builder-bundle-proposers"
+    label: "Builder assembles a candidate bundle and re-simulates it."
+    sync_async: "sync"
+    data_objects:
+      - "bundle proposal request"
+      - "candidate bundle"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-task"
+      - "ev-doc-builder"
+  - order: 7
+    source_id: "builder-bundle-proposers"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "builder-bundle-proposers-calls-evm-json-rpc-node"
+    label: "Builder validates the candidate bundle against the chain and drops invalid operations."
+    sync_async: "sync"
+    data_objects:
+      - "bundle simulation"
+      - "entry point call"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-task"
+      - "ev-doc-builder"
+  - order: 8
+    source_id: "builder-bundle-sender-workers"
+    target_id: "builder-signer-manager"
+    relationship_id: "builder-bundle-sender-workers-calls-builder-signer-manager"
+    label: "The worker leases a signer identity for the transaction attempt."
+    sync_async: "sync"
+    data_objects:
+      - "signer lease"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-task"
+      - "ev-cli-signer"
+  - order: 9
+    source_id: "builder-bundle-sender-workers"
+    target_id: "builder-transaction-tracker"
+    relationship_id: "builder-bundle-sender-workers-calls-builder-transaction-tracker"
+    label: "Tracker submits the bundle transaction and monitors it for mining, replacement, or cancellation."
+    sync_async: "sync"
+    data_objects:
+      - "bundle transaction"
+      - "attempt metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-bundle-sender"
+      - "ev-doc-builder"
+  - order: 10
+    source_id: "builder-transaction-tracker"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "builder-transaction-tracker-calls-evm-json-rpc-node"
+    label: "Tracker sends or monitors the raw transaction on the configured chain endpoint."
+    sync_async: "sync"
+    data_objects:
+      - "raw transaction"
+      - "transaction receipt"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-bundle-sender"
+      - "ev-doc-builder"
+  - order: 11
+    source_id: "builder-bundle-sender-workers"
+    target_id: "pool-api"
+    relationship_id: "builder-bundle-sender-workers-calls-pool-api"
+    label: "Builder notifies Pool about pending bundle state and removes invalidated operations discovered during bundle formation."
+    sync_async: "sync"
+    data_objects:
+      - "pending bundle notification"
+      - "remove operations request"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-bundle-sender"
+      - "ev-pool-proto"
+assumptions:
+  - text: "This sequence uses direct chain submission as the canonical happy path; optional private relays plug into the same submission step."
+    confidence: "strong_inference"
+unknowns:
+  - "The exact scaling policy for number of workers per deployment is configurable, but the repo does not prescribe a canonical production value."
+notes:
+  - "Builder keeps the bundle loop state local, but Pool remains authoritative for the pending mempool and pending-bundle annotations."

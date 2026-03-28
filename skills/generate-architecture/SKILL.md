@@ -60,6 +60,7 @@ If the user specifies a different output path, honor it.
 - Prefer stable normalized names and IDs; reuse existing IDs in update mode.
 - Record unknowns instead of inventing answers.
 - Sequence views must reference elements already defined in the canonical model.
+- Do not reuse a forward-call relationship to represent a reply edge in a sequence view. If the step is a response path and no reverse relationship exists in the canonical model, omit `relationship_id` for that step.
 - Keep abstraction levels strict. Do not mix C4 levels in one view.
 - Treat data ownership and system-of-record information as first-class when applicable.
 - Model optional external infrastructure explicitly when it materially affects runtime behavior, but do not let configuration-gated adapters become primary containers unless they own core business state.
@@ -76,6 +77,9 @@ When signals conflict, trust them in this order:
 
 Do not let weak naming signals override runtime or contract evidence.
 If docs and runtime evidence diverge, model runtime truth, record the conflict in `unknowns` or `notes`, and avoid silently blending the two.
+If README-level claims conflict with stronger runtime evidence or more specific architecture docs, explicitly say so in `summary.md` or `unknowns` instead of silently averaging them together.
+
+Version and capability claims (supported protocol versions, feature coverage, API compatibility) must be verified against code artifacts — contract files, feature flags, protocol definitions, version constants — not documentation alone. If the model states "supports v0.6 and v0.7", the code must contain evidence for exactly those versions.
 
 ## Repo Archetype Branching
 
@@ -125,6 +129,7 @@ Create a short internal modeling ledger and keep it stable while you work. At mi
 - `stable_runtime_units`
 - `state_owners`
 - `optional_externals`
+- `plugin_mechanisms`: identified extension/plugin systems (e.g., custom senders, aggregators, middleware hooks) with an explicit in-scope or out-of-scope decision for each
 - `deployment_modes`
 - `out_of_scope`
 
@@ -163,6 +168,12 @@ Use a discovery budget:
 
 Do not keep reading files once additional scans are only repeating already-confirmed structure.
 
+Add an early path sanity check before writing anything:
+
+- verify the repository-under-test path you are modeling
+- verify the requested output path
+- ensure manifest scope paths and summary language refer to the actual repo-under-test path, not a copied or inferred placeholder
+
 ### 5. Identify repo archetype
 
 Determine which primary archetype best fits the repository. Base this on runtime and packaging evidence, not naming preference.
@@ -193,6 +204,28 @@ Classify each important data object as one of:
 
 If a dependency is configuration-gated and not required for baseline operation, model it as optional external infrastructure unless it owns core business state.
 
+When a component appears to submit work to an external system, inspect the transport layer before assigning the external relationship. Search for client, sender, adapter, transport, gateway, or relay abstractions so you do not over-attribute transport behavior to an orchestrator, tracker, or controller that merely delegates into a lower layer.
+
+### 6b. Cross-cutting dependency analysis
+
+After identifying canonical elements, check which internal modules or crates are consumed by multiple runtime units. This catches shared infrastructure that crosses container boundaries.
+
+For each runtime unit (container), inspect its dependency declarations:
+
+- Rust: check `Cargo.toml` dependencies for references to other workspace crates
+- Node/TS: check `package.json` dependencies for workspace packages
+- Go: check `go.mod` or import paths for internal packages
+- Python: check imports of sibling packages
+- Java/Kotlin: check Gradle/Maven module dependencies
+
+For any internal module depended on by 2+ runtime units:
+
+- flag it as a shared module
+- decide whether to model it as a component under its primary consumer (with a note about shared usage) or as a standalone container/library element
+- ensure relationships from all consumers are represented in the model
+
+This step prevents the common mistake of attributing a shared module to only one container while other containers silently depend on it.
+
 ### 7. Identify relationships and critical workflows
 
 For each important path, identify:
@@ -210,6 +243,9 @@ Critical workflows usually include:
 - authentication or identity path
 - primary business transaction
 - background processing or async propagation
+- any path that involves external system dependencies not visible in the container view (e.g., an API layer performing computation against an external system beyond simple routing)
+
+API/RPC containers are frequently assumed to be stateless thin proxies. Do not accept this assumption without checking the container's actual dependencies. If an API layer performs computation (validation, estimation, transformation, simulation) beyond routing, model those dependencies explicitly.
 
 Before writing views, do a relationship preflight. For each important relationship, note:
 
@@ -219,6 +255,8 @@ Before writing views, do a relationship preflight. For each important relationsh
 - allowed view types
 
 If the relationship would force mixed abstraction levels in a view, change the model or use a different view.
+
+For config-gated behavior, record that conditionality explicitly. If a relationship depends on enabled namespaces, feature flags, optional integrations, or deployment mode, preserve the relationship in the canonical model when it is real, but call out the condition in view notes, assumptions, or unknowns instead of implying the traffic is always active.
 
 ### 8. Cross-check operational reality
 
@@ -256,6 +294,7 @@ Operational view rules:
 - Component views may include components from exactly one parent container plus peer containers or external systems when needed for context.
 - Component views must never include components from multiple parent containers.
 - If a relationship references a foreign component, replace that foreign component with its parent container in the view.
+- For sequence views, check each step against canonical relationship direction. Request steps may reference a matching relationship ID; response steps should either reference a reverse relationship that exists in the model or omit `relationship_id`.
 
 ### 11. Write summary and diff artifacts
 
@@ -279,10 +318,13 @@ Run a lightweight consistency pass after generation. At minimum verify:
 - every relationship ID referenced by a view exists in `model.yaml`
 - every sequence participant exists in `model.yaml`
 - every sequence step source/target exists in `model.yaml`
+- every sequence step that includes `relationship_id` uses a relationship whose direction matches the step source and target
 - component views contain components from only one parent container
 - system-context and container views contain only allowed kinds
 - deployment placements reference declared deployment nodes and existing deployable/container elements
 - views do not reference relationships whose endpoints are absent from that view
+- manifest scope paths match the actual repository-under-test path and output location supplied for the run
+- for each container, its declared relationships account for its actual code dependencies on other containers' internal modules (cross-check dependency manifests against modeled relationships)
 
 If validation fails, fix the artifacts before completing the task.
 

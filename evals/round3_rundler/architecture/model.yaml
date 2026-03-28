@@ -1,0 +1,868 @@
+version: 2
+system_name: "Rundler"
+repo_archetype: "modular_monolith"
+elements:
+  # === Context-level ===
+  - id: "rundler-system"
+    name: "Rundler"
+    aliases: ["bundler"]
+    kind: "software_system"
+    c4_level: "context"
+    description: "High-performance ERC-4337 bundler that validates, pools, and submits user operation bundles to EVM chains."
+    responsibility: "Accept user operations via JSON-RPC, validate and pool them, build bundles, and submit bundle transactions on-chain."
+    technology: "Rust"
+    owned_data: ["user_operations_mempool", "entity_reputation"]
+    system_of_record: ["user_operation_lifecycle"]
+    runtime_boundary: "process"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["bin/rundler/", "crates/"]
+    tags: ["erc4337", "bundler"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-readme", "ev-cargo-workspace", "ev-dockerfile"]
+
+  - id: "dapp-user"
+    name: "DApp / Wallet User"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "End user or smart account wallet submitting user operations via a DApp."
+    responsibility: "Submits ERC-4337 user operations to the bundler's RPC endpoint."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: []
+    tags: []
+    confidence: "strong_inference"
+    evidence_ids: ["ev-rpc-doc"]
+
+  - id: "evm-node"
+    name: "EVM Full Node"
+    aliases: ["eth-node", "json-rpc-provider"]
+    kind: "external_system"
+    c4_level: "context"
+    description: "Ethereum-compatible full node providing JSON-RPC access for chain state, simulation (debug_traceCall), and transaction submission."
+    responsibility: "Provides blockchain state, executes simulations, accepts raw transactions."
+    technology: "Ethereum JSON-RPC"
+    owned_data: ["blockchain_state"]
+    system_of_record: ["blockchain"]
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: []
+    tags: ["ethereum", "json-rpc"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-provider-crate", "ev-pool-doc"]
+
+  - id: "entrypoint-contract"
+    name: "EntryPoint Contract"
+    aliases: ["entry-point"]
+    kind: "external_system"
+    c4_level: "context"
+    description: "ERC-4337 EntryPoint smart contract (v0.6, v0.7, v0.8, and v0.9) that validates and executes user operation bundles on-chain."
+    responsibility: "On-chain validation and execution of user operation bundles via handleOps."
+    technology: "Solidity / EVM"
+    owned_data: ["on_chain_user_operations"]
+    system_of_record: ["user_operation_execution"]
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["crates/contracts/"]
+    tags: ["erc4337", "smart-contract"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-contracts-crate", "ev-entrypoint-doc"]
+
+  - id: "aws-kms"
+    name: "AWS KMS"
+    aliases: []
+    kind: "external_system"
+    c4_level: "context"
+    description: "AWS Key Management Service used for transaction signing in production deployments."
+    responsibility: "Securely sign bundle transactions without exposing private keys."
+    technology: "AWS KMS"
+    owned_data: ["signing_keys"]
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["crates/signer/src/aws.rs"]
+    tags: ["signing", "aws"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-signer-aws", "ev-builder-doc"]
+
+  - id: "redis"
+    name: "Redis"
+    aliases: []
+    kind: "external_system"
+    c4_level: "context"
+    description: "Redis instance used for KMS key leasing to prevent nonce collisions across distributed builder workers."
+    responsibility: "Distributed lock coordination for KMS key leasing."
+    technology: "Redis"
+    owned_data: ["key_leases"]
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["crates/signer/src/aws.rs"]
+    tags: ["distributed-lock"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-signer-redis", "ev-builder-doc"]
+
+  - id: "flashbots-relay"
+    name: "Flashbots Protect"
+    aliases: []
+    kind: "external_system"
+    c4_level: "context"
+    description: "Flashbots Protect RPC endpoint for private bundle submission on Ethereum mainnet."
+    responsibility: "Private transaction submission to avoid frontrunning."
+    technology: "HTTPS"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["crates/builder/src/sender/flashbots.rs"]
+    tags: ["mev-protection"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-flashbots-sender", "ev-builder-doc"]
+
+  # === Container-level ===
+  - id: "rpc-task"
+    name: "RPC Server"
+    aliases: ["rpc"]
+    kind: "container"
+    c4_level: "container"
+    description: "JSON-RPC server implementing ERC-4337 eth_, debug_, rundler_, and admin_ namespaces. Performs gas estimation via simulation against the EVM node. Main API surface for external clients."
+    responsibility: "Accept user operations, estimate gas, query operation status, expose debug/admin endpoints."
+    technology: "Rust / jsonrpsee"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: "rundler-system"
+    source_paths: ["crates/rpc/"]
+    tags: ["api", "json-rpc"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-crate", "ev-rpc-doc", "ev-cli-subcommands"]
+
+  - id: "pool-task"
+    name: "Pool (Mempool)"
+    aliases: ["pool", "op-pool", "mempool"]
+    kind: "container"
+    c4_level: "container"
+    description: "User operation mempool that validates, simulates, and stores pending user operations. Tracks chain state and handles reorgs."
+    responsibility: "Validate incoming UOs via simulation, maintain in-memory mempool, track entity reputation, handle chain reorgs."
+    technology: "Rust / tokio"
+    owned_data: ["user_operations_mempool", "entity_reputation", "mined_uo_cache", "paymaster_balances"]
+    system_of_record: ["user_operation_lifecycle"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: "rundler-system"
+    source_paths: ["crates/pool/"]
+    tags: ["mempool", "stateful"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-crate", "ev-pool-doc", "ev-cli-subcommands"]
+
+  - id: "builder-task"
+    name: "Builder"
+    aliases: ["bundle-builder"]
+    kind: "container"
+    c4_level: "container"
+    description: "Bundle construction engine that selects UOs from the pool, re-simulates, builds bundles, signs and submits transactions, and tracks their mining status."
+    responsibility: "Build profitable bundles from pooled UOs, sign transactions, submit on-chain, handle cancellations."
+    technology: "Rust / tokio"
+    owned_data: ["pending_bundle_state"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: "rundler-system"
+    source_paths: ["crates/builder/"]
+    tags: ["bundle-building", "stateful"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-crate", "ev-builder-doc", "ev-cli-subcommands"]
+
+  # === Component-level: Pool ===
+  - id: "pool-simulation"
+    name: "Simulation Engine"
+    aliases: ["sim"]
+    kind: "component"
+    c4_level: "component"
+    description: "Validates and simulates user operations using debug_traceCall per ERC-4337 rules. Used by Pool for admission validation, by RPC for gas estimation, and by Builder for re-simulation. Placed under Pool as primary consumer."
+    responsibility: "Precheck and simulate user operations, enforce validation rules."
+    technology: "Rust"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "pool-task"
+    source_paths: ["crates/sim/"]
+    tags: ["simulation", "validation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-sim-crate", "ev-pool-doc"]
+
+  - id: "pool-chain-tracker"
+    name: "Chain Tracker"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Tracks chain progression via the EVM node, detects new blocks, mined UOs, and chain reorgs."
+    responsibility: "Monitor chain state and notify the pool of block events and reorgs."
+    technology: "Rust"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "pool-task"
+    source_paths: ["crates/pool/src/chain.rs"]
+    tags: ["chain-tracking"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-chain", "ev-pool-doc"]
+
+  - id: "pool-reputation"
+    name: "Reputation Manager"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Tracks entity reputation per ERC-4337 spec, with configurable allowlists and blocklists."
+    responsibility: "Score, throttle, and ban entities based on on-chain behavior."
+    technology: "Rust"
+    owned_data: ["entity_reputation"]
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "pool-task"
+    source_paths: ["crates/pool/src/mempool/"]
+    tags: ["reputation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-doc"]
+
+  - id: "pool-server"
+    name: "Pool Server"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Server interface for the pool task, supporting both local in-process and remote gRPC communication modes."
+    responsibility: "Expose pool operations to RPC and Builder via local channels or gRPC."
+    technology: "Rust / tonic (gRPC)"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "pool-task"
+    source_paths: ["crates/pool/src/server/"]
+    tags: ["server", "grpc"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-server"]
+
+  # === Component-level: Builder ===
+  - id: "builder-assigner"
+    name: "Assigner"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Coordinates work distribution among bundle sender workers, selecting entrypoints and preventing sender conflicts."
+    responsibility: "Assign entrypoints to workers with priority-based selection and starvation prevention."
+    technology: "Rust"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "builder-task"
+    source_paths: ["crates/builder/src/assigner.rs"]
+    tags: ["scheduling"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-assigner", "ev-builder-doc"]
+
+  - id: "builder-proposer"
+    name: "Bundle Proposer"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Constructs valid bundles by filtering UOs for profitability, re-simulating, and computing aggregated signatures."
+    responsibility: "Build candidate bundles from assigned UOs, enforce gas limits and fees."
+    technology: "Rust"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "builder-task"
+    source_paths: ["crates/builder/src/bundle_proposer.rs"]
+    tags: ["bundle-construction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-proposer", "ev-builder-doc"]
+
+  - id: "builder-sender"
+    name: "Bundle Sender (State Machine)"
+    aliases: ["bundle-sender"]
+    kind: "component"
+    c4_level: "component"
+    description: "State machine that drives the bundle lifecycle: Building -> Pending -> Cancelling -> CancelPending. Each worker runs one instance."
+    responsibility: "Submit bundles, track mining status, handle cancellations and resubmissions."
+    technology: "Rust"
+    owned_data: ["pending_bundle_state"]
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "builder-task"
+    source_paths: ["crates/builder/src/bundle_sender.rs"]
+    tags: ["state-machine"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-sender", "ev-builder-doc"]
+
+  - id: "builder-tx-sender"
+    name: "Transaction Sender"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Pluggable transaction submission backend supporting raw eth_sendRawTransaction, Flashbots, Polygon Bloxroute, and Polygon private submission."
+    responsibility: "Submit signed bundle transactions to the network via the configured sender implementation."
+    technology: "Rust"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "builder-task"
+    source_paths: ["crates/builder/src/sender/"]
+    tags: ["transaction-submission"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-sender-dir", "ev-builder-doc"]
+
+  - id: "builder-signer"
+    name: "Signer Manager"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Manages transaction signing keys. Supports local private key, mnemonic, and AWS KMS with Redis-based key leasing."
+    responsibility: "Lease signing keys to workers, sign bundle transactions."
+    technology: "Rust"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "builder-task"
+    source_paths: ["crates/signer/"]
+    tags: ["signing", "key-management"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-signer-crate", "ev-builder-doc"]
+
+  - id: "builder-server"
+    name: "Builder Server"
+    aliases: []
+    kind: "component"
+    c4_level: "component"
+    description: "Server interface for the builder task, supporting both local in-process and remote gRPC communication modes."
+    responsibility: "Expose builder control (debug mode, manual bundling) to RPC via local channels or gRPC."
+    technology: "Rust / tonic (gRPC)"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "internal_module"
+    deployable: false
+    external: false
+    parent_id: "builder-task"
+    source_paths: ["crates/builder/src/server/"]
+    tags: ["server", "grpc"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-server"]
+
+  # === Deployment nodes ===
+  - id: "deploy-docker"
+    name: "Docker Container"
+    aliases: []
+    kind: "deployment_node"
+    c4_level: "deployment"
+    description: "Docker container running the rundler binary. Exposes ports 3000 (RPC) and 8080 (metrics)."
+    responsibility: "Runtime container for Rundler."
+    technology: "Docker / Ubuntu"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "network_zone"
+    deployable: false
+    external: false
+    parent_id: ""
+    source_paths: ["Dockerfile"]
+    tags: ["docker"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-dockerfile"]
+
+relationships:
+  # Context-level
+  - id: "rel-user-rpc"
+    source_id: "dapp-user"
+    target_id: "rpc-task"
+    label: "Submits user operations and queries status"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["UserOperation", "GasEstimate", "OperationReceipt"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-doc"]
+
+  - id: "rel-rpc-pool"
+    source_id: "rpc-task"
+    target_id: "pool-task"
+    label: "Submits validated UOs to mempool and queries UO status"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme", "ev-node-mod"]
+
+  - id: "rel-rpc-builder"
+    source_id: "rpc-task"
+    target_id: "builder-task"
+    label: "Controls bundling mode and triggers manual bundles (debug_ namespace)"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: []
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme"]
+
+  - id: "rel-builder-pool"
+    source_id: "builder-task"
+    target_id: "pool-task"
+    label: "Subscribes to block updates, fetches UOs for bundling, reports failed UOs"
+    interaction_type: "calls"
+    directionality: "bidirectional"
+    sync_async: "async"
+    protocol: "in_process"
+    data_objects: ["UserOperation", "BlockUpdate"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme", "ev-builder-doc"]
+
+  - id: "rel-pool-evm"
+    source_id: "pool-task"
+    target_id: "evm-node"
+    label: "Simulates UOs via debug_traceCall, tracks chain state"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["TraceResult", "Block", "Receipt"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-doc", "ev-provider-crate"]
+
+  - id: "rel-rpc-evm"
+    source_id: "rpc-task"
+    target_id: "evm-node"
+    label: "Estimates gas via simulation against EVM node"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["GasEstimate", "TraceResult"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-sim-dep"]
+
+  - id: "rel-builder-evm"
+    source_id: "builder-task"
+    target_id: "evm-node"
+    label: "Submits bundle transactions via eth_sendRawTransaction"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["SignedTransaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc", "ev-raw-sender"]
+
+  - id: "rel-builder-entrypoint"
+    source_id: "builder-task"
+    target_id: "entrypoint-contract"
+    label: "Calls handleOps to execute bundles on-chain"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["BundleTransaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc", "ev-contracts-crate"]
+
+  - id: "rel-signer-kms"
+    source_id: "builder-signer"
+    target_id: "aws-kms"
+    label: "Signs bundle transactions using KMS-managed keys"
+    interaction_type: "authenticates_with"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["SignatureRequest"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-signer-aws"]
+
+  - id: "rel-signer-redis"
+    source_id: "builder-signer"
+    target_id: "redis"
+    label: "Leases KMS keys to prevent nonce collisions"
+    interaction_type: "reads"
+    directionality: "bidirectional"
+    sync_async: "sync"
+    protocol: ""
+    data_objects: ["KeyLease"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-signer-redis"]
+
+  - id: "rel-builder-flashbots"
+    source_id: "builder-tx-sender"
+    target_id: "flashbots-relay"
+    label: "Submits bundles privately via Flashbots Protect"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["BundleTransaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-flashbots-sender"]
+
+  # Component-level (Pool)
+  - id: "rel-pool-server-sim"
+    source_id: "pool-server"
+    target_id: "pool-simulation"
+    label: "Validates and simulates incoming UOs"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["UserOperation"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-pool-doc"]
+
+  - id: "rel-pool-server-reputation"
+    source_id: "pool-server"
+    target_id: "pool-reputation"
+    label: "Checks and updates entity reputation"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["EntityReputation"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-pool-doc"]
+
+  - id: "rel-chain-tracker-evm"
+    source_id: "pool-chain-tracker"
+    target_id: "evm-node"
+    label: "Polls for new blocks and mined UOs"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["Block", "Receipt"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-doc"]
+
+  # Component-level (Builder)
+  - id: "rel-sender-assigner"
+    source_id: "builder-sender"
+    target_id: "builder-assigner"
+    label: "Requests work assignment for next bundle cycle"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["Assignment"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+
+  - id: "rel-sender-proposer"
+    source_id: "builder-sender"
+    target_id: "builder-proposer"
+    label: "Requests bundle construction from assigned UOs"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["Bundle"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+
+  - id: "rel-sender-signer"
+    source_id: "builder-sender"
+    target_id: "builder-signer"
+    label: "Signs bundle transactions"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["SignedTransaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+
+  - id: "rel-sender-txsender"
+    source_id: "builder-sender"
+    target_id: "builder-tx-sender"
+    label: "Submits signed bundle transaction"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "in_process"
+    data_objects: ["SignedTransaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+
+  # Distributed mode relationships
+  - id: "rel-rpc-pool-grpc"
+    source_id: "rpc-task"
+    target_id: "pool-task"
+    label: "Calls pool via gRPC in distributed mode"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "grpc"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme", "ev-pool-remote"]
+
+  - id: "rel-rpc-builder-grpc"
+    source_id: "rpc-task"
+    target_id: "builder-task"
+    label: "Calls builder via gRPC in distributed mode"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "grpc"
+    data_objects: []
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme", "ev-builder-remote"]
+
+  # Deployment
+  - id: "rel-deploy-rundler"
+    source_id: "deploy-docker"
+    target_id: "rundler-system"
+    label: "Runs Rundler binary"
+    interaction_type: "deploys_to"
+    directionality: "unidirectional"
+    sync_async: "n_a"
+    protocol: ""
+    data_objects: []
+    confidence: "confirmed"
+    evidence_ids: ["ev-dockerfile"]
+
+evidence:
+  - id: "ev-readme"
+    path: "README.md"
+    kind: "doc"
+    strength: "high"
+    reason: "States Rundler is a high-performance ERC-4337 bundler in Rust, built by Alchemy."
+
+  - id: "ev-cargo-workspace"
+    path: "Cargo.toml"
+    kind: "runtime_entrypoint"
+    strength: "high"
+    reason: "Workspace manifest defining all crates and the single binary entrypoint."
+
+  - id: "ev-dockerfile"
+    path: "Dockerfile"
+    kind: "deploy_config"
+    strength: "high"
+    reason: "Docker build producing a single rundler binary, exposing ports 3000 (RPC) and 8080 (metrics)."
+
+  - id: "ev-arch-readme"
+    path: "docs/architecture/README.md"
+    kind: "doc"
+    strength: "high"
+    reason: "Describes three main tasks (RPC, Pool, Builder) and their communication patterns."
+
+  - id: "ev-rpc-doc"
+    path: "docs/architecture/rpc.md"
+    kind: "doc"
+    strength: "high"
+    reason: "Documents RPC namespaces: eth_, debug_, rundler_, admin_."
+
+  - id: "ev-pool-doc"
+    path: "docs/architecture/pool.md"
+    kind: "doc"
+    strength: "high"
+    reason: "Documents pool simulation, reputation tracking, chain tracking, and reorg handling."
+
+  - id: "ev-builder-doc"
+    path: "docs/architecture/builder.md"
+    kind: "doc"
+    strength: "high"
+    reason: "Documents bundle sender state machine, proposer, signer sharing, transaction senders."
+
+  - id: "ev-entrypoint-doc"
+    path: "docs/architecture/entry_point.md"
+    kind: "doc"
+    strength: "medium"
+    reason: "Documents supported EntryPoint contract versions (v0.6, v0.7, v0.8, v0.9)."
+
+  - id: "ev-cli-subcommands"
+    path: "bin/rundler/src/cli/mod.rs"
+    kind: "runtime_entrypoint"
+    strength: "high"
+    reason: "CLI defines subcommands: node (all-in-one), pool, builder, rpc, backend, admin."
+
+  - id: "ev-node-mod"
+    path: "bin/rundler/src/cli/node/mod.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Node mode spawns Pool, Builder, and RPC tasks in a single process with local message passing."
+
+  - id: "ev-rpc-crate"
+    path: "crates/rpc/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "RPC crate implementing JSON-RPC server with jsonrpsee."
+
+  - id: "ev-pool-crate"
+    path: "crates/pool/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Pool crate implementing user operation mempool."
+
+  - id: "ev-builder-crate"
+    path: "crates/builder/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Builder crate implementing bundle construction and submission."
+
+  - id: "ev-sim-crate"
+    path: "crates/sim/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Simulation crate for UO validation and gas estimation."
+
+  - id: "ev-provider-crate"
+    path: "crates/provider/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Provider crate abstracting EVM node interactions via alloy."
+
+  - id: "ev-signer-crate"
+    path: "crates/signer/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Signer crate with local, mnemonic, and AWS KMS signing implementations."
+
+  - id: "ev-contracts-crate"
+    path: "crates/contracts/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Contract bindings for EntryPoint v0.6, v0.7, v0.8, v0.9."
+
+  - id: "ev-signer-aws"
+    path: "crates/signer/src/aws.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "AWS KMS signer with Redis-based key leasing for distributed deployments."
+
+  - id: "ev-signer-redis"
+    path: "crates/signer/src/aws.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Redis LockManager used for KMS key lease coordination."
+
+  - id: "ev-flashbots-sender"
+    path: "crates/builder/src/sender/flashbots.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Flashbots transaction sender implementation."
+
+  - id: "ev-raw-sender"
+    path: "crates/builder/src/sender/raw.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Raw eth_sendRawTransaction sender implementation."
+
+  - id: "ev-pool-server"
+    path: "crates/pool/src/server/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Pool server with local and remote (gRPC) implementations."
+
+  - id: "ev-builder-server"
+    path: "crates/builder/src/server/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Builder server with local and remote (gRPC) implementations."
+
+  - id: "ev-pool-remote"
+    path: "crates/pool/src/server/remote/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "gRPC client/server for remote pool access."
+
+  - id: "ev-builder-remote"
+    path: "crates/builder/src/server/remote/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "gRPC client/server for remote builder access."
+
+  - id: "ev-pool-chain"
+    path: "crates/pool/src/chain.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Chain tracker module in pool crate."
+
+  - id: "ev-builder-assigner"
+    path: "crates/builder/src/assigner.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Assigner module for work distribution among builder workers."
+
+  - id: "ev-builder-proposer"
+    path: "crates/builder/src/bundle_proposer.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Bundle proposer module for constructing valid bundles."
+
+  - id: "ev-builder-sender"
+    path: "crates/builder/src/bundle_sender.rs"
+    kind: "code_path"
+    strength: "high"
+    reason: "Bundle sender state machine implementation."
+
+  - id: "ev-builder-sender-dir"
+    path: "crates/builder/src/sender/"
+    kind: "directory_name"
+    strength: "high"
+    reason: "Transaction sender implementations: raw, flashbots, bloxroute, polygon_private."
+
+  - id: "ev-rpc-sim-dep"
+    path: "crates/rpc/Cargo.toml"
+    kind: "code_path"
+    strength: "high"
+    reason: "RPC crate depends on rundler-sim for gas estimation, which calls the EVM node directly."
+
+  - id: "ev-docker-release"
+    path: ".github/workflows/docker-release.yaml"
+    kind: "deploy_config"
+    strength: "medium"
+    reason: "Docker image published as alchemyplatform/rundler on tag push."
+
+unknowns:
+  - "P2P mempool protocol is mentioned as future work in README but not yet implemented."
+  - "Exact Redis deployment topology for KMS key leasing is not specified in the repo."
+
+assumptions:
+  - "In production (Alchemy cloud), Rundler likely runs in distributed mode with separate RPC, Pool, and Builder processes communicating via gRPC."
+  - "The 'backend' CLI command (pool + builder with gRPC) is used as a deployment unit behind a separate RPC gateway."
+  - "Redis is only required when using AWS KMS signing in a multi-worker setup."
+  - "S3 dependency in bin/rundler Cargo.toml (aws-sdk-s3) is used for loading JSON config files from S3 buckets (see bin/rundler/src/cli/json.rs)."

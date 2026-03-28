@@ -1,0 +1,23 @@
+version: 2
+id: "view-deployment"
+type: "deployment"
+title: "Rundler Deployment Topology"
+audience: ["senior_architects"]
+purpose: "How is Rundler deployed and what are the supported deployment modes?"
+scope: "Docker container deployment with monolithic and distributed modes."
+source_model: "architecture/model.yaml"
+deployment_node_ids:
+  - "deploy-docker"
+placement:
+  - node_id: "deploy-docker"
+    element_id: "rundler-system"
+assumptions:
+  - "In Alchemy's cloud, Rundler likely runs in distributed mode with separate processes for RPC (stateless, horizontally scalable) and Backend (Pool + Builder, stateful)."
+  - "Docker image published as alchemyplatform/rundler to Docker Hub/GHCR on tag releases."
+unknowns:
+  - "Exact cloud orchestration (Kubernetes, ECS, etc.) is not specified in the repo."
+  - "Number of RPC replicas and builder workers in production is not documented."
+notes:
+  - "Single binary supports multiple deployment modes via CLI subcommands: 'node' (all-in-one), 'rpc' (standalone), 'pool' (standalone), 'builder' (standalone), 'backend' (pool+builder with gRPC)."
+  - "Ports: 3000 (JSON-RPC), 8080 (Prometheus metrics)."
+  - "Distributed mode uses gRPC (tonic) for inter-task communication; pool and builder each expose gRPC servers."

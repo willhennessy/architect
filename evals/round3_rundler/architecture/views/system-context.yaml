@@ -1,0 +1,31 @@
+version: 2
+id: "view-system-context"
+type: "system_context"
+title: "Rundler System Context"
+audience: ["new_hires", "pms", "senior_architects"]
+purpose: "What external actors and systems does Rundler interact with?"
+scope: "Rundler as a whole, its users, and external dependencies."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "rundler-system"
+  - "dapp-user"
+  - "evm-node"
+  - "entrypoint-contract"
+  - "aws-kms"
+  - "redis"
+  - "flashbots-relay"
+relationship_ids:
+  - "rel-user-rpc"
+  - "rel-rpc-evm"
+  - "rel-pool-evm"
+  - "rel-builder-evm"
+  - "rel-builder-entrypoint"
+  - "rel-signer-kms"
+  - "rel-signer-redis"
+  - "rel-builder-flashbots"
+assumptions:
+  - "DApp users interact exclusively via JSON-RPC; no direct mempool access."
+unknowns:
+  - "Future P2P mempool protocol will add bundler-to-bundler communication."
+notes:
+  - "Flashbots and Redis are conditionally used depending on deployment configuration."

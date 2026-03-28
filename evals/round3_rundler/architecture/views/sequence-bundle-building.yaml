@@ -1,0 +1,74 @@
+version: 2
+id: "view-seq-bundle-building"
+type: "sequence"
+title: "Bundle Building and Submission Flow"
+audience: ["senior_architects"]
+purpose: "How does the Builder construct and submit a bundle transaction?"
+scope: "From new block trigger through bundle construction, signing, submission, and mining confirmation."
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "pool-task"
+  - "builder-task"
+  - "evm-node"
+  - "entrypoint-contract"
+steps:
+  - order: 1
+    source_id: "pool-task"
+    target_id: "builder-task"
+    relationship_id: "rel-builder-pool"
+    label: "New block event triggers bundle building cycle"
+    sync_async: "async"
+    data_objects: ["BlockUpdate"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+  - order: 2
+    source_id: "builder-task"
+    target_id: "pool-task"
+    relationship_id: "rel-builder-pool"
+    label: "Request work assignment, then fetch most valuable UOs"
+    sync_async: "sync"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc", "ev-arch-readme"]
+  - order: 3
+    source_id: "builder-task"
+    target_id: "evm-node"
+    relationship_id: "rel-builder-evm"
+    label: "Re-simulate candidate UOs (2nd simulation), validate bundle via eth_call"
+    sync_async: "sync"
+    data_objects: ["SimulationResult"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+  - order: 4
+    source_id: "builder-task"
+    target_id: "pool-task"
+    relationship_id: "rel-builder-pool"
+    label: "Report UOs that failed 2nd simulation for removal"
+    sync_async: "sync"
+    data_objects: ["FailedUserOperations"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme"]
+  - order: 5
+    source_id: "builder-task"
+    target_id: "evm-node"
+    relationship_id: "rel-builder-evm"
+    label: "Sign and submit bundle transaction (handleOps call to EntryPoint)"
+    sync_async: "sync"
+    data_objects: ["SignedTransaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+  - order: 6
+    source_id: "builder-task"
+    target_id: "evm-node"
+    relationship_id: "rel-builder-evm"
+    label: "Track transaction until mined, dropped, or abandoned"
+    sync_async: "async"
+    data_objects: ["TransactionReceipt"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-builder-doc"]
+assumptions:
+  - "Signing step uses whichever signer is configured (local key, mnemonic, or KMS)."
+unknowns: []
+notes:
+  - "If the bundle transaction is stuck (replacement underpriced), the sender enters Cancelling state after max_replacement_underpriced_blocks."
+  - "Bundle construction is iterative: UOs failing eth_call validation are removed and the bundle is re-validated."

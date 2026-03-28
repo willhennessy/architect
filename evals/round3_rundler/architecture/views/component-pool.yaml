@@ -1,0 +1,25 @@
+version: 2
+id: "view-component-pool"
+type: "component"
+title: "Pool (Mempool) Components"
+parent_container_id: "pool-task"
+audience: ["senior_architects"]
+purpose: "What are the internal responsibilities within the Pool task?"
+scope: "Components inside the Pool container and their interactions with external systems."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "pool-simulation"
+  - "pool-chain-tracker"
+  - "pool-reputation"
+  - "pool-server"
+  - "evm-node"
+relationship_ids:
+  - "rel-pool-server-sim"
+  - "rel-pool-server-reputation"
+  - "rel-chain-tracker-evm"
+  - "rel-pool-evm"
+assumptions: []
+unknowns: []
+notes:
+  - "The simulation engine uses the sim crate which is a separate Cargo crate but runs in-process within the Pool task."
+  - "Pool server supports both local (in-process channel) and remote (gRPC) modes."

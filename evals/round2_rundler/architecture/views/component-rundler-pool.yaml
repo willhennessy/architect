@@ -1,0 +1,38 @@
+version: 2
+id: "component-rundler-pool"
+type: "component"
+title: "Rundler Pool Components"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show which internal modules make the Pool the stateful boundary of the system."
+scope: "Internal modules inside the Rundler Pool container plus their direct dependencies"
+source_model: "architecture/model.yaml"
+parent_container_id: "rundler-pool"
+element_ids:
+  - "pool-api"
+  - "pool-chain-watcher"
+  - "pool-validation-pipeline"
+  - "pool-user-operation-mempools"
+  - "pool-reputation-manager"
+  - "pool-paymaster-tracker"
+  - "rundler-rpc"
+  - "rundler-builder"
+  - "evm-json-rpc-node"
+relationship_ids:
+  - "rundler-rpc-calls-pool-api"
+  - "rundler-builder-calls-pool-api"
+  - "pool-api-publishes-to-rundler-builder"
+  - "pool-api-calls-pool-validation-pipeline"
+  - "pool-api-calls-pool-user-operation-mempools"
+  - "pool-chain-watcher-calls-evm-json-rpc-node"
+  - "pool-chain-watcher-updates-pool-user-operation-mempools"
+  - "pool-validation-pipeline-calls-evm-json-rpc-node"
+  - "pool-validation-pipeline-stores-in-pool-user-operation-mempools"
+  - "pool-user-operation-mempools-calls-pool-reputation-manager"
+  - "pool-user-operation-mempools-calls-pool-paymaster-tracker"
+assumptions: []
+unknowns:
+  - "Pool state is modeled as purely in-memory because the repo does not define a persistent store for it."
+notes:
+  - "Each enabled entry point gets its own in-memory mempool, but chain tracking and API ingress are shared."

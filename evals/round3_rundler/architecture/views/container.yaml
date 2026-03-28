@@ -1,0 +1,41 @@
+version: 2
+id: "view-container"
+type: "container"
+title: "Rundler Container View"
+audience: ["new_hires", "senior_architects"]
+purpose: "What are the major runtime units inside Rundler and how do they communicate?"
+scope: "The three core tasks (RPC, Pool, Builder) and their communication with external systems."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "rundler-system"
+  - "dapp-user"
+  - "evm-node"
+  - "entrypoint-contract"
+  - "aws-kms"
+  - "redis"
+  - "flashbots-relay"
+  - "rpc-task"
+  - "pool-task"
+  - "builder-task"
+relationship_ids:
+  - "rel-user-rpc"
+  - "rel-rpc-pool"
+  - "rel-rpc-builder"
+  - "rel-builder-pool"
+  - "rel-rpc-evm"
+  - "rel-pool-evm"
+  - "rel-builder-evm"
+  - "rel-builder-entrypoint"
+  - "rel-signer-kms"
+  - "rel-signer-redis"
+  - "rel-builder-flashbots"
+  - "rel-rpc-pool-grpc"
+  - "rel-rpc-builder-grpc"
+assumptions:
+  - "In 'node' mode all three tasks run in one process with in-memory message passing."
+  - "In distributed mode, Pool and Builder expose gRPC servers; RPC connects via gRPC clients."
+unknowns:
+  - "Exact scaling topology in Alchemy's production is not documented in the repo."
+notes:
+  - "The 'backend' CLI command bundles Pool + Builder into one process with gRPC endpoints, designed for a gateway pattern."
+  - "Communication protocol between tasks is configurable: in_process (local channels) or gRPC (distributed)."

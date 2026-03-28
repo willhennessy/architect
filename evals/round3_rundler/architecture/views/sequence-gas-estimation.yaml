@@ -1,0 +1,66 @@
+version: 2
+id: "sequence-gas-estimation"
+type: "sequence"
+title: "Gas Estimation Flow"
+audience:
+  - "senior_architects"
+  - "new_hires"
+purpose: "How eth_estimateUserOperationGas is processed"
+scope: "RPC gas estimation via simulation"
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "dapp-user"
+  - "rpc-task"
+  - "pool-simulation"
+  - "evm-node"
+steps:
+  - order: 1
+    source_id: "dapp-user"
+    target_id: "rpc-task"
+    relationship_id: "rel-user-rpc"
+    label: "Calls eth_estimateUserOperationGas"
+    sync_async: "sync"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-doc"]
+  - order: 2
+    source_id: "rpc-task"
+    target_id: "pool-simulation"
+    relationship_id: ""
+    label: "Invokes GasEstimator from sim crate"
+    sync_async: "sync"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-sim-dep"]
+  - order: 3
+    source_id: "pool-simulation"
+    target_id: "evm-node"
+    relationship_id: ""
+    label: "Runs binary search simulation via debug_traceCall"
+    sync_async: "sync"
+    data_objects: ["TraceResult"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-sim-crate"]
+  - order: 4
+    source_id: "pool-simulation"
+    target_id: "rpc-task"
+    relationship_id: ""
+    label: "Returns gas estimates"
+    sync_async: "sync"
+    data_objects: ["GasEstimate"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-sim-dep"]
+  - order: 5
+    source_id: "rpc-task"
+    target_id: "dapp-user"
+    relationship_id: ""
+    label: "Returns gas estimation result"
+    sync_async: "sync"
+    data_objects: ["GasEstimate"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-doc"]
+assumptions: []
+unknowns: []
+notes:
+  - "Gas estimation uses the sim crate directly from RPC, bypassing the Pool entirely."
+  - "This means RPC scaling requires EVM node capacity, not just Pool capacity."

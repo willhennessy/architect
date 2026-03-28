@@ -1,0 +1,35 @@
+version: 2
+id: "view-component-builder"
+type: "component"
+title: "Builder Components"
+parent_container_id: "builder-task"
+audience: ["senior_architects"]
+purpose: "What are the internal responsibilities within the Builder task?"
+scope: "Components inside the Builder container and their interactions with external systems."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "builder-assigner"
+  - "builder-proposer"
+  - "builder-sender"
+  - "builder-tx-sender"
+  - "builder-signer"
+  - "builder-server"
+  - "evm-node"
+  - "aws-kms"
+  - "redis"
+  - "flashbots-relay"
+relationship_ids:
+  - "rel-sender-assigner"
+  - "rel-sender-proposer"
+  - "rel-sender-signer"
+  - "rel-sender-txsender"
+  - "rel-signer-kms"
+  - "rel-signer-redis"
+  - "rel-builder-flashbots"
+  - "rel-builder-evm"
+assumptions: []
+unknowns: []
+notes:
+  - "Each worker runs one Bundle Sender state machine instance paired 1:1 with a leased signer."
+  - "The Assigner coordinates entrypoint selection across all workers with starvation prevention."
+  - "Transaction Sender is pluggable: raw, Flashbots, Bloxroute, Polygon private."

@@ -29,12 +29,12 @@ Do not write generated architecture files inside the repository under test.
 
 ## Naming Rules
 
-Determine `X` by scanning existing files in `evals/iterations/` that match `round*.md` and extracting the leading integer from `round(\d+)`.
+Determine `X` by scanning existing round output directories directly under `evals/` and extracting the leading integer from directory names matching `round(\d+)(?:_|$)`.
 
 Examples:
 
-- `evals/iterations/round1_rundler_0328.md` counts as round `1`
-- `evals/iterations/round2.md` counts as round `2`
+- `evals/round1_rundler/` counts as round `1`
+- `evals/round2/` counts as round `2`
 
 Use the next highest round number for both:
 
@@ -93,7 +93,7 @@ If a chosen candidate exceeds the size limit after inspection, discard it and ch
 
 Before touching a candidate repo:
 
-- find the next round number from `evals/iterations/`
+- find the next round number from existing `evals/round*` directories
 - compute the Rundler baseline using the filtered `rg --files` count defined in this skill
 
 Do not create the round output directory until the repository slug is known.
@@ -111,6 +111,8 @@ For the final candidate, confirm:
 After choosing the final candidate, create:
 
 - `evals/roundX_<repo>/`
+
+ALWAYS create this directory as soon as you choose the repo name.
 
 ### 3. Add the repository as a submodule
 

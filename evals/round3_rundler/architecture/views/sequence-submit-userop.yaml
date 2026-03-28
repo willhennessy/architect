@@ -1,0 +1,61 @@
+version: 2
+id: "view-seq-submit-userop"
+type: "sequence"
+title: "User Operation Submission Flow"
+audience: ["new_hires", "senior_architects"]
+purpose: "How does a user operation flow from submission to mempool acceptance?"
+scope: "eth_sendUserOperation RPC call through validation and pool admission."
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "dapp-user"
+  - "rpc-task"
+  - "pool-task"
+  - "evm-node"
+steps:
+  - order: 1
+    source_id: "dapp-user"
+    target_id: "rpc-task"
+    relationship_id: "rel-user-rpc"
+    label: "Call eth_sendUserOperation with UserOperation"
+    sync_async: "sync"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-doc"]
+  - order: 2
+    source_id: "rpc-task"
+    target_id: "pool-task"
+    relationship_id: "rel-rpc-pool"
+    label: "Submit UO to pool via add_operation"
+    sync_async: "sync"
+    data_objects: ["UserOperation"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-arch-readme"]
+  - order: 3
+    source_id: "pool-task"
+    target_id: "evm-node"
+    relationship_id: "rel-pool-evm"
+    label: "Run prechecks, then simulate UO via debug_traceCall"
+    sync_async: "sync"
+    data_objects: ["TraceCallRequest", "TraceResult"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-doc"]
+  - order: 4
+    source_id: "pool-task"
+    target_id: "rpc-task"
+    label: "Return validation result (accepted or rejected with reason)"
+    sync_async: "sync"
+    data_objects: ["ValidationResult"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-pool-doc"]
+  - order: 5
+    source_id: "rpc-task"
+    target_id: "dapp-user"
+    label: "Return UO hash or error"
+    sync_async: "sync"
+    data_objects: ["UserOperationHash"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-rpc-doc"]
+assumptions: []
+unknowns: []
+notes:
+  - "If validation fails (simulation violations, expired validUntil, banned entity), the UO is rejected immediately."
