@@ -1,7 +1,0 @@
-[Closes/Fixes] #
-
-## Proposed Changes
-
-  -
-  -
-  -
