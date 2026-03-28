@@ -1,3 +1,10 @@
 learning/
 .DS_STORE
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/generate-architecture
+!.agents/skills/run-architecture-eval
+.claude/*
+!.claude/skills/
+!.claude/skills/**

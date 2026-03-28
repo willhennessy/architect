@@ -16,3 +16,7 @@ When generating architecture artifacts for this repository:
 ## Scope
 
 These are repo-wide working rules. Detailed schemas, output formats, and step-by-step extraction procedures belong in the relevant skill files rather than here.
+
+## Repo-Local Skills
+
+Repo-local skills that should be auto-discovered by Codex or Claude live under `.agents/skills/` and `.claude/skills/`. Keep `skills/` as the source-of-truth for authored skill content, and expose repo-local installs from there.
