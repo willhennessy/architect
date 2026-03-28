@@ -1,0 +1,6 @@
+[submodule "evals/c4-model-example"]
+	path = evals/c4-model-example
+	url = https://github.com/godatadriven/c4-model-example.git
+[submodule "evals/rundler"]
+	path = evals/rundler
+	url = https://github.com/alchemyplatform/rundler.git

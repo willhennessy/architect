@@ -55,12 +55,14 @@ If the user specifies a different output path, honor it.
 - Build one canonical architecture model, then derive views from it.
 - Do not create separate inferred facts per view.
 - Distinguish source layout from runtime architecture.
+- Treat deployment modes and packaging modes separately from runtime roles. If the same runtime role can run collocated or split, model the role as the container and the collocation choice as deployment evidence.
 - Use explicit confidence levels: `confirmed`, `strong_inference`, `weak_inference`.
 - Prefer stable normalized names and IDs; reuse existing IDs in update mode.
 - Record unknowns instead of inventing answers.
 - Sequence views must reference elements already defined in the canonical model.
 - Keep abstraction levels strict. Do not mix C4 levels in one view.
 - Treat data ownership and system-of-record information as first-class when applicable.
+- Model optional external infrastructure explicitly when it materially affects runtime behavior, but do not let configuration-gated adapters become primary containers unless they own core business state.
 
 ## Evidence Hierarchy
 
@@ -73,6 +75,7 @@ When signals conflict, trust them in this order:
 5. Naming-only signals: directory names, package names, vague file names
 
 Do not let weak naming signals override runtime or contract evidence.
+If docs and runtime evidence diverge, model runtime truth, record the conflict in `unknowns` or `notes`, and avoid silently blending the two.
 
 ## Repo Archetype Branching
 
@@ -90,11 +93,13 @@ Apply these defaults:
 - `library_package`: produce a context view only if consumers are visible; prefer component/module views over container views.
 - `frontend_only_app`: one frontend container plus external APIs; add component views for state, routing, or domain modules only if meaningful.
 - `modular_monolith`: one deployable container; represent bounded modules as components; do not invent multiple containers unless runtime evidence supports them.
-- `service_oriented_backend`: system context and container views are usually mandatory; add component and sequence views selectively.
+- `service_oriented_backend`: always produce `model`, `manifest`, `summary`, `system-context`, and `container`; add component views only for containers with meaningful internal boundaries and sequence views only for critical workflows.
 - `full_stack_product`: context plus container views across frontend, backend, data, and external systems; add sequence views for critical user journeys.
-- `infrastructure_repo`: deployment view is usually primary; only create context/container views if the repo defines a runnable platform or control plane.
+- `infrastructure_repo`: always produce `model`, `manifest`, `summary`, and `deployment`; only create context/container views if the repo defines a runnable platform or control plane.
 
 If the correct answer is "this repo is a library, not a deployable system", say so and adjust outputs accordingly.
+
+Use the smallest artifact set that still explains the runtime truth. Do not produce component or deployment views by default if they add no explanatory value.
 
 ## Discovery Workflow
 
@@ -111,7 +116,21 @@ Define:
 Reason:
 Architecture artifacts are communication tools. Scope and mode must be explicit before modeling.
 
-### 2. Check for existing architecture artifacts
+### 2. Write a modeling ledger before YAML
+
+Create a short internal modeling ledger and keep it stable while you work. At minimum capture:
+
+- `system_in_scope`
+- `repo_archetype`
+- `stable_runtime_units`
+- `state_owners`
+- `optional_externals`
+- `deployment_modes`
+- `out_of_scope`
+
+The ledger is a preflight checkpoint, not a deliverable. Use it to decide what the canonical containers are before writing files.
+
+### 3. Check for existing architecture artifacts
 
 In `update` mode, or whenever architecture artifacts already exist:
 
@@ -123,7 +142,7 @@ In `update` mode, or whenever architecture artifacts already exist:
 Reason:
 Architecture maintenance depends on stable identity and diffability.
 
-### 3. Build an initial repo map
+### 4. Build an initial repo map
 
 Inspect:
 
@@ -136,15 +155,22 @@ Inspect:
 - docs and ADRs
 
 Use targeted discovery. Prefer `rg --files` and focused `rg` searches over broad scans.
+Use a discovery budget:
 
-### 4. Identify repo archetype
+- pass 1: manifests, entrypoints, deployment files, top-level docs
+- pass 2: only files needed to confirm runtime boundaries, state ownership, and critical flows
+- stop once runtime units, state boundaries, and critical workflows are evidenced
+
+Do not keep reading files once additional scans are only repeating already-confirmed structure.
+
+### 5. Identify repo archetype
 
 Determine which primary archetype best fits the repository. Base this on runtime and packaging evidence, not naming preference.
 
 Reason:
 The correct artifact set differs across libraries, monoliths, service-oriented systems, frontend apps, and infra repos.
 
-### 5. Identify canonical architecture elements
+### 6. Identify canonical architecture elements
 
 Populate the canonical model with normalized, deduplicated elements.
 
@@ -158,8 +184,16 @@ Required questions:
 - what is the system of record for major entities?
 
 Do not create near-duplicate elements such as `Order Service`, `Orders API`, and `Order Backend` unless evidence shows they are distinct.
+Classify each important data object as one of:
 
-### 6. Identify relationships and critical workflows
+- authoritative system of record
+- local working state
+- cache or derived state
+- external source of truth
+
+If a dependency is configuration-gated and not required for baseline operation, model it as optional external infrastructure unless it owns core business state.
+
+### 7. Identify relationships and critical workflows
 
 For each important path, identify:
 
@@ -177,7 +211,16 @@ Critical workflows usually include:
 - primary business transaction
 - background processing or async propagation
 
-### 7. Cross-check operational reality
+Before writing views, do a relationship preflight. For each important relationship, note:
+
+- `relationship_id`
+- source abstraction level
+- target abstraction level
+- allowed view types
+
+If the relationship would force mixed abstraction levels in a view, change the model or use a different view.
+
+### 8. Cross-check operational reality
 
 Inspect deployment and operational artifacts:
 
@@ -191,13 +234,13 @@ Inspect deployment and operational artifacts:
 Reason:
 Static code alone often misstates runtime truth.
 
-### 8. Build the canonical model first
+### 9. Build the canonical model first
 
 Write `architecture/model.yaml` before writing any views.
 
 The model is the only place where architecture facts are defined. Views only reference model IDs and filter/present them.
 
-### 9. Derive views from the canonical model
+### 10. Derive views from the canonical model
 
 Apply strict view rules:
 
@@ -207,7 +250,14 @@ Apply strict view rules:
 - `sequence`: only previously defined model elements; do not invent ad hoc participants
 - `deployment`: only nodes, zones, and placement when topology is architecturally relevant
 
-### 10. Write summary and diff artifacts
+Operational view rules:
+
+- If a runtime role can run split or collocated, keep the role in the container view and show the collocation choice only in deployment notes or a deployment view.
+- Component views may include components from exactly one parent container plus peer containers or external systems when needed for context.
+- Component views must never include components from multiple parent containers.
+- If a relationship references a foreign component, replace that foreign component with its parent container in the view.
+
+### 11. Write summary and diff artifacts
 
 Write `summary.md` using the fixed structure in the reference file.
 
@@ -220,6 +270,21 @@ In update mode, write `diff.yaml` with:
 - removed relationships
 - changed relationships
 - added or removed views
+
+### 12. Validate before finishing
+
+Run a lightweight consistency pass after generation. At minimum verify:
+
+- every element ID referenced by a view exists in `model.yaml`
+- every relationship ID referenced by a view exists in `model.yaml`
+- every sequence participant exists in `model.yaml`
+- every sequence step source/target exists in `model.yaml`
+- component views contain components from only one parent container
+- system-context and container views contain only allowed kinds
+- deployment placements reference declared deployment nodes and existing deployable/container elements
+- views do not reference relationships whose endpoints are absent from that view
+
+If validation fails, fix the artifacts before completing the task.
 
 ## Stable Naming and Deduplication
 
@@ -237,6 +302,7 @@ In update mode, write `diff.yaml` with:
 - `Code`: out of scope for this skill unless the user explicitly requests code-level modeling.
 
 Do not place components on a system-context or container view. Do not place classes on component views.
+Do not let deployment modes, CLIs, or launch commands become containers when they only package existing runtime roles.
 
 ## Data Ownership Rules
 
@@ -246,6 +312,13 @@ Whenever applicable, every container or component in the canonical model should 
 - `system_of_record`
 
 If ownership is unclear, record an unknown rather than omitting the issue silently.
+Be explicit about the difference between:
+
+- owned working state
+- caches or derived state
+- external source-of-truth data
+
+If an element does not authoritatively own an entity, do not imply that it does.
 
 ## Common Mistakes To Avoid
 
@@ -258,6 +331,8 @@ Do not:
 - infer ownership from names alone
 - ignore data ownership, dual writes, caches, or system-of-record questions
 - let docs override stronger runtime evidence
+- let packaging modes or docker-compose service names define containers without confirming runtime responsibility
+- pull optional adapters into the core architecture without evidence that they own important state or runtime behavior
 - create duplicate elements with slightly different names
 - emit sequence participants that do not exist in the model
 - rewrite IDs on every run
@@ -274,3 +349,4 @@ The skill is complete only when:
 4. `manifest.yaml` records scope, archetype, mode, and artifacts
 5. `diff.yaml` exists in update mode
 6. assumptions, unknowns, confidence, and evidence are explicit
+7. a post-generation validation pass has been completed and any reference or abstraction-level errors have been fixed
