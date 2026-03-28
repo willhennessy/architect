@@ -1,0 +1,518 @@
+// This file is part of Rundler.
+//
+// Rundler is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Rundler is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Rundler.
+// If not, see https://www.gnu.org/licenses/.
+
+use std::{collections::VecDeque, marker::PhantomData};
+
+use alloy_consensus::Transaction;
+use alloy_primitives::{Address, B256, Bytes, U256};
+use alloy_sol_types::SolEvent;
+use itertools::Itertools;
+use rundler_provider::{
+    EvmProvider, Filter, GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions,
+    GethTrace, Log, TransactionReceipt,
+};
+use rundler_types::{
+    UserOperation, UserOperationVariant, authorization::Eip7702Auth, chain::ChainSpec,
+};
+use rundler_utils::log::LogOnError;
+use tracing::instrument;
+
+use super::{EventProviderError, EventProviderResult, UserOperationEventProvider};
+use crate::types::{RpcUserOperationByHash, RpcUserOperationReceipt, UOStatusEnum};
+
+#[derive(Debug)]
+pub(crate) struct UserOperationEventProviderImpl<P, F> {
+    chain_spec: ChainSpec,
+    entry_point_address: Address,
+    provider: P,
+    event_block_distance: Option<u64>,
+    event_block_distance_fallback: Option<u64>,
+    _f_type: PhantomData<F>,
+}
+
+pub(crate) trait EntryPointEvents: Send + Sync {
+    type UO: UserOperation + Into<UserOperationVariant>;
+    type UserOperationEvent: SolEvent;
+    type UserOperationRevertReason: SolEvent;
+
+    fn construct_receipt(
+        event: Self::UserOperationEvent,
+        entry_point: Address,
+        logs: Vec<Log>,
+        tx_receipt: TransactionReceipt,
+    ) -> RpcUserOperationReceipt;
+
+    fn get_user_operations_from_tx_data(
+        to_address: Address,
+        tx_data: Bytes,
+        tx_auth_list: &[Eip7702Auth],
+        chain_spec: &ChainSpec,
+    ) -> Vec<Self::UO>;
+
+    fn before_execution_selector() -> B256;
+}
+
+#[async_trait::async_trait]
+impl<P, E> UserOperationEventProvider for UserOperationEventProviderImpl<P, E>
+where
+    P: EvmProvider,
+    E: EntryPointEvents,
+{
+    #[instrument(skip_all)]
+    async fn get_mined_by_hash(
+        &self,
+        hash: B256,
+    ) -> EventProviderResult<Option<RpcUserOperationByHash>> {
+        // Get event associated with hash (need to check all entry point addresses associated with this API)
+        let event = self
+            .get_event_by_hash(hash)
+            .await
+            .log_on_error("should have successfully queried for user op events by hash")?;
+
+        let Some(event) = event else { return Ok(None) };
+
+        // If the event is found, get the TX and entry point
+        let transaction_hash = event.transaction_hash.ok_or_else(|| {
+            EventProviderError::LogProcessingError(format!(
+                "event log for user operation {hash:?} missing transaction hash"
+            ))
+        })?;
+
+        self.get_user_operation(hash, transaction_hash, &event)
+            .await
+            .log_on_error("should have successfully found user operation")
+    }
+
+    #[instrument(skip_all)]
+    async fn get_mined_from_tx_receipt(
+        &self,
+        uo_hash: B256,
+        tx_receipt: TransactionReceipt,
+    ) -> EventProviderResult<Option<RpcUserOperationByHash>> {
+        let Some(event) = self.get_event_from_tx_receipt(uo_hash, &tx_receipt) else {
+            return Ok(None);
+        };
+
+        self.get_user_operation(uo_hash, tx_receipt.transaction_hash, event)
+            .await
+            .log_on_error("should have successfully found user operation")
+    }
+
+    #[instrument(skip_all)]
+    async fn get_receipt(
+        &self,
+        hash: B256,
+    ) -> EventProviderResult<Option<RpcUserOperationReceipt>> {
+        let event = self
+            .get_event_by_hash(hash)
+            .await
+            .log_on_error("should have successfully queried for user op events by hash")?;
+        let Some(event) = event else { return Ok(None) };
+
+        let tx_hash = event.transaction_hash.ok_or_else(|| {
+            EventProviderError::LogProcessingError(format!(
+                "event log for user operation {hash:?} missing transaction hash"
+            ))
+        })?;
+
+        // get transaction receipt
+        let tx_receipt = self
+            .provider
+            .get_transaction_receipt(tx_hash)
+            .await?
+            .ok_or_else(|| EventProviderError::ReceiptNotFound(tx_hash))?;
+
+        self.construct_receipt(event, tx_receipt).map(Some)
+    }
+
+    #[instrument(skip_all)]
+    async fn get_receipt_from_tx_receipt(
+        &self,
+        uo_hash: B256,
+        tx_receipt: TransactionReceipt,
+    ) -> EventProviderResult<Option<RpcUserOperationReceipt>> {
+        let Some(event) = self.get_event_from_tx_receipt(uo_hash, &tx_receipt) else {
+            return Ok(None);
+        };
+
+        if event.address() != self.entry_point_address {
+            return Ok(None);
+        }
+
+        self.construct_receipt(event.clone(), tx_receipt).map(Some)
+    }
+
+    #[instrument(skip_all)]
+    async fn get_receipt_from_tx_hash(
+        &self,
+        uo_hash: B256,
+        bundle_transaction: B256,
+    ) -> EventProviderResult<Option<RpcUserOperationReceipt>> {
+        let txn_receipt = self
+            .provider
+            .get_transaction_receipt(bundle_transaction)
+            .await?
+            .ok_or_else(|| EventProviderError::ReceiptNotFound(bundle_transaction))?;
+
+        let receipt = self
+            .get_receipt_from_tx_receipt(uo_hash, txn_receipt)
+            .await?;
+        if let Some(inner_receipt) = receipt {
+            return Ok(Some(RpcUserOperationReceipt {
+                status: UOStatusEnum::Preconfirmed,
+                ..inner_receipt
+            }));
+        }
+        return Ok(None);
+    }
+
+    #[instrument(skip_all)]
+    async fn get_mined_and_receipt(
+        &self,
+        hash: B256,
+        preconfirmed_bundle_transaction: Option<B256>,
+    ) -> EventProviderResult<Option<(RpcUserOperationByHash, RpcUserOperationReceipt)>> {
+        // Step 1: Get tx_hash (preconfirmed: passed in, pending: find event first)
+        let (tx_hash, event_from_logs) = if let Some(bundle_tx) = preconfirmed_bundle_transaction {
+            (bundle_tx, None)
+        } else {
+            let event = self
+                .get_event_by_hash(hash)
+                .await
+                .log_on_error("should have successfully queried for user op events by hash")?;
+
+            let Some(event) = event else {
+                return Ok(None);
+            };
+
+            let tx_hash = event.transaction_hash.ok_or_else(|| {
+                EventProviderError::LogProcessingError(format!(
+                    "event log for user operation {hash:?} missing transaction hash"
+                ))
+            })?;
+
+            (tx_hash, Some(event))
+        };
+
+        // Step 2: Fetch transaction and transaction receipt in parallel
+        let tx_fut = self.provider.get_transaction_by_hash(tx_hash);
+        let tx_receipt_fut = self.provider.get_transaction_receipt(tx_hash);
+
+        let (tx_result, tx_receipt_result) =
+            futures_util::future::join(tx_fut, tx_receipt_fut).await;
+
+        let tx = tx_result?.ok_or_else(|| EventProviderError::TransactionNotFound(tx_hash))?;
+
+        let tx_receipt =
+            tx_receipt_result?.ok_or_else(|| EventProviderError::ReceiptNotFound(tx_hash))?;
+
+        // Step 3: Get event (preconfirmed: from tx_receipt, pending: already have it)
+        let event = if let Some(event) = event_from_logs {
+            event
+        } else {
+            let event = self
+                .get_event_from_tx_receipt(hash, &tx_receipt)
+                .ok_or_else(|| EventProviderError::UserOpNotInReceipt {
+                    uo_hash: hash,
+                    tx_hash,
+                })?;
+            event.clone()
+        };
+
+        // Step 4: Shared logic - build receipt and user operation
+
+        // Build receipt
+        let event_ep_address = event.address();
+        let mut receipt = self.construct_receipt(event, tx_receipt)?;
+        if preconfirmed_bundle_transaction.is_some() {
+            receipt.status = UOStatusEnum::Preconfirmed;
+        };
+
+        // Build user operation
+        let auth_list = rundler_provider::get_auth_list_from_transaction(&tx);
+
+        // Return null if the tx isn't included in the block yet
+        if tx.block_hash.is_none() && tx.block_number.is_none() {
+            return Ok(None);
+        }
+
+        let to = tx.inner.to().ok_or_else(|| {
+            EventProviderError::LogProcessingError(format!(
+                "transaction {tx_hash:?} missing 'to' field"
+            ))
+        })?;
+
+        let input = tx.input();
+
+        let user_operation = if self.entry_point_address == to
+            || self.chain_spec.known_proxy_addresses().contains(&to)
+        {
+            E::get_user_operations_from_tx_data(
+                self.entry_point_address,
+                input.clone(),
+                &auth_list,
+                &self.chain_spec,
+            )
+            .into_iter()
+            .find(|op| op.hash() == hash)
+            .ok_or_else(|| EventProviderError::UserOpNotInTransaction {
+                uo_hash: hash,
+                tx_hash,
+            })?
+        } else {
+            tracing::debug!("Unknown entrypoint {to:?}, falling back to trace");
+            self.trace_find_user_operation(tx_hash, hash, &auth_list)
+                .await?
+                .ok_or_else(|| EventProviderError::UserOpNotInTrace {
+                    uo_hash: hash,
+                    tx_hash,
+                })?
+        };
+
+        let uo_by_hash = RpcUserOperationByHash {
+            user_operation: user_operation.into().into(),
+            entry_point: event_ep_address.into(),
+            block_number: Some(tx.block_number.map(|n| U256::from(n)).unwrap_or_default()),
+            block_hash: Some(tx.block_hash.unwrap_or_default()),
+            transaction_hash: Some(tx_hash),
+        };
+
+        Ok(Some((uo_by_hash, receipt)))
+    }
+}
+
+impl<P, E> UserOperationEventProviderImpl<P, E>
+where
+    P: EvmProvider,
+    E: EntryPointEvents,
+{
+    pub(crate) fn new(
+        chain_spec: ChainSpec,
+        entry_point_address: Address,
+        provider: P,
+        event_block_distance: Option<u64>,
+        event_block_distance_fallback: Option<u64>,
+    ) -> Self {
+        Self {
+            chain_spec,
+            entry_point_address,
+            provider,
+            event_block_distance,
+            event_block_distance_fallback,
+            _f_type: PhantomData,
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn get_event_by_hash(&self, hash: B256) -> EventProviderResult<Option<Log>> {
+        let to_block = self.provider.get_block_number().await?;
+
+        let from_block = match self.event_block_distance {
+            Some(distance) => to_block.saturating_sub(distance),
+            None => 0,
+        };
+
+        match self.get_event_by_hash_at(hash, from_block, to_block).await {
+            Ok(logs) => Ok(logs),
+            Err(e) => {
+                if let Some(fallback_distance) = self.event_block_distance_fallback {
+                    tracing::warn!(
+                        "Error querying for event at from block {from_block:?} to block {to_block:?} falling back to a distance of {fallback_distance:?}. Error {e:?}"
+                    );
+                    self.get_event_by_hash_at(
+                        hash,
+                        to_block.saturating_sub(fallback_distance),
+                        to_block,
+                    )
+                    .await
+                } else {
+                    Err(e)
+                }
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn get_event_by_hash_at(
+        &self,
+        hash: B256,
+        from_block: u64,
+        to_block: u64,
+    ) -> EventProviderResult<Option<Log>> {
+        let filter = Filter::new()
+            .address(vec![self.entry_point_address])
+            .event_signature(E::UserOperationEvent::SIGNATURE_HASH)
+            .from_block(from_block)
+            .to_block(to_block)
+            .topic1(hash);
+
+        Ok(self.provider.get_logs(&filter).await?.into_iter().next())
+    }
+
+    #[instrument(skip(self))]
+    async fn get_user_operation(
+        &self,
+        uo_hash: B256,
+        tx_hash: B256,
+        event: &Log,
+    ) -> EventProviderResult<Option<RpcUserOperationByHash>> {
+        let tx = self
+            .provider
+            .get_transaction_by_hash(tx_hash)
+            .await?
+            .ok_or_else(|| EventProviderError::TransactionNotFound(tx_hash))?;
+
+        let auth_list = rundler_provider::get_auth_list_from_transaction(&tx);
+
+        // We should return null if the tx isn't included in the block yet
+        if tx.block_hash.is_none() && tx.block_number.is_none() {
+            return Ok(None);
+        }
+        let to = tx.inner.to().ok_or_else(|| {
+            EventProviderError::LogProcessingError(format!(
+                "transaction {tx_hash:?} missing 'to' field"
+            ))
+        })?;
+
+        let input = tx.input();
+
+        let user_operation = if self.entry_point_address == to
+            || self.chain_spec.known_proxy_addresses().contains(&to)
+        {
+            E::get_user_operations_from_tx_data(
+                self.entry_point_address,
+                input.clone(),
+                &auth_list,
+                &self.chain_spec,
+            )
+            .into_iter()
+            .find(|op| op.hash() == uo_hash)
+            .ok_or_else(|| EventProviderError::UserOpNotInTransaction { uo_hash, tx_hash })?
+        } else {
+            tracing::debug!("Unknown entrypoint {to:?}, falling back to trace");
+            self.trace_find_user_operation(tx_hash, uo_hash, &auth_list)
+                .await?
+                .ok_or_else(|| EventProviderError::UserOpNotInTrace { uo_hash, tx_hash })?
+        };
+
+        Ok(Some(RpcUserOperationByHash {
+            user_operation: user_operation.into().into(),
+            entry_point: event.address().into(),
+            block_number: Some(tx.block_number.map(|n| U256::from(n)).unwrap_or_default()),
+            block_hash: Some(tx.block_hash.unwrap_or_default()),
+            transaction_hash: Some(tx_hash),
+        }))
+    }
+
+    fn get_event_from_tx_receipt<'a>(
+        &self,
+        uo_hash: B256,
+        tx_receipt: &'a TransactionReceipt,
+    ) -> Option<&'a Log> {
+        tx_receipt.inner.inner.logs().iter().find(|l| {
+            l.topics().len() >= 2
+                && l.topics()[0] == E::UserOperationEvent::SIGNATURE_HASH
+                && l.topics()[1] == uo_hash
+        })
+    }
+
+    fn construct_receipt(
+        &self,
+        event: Log,
+        tx_receipt: TransactionReceipt,
+    ) -> EventProviderResult<RpcUserOperationReceipt> {
+        // filter receipt logs
+        let filtered_logs = super::filter_receipt_logs_matching_user_op(
+            self.entry_point_address,
+            E::before_execution_selector(),
+            &event,
+            &tx_receipt,
+        )?;
+
+        // decode uo event
+        let uo_event = self.decode_user_operation_event(event)?;
+
+        Ok(E::construct_receipt(
+            uo_event,
+            self.entry_point_address,
+            filtered_logs,
+            tx_receipt,
+        ))
+    }
+
+    fn decode_user_operation_event(&self, log: Log) -> EventProviderResult<E::UserOperationEvent> {
+        log.log_decode::<E::UserOperationEvent>()
+            .map(|l| l.inner.data)
+            .map_err(|e| {
+                EventProviderError::LogProcessingError(format!(
+                    "failed to decode user operation event: {e:?}"
+                ))
+            })
+    }
+
+    /// This method takes a transaction hash and a user operation hash and returns the full user operation if it exists.
+    /// This is meant to be used when a user operation event is found in the logs of a transaction, but the top level call
+    /// wasn't to an entrypoint, so we need to trace the transaction to find the user operation by inspecting each call frame
+    /// and returning the user operation that matches the hash.
+    #[instrument(skip_all)]
+    async fn trace_find_user_operation(
+        &self,
+        tx_hash: B256,
+        user_op_hash: B256,
+        auth_list: &[Eip7702Auth],
+    ) -> EventProviderResult<Option<E::UO>> {
+        // initial call wasn't to an entrypoint, so we need to trace the transaction to find the user operation
+        let trace_options = GethDebugTracingOptions {
+            tracer: Some(GethDebugTracerType::BuiltInTracer(
+                GethDebugBuiltInTracerType::CallTracer,
+            )),
+            ..Default::default()
+        };
+        let trace = self
+            .provider
+            .debug_trace_transaction(tx_hash, trace_options)
+            .await?;
+
+        // breadth first search for the user operation in the trace
+        let mut frame_queue = VecDeque::new();
+
+        if let GethTrace::CallTracer(call_frame) = trace {
+            frame_queue.push_back(call_frame);
+        }
+
+        while let Some(call_frame) = frame_queue.pop_front() {
+            // check if the call is to an entrypoint, if not enqueue the child calls if any
+            if call_frame
+                .to
+                .is_some_and(|to| to == self.entry_point_address)
+            {
+                // check if the user operation is in the call frame
+                if let Some(uo) = E::get_user_operations_from_tx_data(
+                    self.entry_point_address,
+                    call_frame.input,
+                    auth_list,
+                    &self.chain_spec,
+                )
+                .into_iter()
+                .find(|op| op.hash() == user_op_hash)
+                {
+                    return Ok(Some(uo));
+                }
+            } else {
+                frame_queue.extend(call_frame.calls)
+            }
+        }
+
+        Ok(None)
+    }
+}

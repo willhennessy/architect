@@ -1,0 +1,116 @@
+version: 2
+id: "sequence-user-operation-ingest"
+type: "sequence"
+title: "User Operation Ingest"
+audience:
+  - "new_hires"
+  - "pms"
+  - "senior_architects"
+purpose: "Explain what happens when a client sends `eth_sendUserOperation`."
+scope: "Ingress from external RPC call through pool validation and storage"
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "wallet-aa-client"
+  - "rpc-eth-api"
+  - "rpc-entry-point-router"
+  - "pool-api"
+  - "pool-validation-pipeline"
+  - "evm-json-rpc-node"
+  - "pool-user-operation-mempools"
+steps:
+  - order: 1
+    source_id: "wallet-aa-client"
+    target_id: "rpc-eth-api"
+    relationship_id: "wallet-aa-client-calls-rundler-rpc"
+    label: "Client calls `eth_sendUserOperation` with a target entry point."
+    sync_async: "sync"
+    data_objects:
+      - "user operation"
+      - "entry point address"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-doc-rpc"
+      - "ev-rpc-eth-api"
+  - order: 2
+    source_id: "rpc-eth-api"
+    target_id: "rpc-entry-point-router"
+    relationship_id: "rpc-eth-api-calls-rpc-entry-point-router"
+    label: "RPC resolves the ABI-aware route and checks the request matches the selected entry point version."
+    sync_async: "sync"
+    data_objects:
+      - "entry point address"
+      - "user operation variant"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-rpc-task"
+      - "ev-rpc-eth-api"
+  - order: 3
+    source_id: "rpc-eth-api"
+    target_id: "pool-api"
+    relationship_id: "rpc-eth-api-calls-pool-api"
+    label: "RPC forwards the user operation into the pool boundary."
+    sync_async: "sync"
+    data_objects:
+      - "user operation"
+      - "permissions"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-rpc-eth-api"
+      - "ev-pool-proto"
+  - order: 4
+    source_id: "pool-api"
+    target_id: "pool-validation-pipeline"
+    relationship_id: "pool-api-calls-pool-validation-pipeline"
+    label: "Pool runs prechecks and simulation before admission."
+    sync_async: "sync"
+    data_objects:
+      - "user operation"
+      - "validation context"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-task"
+      - "ev-doc-pool"
+  - order: 5
+    source_id: "pool-validation-pipeline"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "pool-validation-pipeline-calls-evm-json-rpc-node"
+    label: "Validation calls the chain endpoint, including `debug_traceCall`, to simulate the operation."
+    sync_async: "sync"
+    data_objects:
+      - "simulation trace"
+      - "entry point state"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-task"
+      - "ev-doc-pool"
+  - order: 6
+    source_id: "pool-validation-pipeline"
+    target_id: "pool-user-operation-mempools"
+    relationship_id: "pool-validation-pipeline-stores-in-pool-user-operation-mempools"
+    label: "If validation passes, Pool stores the operation in the entry-point-specific mempool with simulation metadata."
+    sync_async: "storage"
+    data_objects:
+      - "validated user operation"
+      - "expected code hash"
+      - "simulation block hash"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-proto"
+      - "ev-doc-pool"
+  - order: 7
+    source_id: "pool-user-operation-mempools"
+    target_id: "rpc-eth-api"
+    relationship_id: "rpc-eth-api-calls-pool-api"
+    label: "Pool returns the accepted operation hash back through RPC."
+    sync_async: "sync"
+    data_objects:
+      - "user operation hash"
+    confidence: "strong_inference"
+    evidence_ids:
+      - "ev-rpc-eth-api"
+      - "ev-pool-proto"
+assumptions: []
+unknowns:
+  - "The exact operational retry and timeout policy around external client retries is outside the repository's architecture docs."
+notes:
+  - "Pool is the admission-control boundary; RPC does lightweight request shaping and version routing, but not final operation validation."

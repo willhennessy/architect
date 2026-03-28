@@ -1,0 +1,31 @@
+version: 2
+id: "system-context"
+type: "system_context"
+title: "Rundler System Context"
+audience:
+  - "new_hires"
+  - "pms"
+  - "senior_architects"
+purpose: "Show who uses Rundler and which external systems materially affect its current runtime behavior."
+scope: "System-of-interest plus direct actors and external dependencies"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "wallet-aa-client"
+  - "bundler-operator"
+  - "rundler"
+  - "evm-json-rpc-node"
+  - "private-transaction-relay"
+  - "aws-kms"
+relationship_ids:
+  - "wallet-aa-client-calls-rundler"
+  - "bundler-operator-calls-rundler"
+  - "rundler-calls-evm-json-rpc-node"
+  - "rundler-calls-private-transaction-relay"
+  - "rundler-calls-aws-kms"
+assumptions:
+  - text: "Redis is omitted from the system-context view because it is only relevant when AWS KMS locking is enabled and is more usefully shown at container level."
+    confidence: "strong_inference"
+unknowns:
+  - "The public-facing gateway or load balancer in front of Rundler RPC is not defined in this repository."
+notes:
+  - "Rundler's logical system boundary stays stable across both integrated (`node`) and distributed (`rpc` + `pool` + `builder`) operation modes."

@@ -1,0 +1,43 @@
+version: 2
+id: "container"
+type: "container"
+title: "Rundler Container View"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show Rundler's primary runtime roles, the stateful ownership boundary, and its optional external infrastructure."
+scope: "Rundler RPC, Pool, Builder, and directly relevant external systems"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "wallet-aa-client"
+  - "bundler-operator"
+  - "rundler"
+  - "rundler-rpc"
+  - "rundler-pool"
+  - "rundler-builder"
+  - "evm-json-rpc-node"
+  - "private-transaction-relay"
+  - "aws-kms"
+  - "redis-lock-store"
+relationship_ids:
+  - "wallet-aa-client-calls-rundler-rpc"
+  - "bundler-operator-calls-rundler-rpc"
+  - "rundler-rpc-calls-rundler-pool"
+  - "rundler-rpc-calls-rundler-builder"
+  - "rundler-rpc-calls-evm-json-rpc-node"
+  - "rundler-pool-calls-evm-json-rpc-node"
+  - "rundler-builder-calls-rundler-pool"
+  - "rundler-pool-publishes-to-rundler-builder"
+  - "rundler-builder-calls-evm-json-rpc-node"
+  - "rundler-builder-calls-private-transaction-relay"
+  - "rundler-builder-calls-aws-kms"
+  - "rundler-builder-calls-redis-lock-store"
+assumptions:
+  - text: "The container view uses the distributed topology as the clearest representation of runtime boundaries; integrated `node` mode collapses these same roles into a single process."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether production deployments split Builder and Pool across more than one replica or shard is not visible in this repo."
+notes:
+  - "Pool is the primary owner of local pending user operation state."
+  - "Builder owns worker assignment and bundle transaction lifecycle state, but not the authoritative pending mempool."
+  - "RPC can call Pool and Builder through in-process handles or remote APIs depending on deployment mode."

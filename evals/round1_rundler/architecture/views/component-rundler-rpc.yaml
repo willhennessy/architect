@@ -1,0 +1,32 @@
+version: 2
+id: "component-rundler-rpc"
+type: "component"
+title: "Rundler RPC Components"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how the RPC role separates standard ERC-4337 handling from Rundler-specific and operational APIs."
+scope: "Internal modules inside the Rundler RPC container plus their direct dependencies"
+source_model: "architecture/model.yaml"
+parent_container_id: "rundler-rpc"
+element_ids:
+  - "rpc-eth-api"
+  - "rpc-rundler-api"
+  - "rpc-debug-admin-api"
+  - "rpc-entry-point-router"
+  - "rundler-pool"
+  - "rundler-builder"
+  - "evm-json-rpc-node"
+relationship_ids:
+  - "rpc-eth-api-calls-rpc-entry-point-router"
+  - "rpc-eth-api-calls-rundler-pool"
+  - "rpc-rundler-api-calls-rpc-entry-point-router"
+  - "rpc-rundler-api-calls-rundler-pool"
+  - "rpc-rundler-api-calls-evm-json-rpc-node"
+  - "rpc-debug-admin-api-calls-rundler-pool"
+  - "rpc-debug-admin-api-calls-rundler-builder"
+assumptions: []
+unknowns:
+  - "The repo does not define a separate authn/authz service boundary for RPC; permissions are handled as request data and flags."
+notes:
+  - "Entry-point-aware routing is the main internal abstraction that keeps multiple entry point versions behind one RPC surface."

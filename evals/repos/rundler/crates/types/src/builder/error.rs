@@ -1,0 +1,26 @@
+// This file is part of Rundler.
+//
+// Rundler is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Rundler is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Rundler.
+// If not, see https://www.gnu.org/licenses/.
+
+/// Builder server errors
+#[derive(Debug, thiserror::Error)]
+pub enum BuilderError {
+    /// No operations to send
+    #[error("No operations to send")]
+    NoOperationsToSend,
+    /// Builder returned an unexpected response type for the given request
+    #[error("Unexpected response from Builder")]
+    UnexpectedResponse,
+    /// Internal errors
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}

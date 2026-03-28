@@ -1,0 +1,4 @@
+version: v1
+directories:
+  - crates/builder/proto
+  - crates/pool/proto

@@ -1,0 +1,42 @@
+[package]
+name = "rundler-signer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+alloy-consensus.workspace = true
+alloy-eips.workspace = true
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-signer.workspace = true
+alloy-signer-aws.workspace = true
+alloy-signer-local = { workspace = true, features = [ "mnemonic" ] }
+alloy-sol-types.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+aws-config.workspace = true
+aws-sdk-kms = { version = "1.62", default-features = false }
+metrics.workspace = true
+metrics-derive.workspace = true
+parking_lot.workspace = true
+rslock = "0.6.0"
+rundler-contracts.workspace = true
+rundler-provider.workspace = true
+rundler-task.workspace = true
+rundler-types.workspace = true
+secrecy.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+alloy-rpc-types-eth.workspace = true
+alloy-sol-types.workspace = true
+mockall.workspace = true
+rundler-provider = { workspace = true, features = ["test-utils"] }

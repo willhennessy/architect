@@ -1,0 +1,45 @@
+[package]
+name = "rundler-sim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+alloy-eips.workspace = true
+alloy-primitives.workspace = true
+alloy-sol-types.workspace = true
+
+anyhow.workspace = true
+arrayvec = "0.7.6"
+async-trait.workspace = true
+futures-util.workspace = true
+metrics.workspace = true
+metrics-derive.workspace = true
+mockall = { workspace = true, optional = true }
+rundler-contracts.workspace = true
+rundler-provider.workspace = true
+rundler-types.workspace = true
+rundler-utils.workspace = true
+serde.workspace = true
+serde_with = "3.9.0"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+
+[dev-dependencies]
+alloy-json-rpc.workspace = true
+alloy-primitives = { workspace = true, features = ["rand"] }
+alloy-signer.workspace = true
+alloy-signer-local.workspace = true
+alloy-transport.workspace = true
+mockall.workspace = true
+rundler-provider = { workspace = true, features = ["test-utils"] }
+rundler-types = { workspace = true, features = ["test-utils"] }
+serde_json.workspace = true
+
+[features]
+test-utils = ["mockall"]

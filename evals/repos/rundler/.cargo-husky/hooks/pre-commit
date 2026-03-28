@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+echo 'Running pre-commit hook...'
+
+cargo +nightly fmt --version &>/dev/null || {
+  echo >&2 'Nightly rustfmt is required for pre-commit hook. Try running "rustup toolchain add nightly"'
+  exit 1
+}
+
+# Format all the files, then `git add` any Rust files which were staged and had
+# no staged changes.
+
+git_short_status=$(git status -s | grep '\.rs$')
+files_to_git_add=$(echo "$git_short_status" | grep '^[^ ] ' | awk '{ print $NF }')
+files_with_unstaged_changes=$(echo "$git_short_status" | grep '^[^ ][^ ]' | awk '{ print $NF }')
+
+echo 'Running rustfmt (+nightly)'
+cargo +nightly fmt --check --all || {
+  echo >&2 'Formatting check failed. This most likely means you have syntax errors. Run `cargo +nightly fmt --check --all`'
+  exit 1
+}
+
+echo 'Running clippy'
+cargo clippy --all --all-features --tests -- -D warnings || {
+  echo >&2 'Clippy failed. This most likely means you have linting errors'
+  exit 1
+}
+
+echo 'Running buf'
+buf lint . || {
+  echo >&2 'Buf failed. This most likely means you have linting errors in .proto files. If needed, try running "brew install buf"'
+  exit 1
+}
+
+echo 'install cargo-sort'
+cargo install --git=https://github.com/DevinR528/cargo-sort --rev=55ec89082466f6bb246d870a8d56d166a8e1f08b cargo-sort 
+
+echo 'Running cargo-sort'
+cargo sort -w -g || { 
+  echo >&2 'Sort failed. This most likely means your cargo.toml file(s) has syntax error'
+}
+
+declare -a file_array=()
+for file in $files_to_git_add; do
+  file_array+=("${file}")
+done
+if [ ${#file_array[@]} -ne 0 ]; then
+  git add "${file_array[@]}"
+fi
+
+for file in $files_with_unstaged_changes; do
+  echo "Formatting hook skipped adding file with uncommitted changes: ${file}"
+done

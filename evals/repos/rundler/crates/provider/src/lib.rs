@@ -1,0 +1,269 @@
+// This file is part of Rundler.
+//
+// Rundler is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Rundler is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Rundler.
+// If not, see https://www.gnu.org/licenses/.
+
+#![warn(missing_docs, unreachable_pub, unused_crate_dependencies)]
+#![deny(unused_must_use, rust_2018_idioms)]
+#![doc(test(
+    no_crate_inject,
+    attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_variables))
+))]
+
+//! Rundler providers
+//! A provider is a type that provides access to blockchain data and functions
+
+mod alloy;
+pub use alloy::{
+    AlloyNetworkConfig,
+    entry_point::{
+        v0_6::{
+            EntryPointProvider as AlloyEntryPointV0_6,
+            decode_handle_ops_revert as decode_v0_6_handle_ops_revert,
+            decode_ops_from_calldata as decode_v0_6_ops_from_calldata,
+        },
+        v0_7::{
+            EntryPointProvider as AlloyEntryPointV0_7,
+            decode_handle_ops_revert as decode_v0_7_handle_ops_revert,
+            decode_ops_from_calldata as decode_v0_7_ops_from_calldata,
+            decode_validation_revert as decode_v0_7_validation_revert,
+        },
+    },
+    evm::AlloyEvmProvider,
+    new_alloy_da_gas_oracle, new_alloy_evm_provider, new_alloy_provider,
+};
+mod fees;
+pub use alloy_network::{
+    AnyHeader, AnyNetwork, AnyReceiptEnvelope, AnyRpcBlock, AnyRpcHeader, AnyRpcTransaction,
+    AnyTxEnvelope, ReceiptResponse,
+};
+pub use alloy_serde::WithOtherFields;
+pub use fees::new_fee_estimator;
+mod traits;
+// re-export alloy RPC types
+use std::marker::PhantomData;
+
+pub use alloy_consensus::{ReceiptWithBloom, Transaction as TransactionTrait};
+pub use alloy_json_rpc::{RpcRecv, RpcSend};
+pub use alloy_network::TransactionBuilder;
+pub use alloy_rpc_types_eth::{
+    BlockHashOrNumber, BlockId, BlockNumberOrTag, FeeHistory, Filter, FilterBlockOption,
+    Header as BlockHeader, Log, RpcBlockHash,
+    state::{AccountOverride, StateOverride},
+};
+pub use alloy_rpc_types_trace::geth::{
+    CallConfig as GethDebugTracerCallConfig, CallFrame as GethDebugTracerCallFrame,
+    GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingCallOptions,
+    GethDebugTracingOptions, GethTrace,
+};
+// re-export contract types
+pub use rundler_contracts::utils::GetGasUsed::GasUsedResult;
+use rundler_types::{
+    EntryPointVersion, UserOperation, UserOperationVariant, authorization::Eip7702Auth,
+    v0_6::UserOperation as UserOperationV0_6, v0_7::UserOperation as UserOperationV0_7,
+};
+#[cfg(any(test, feature = "test-utils"))]
+pub use traits::test_utils::*;
+pub use traits::*;
+
+/// Transaction request type for all networks.
+pub type TransactionRequest = alloy_rpc_types_eth::TransactionRequest;
+/// Transaction receipt type for all networks.
+pub type TransactionReceipt = alloy_rpc_types_any::AnyTransactionReceipt;
+/// Transaction type for all networks.
+pub type Transaction = AnyRpcTransaction;
+/// Block type for all networks.
+pub type Block = AnyRpcBlock;
+/// Alloy provider type for all networks.
+pub trait AlloyProvider: alloy_provider::Provider<AnyNetwork> + Clone {}
+impl<AP: alloy_provider::Provider<AnyNetwork> + Clone> AlloyProvider for AP {}
+
+/// A trait that provides access to various providers.
+pub trait Providers: Send + Sync + Clone {
+    /// The EVM provider.
+    type Evm: EvmProvider + Clone;
+
+    /// The entry point provider for v0.6.
+    type EntryPointV0_6: EntryPointProvider<UserOperationV0_6> + Clone;
+
+    /// The entry point provider for v0.7.
+    type EntryPointV0_7: EntryPointProvider<UserOperationV0_7> + Clone;
+
+    /// The DA gas oracle provider.
+    type DAGasOracle: DAGasOracle + Clone;
+
+    /// The DA gas oracle sync provider.
+    type DAGasOracleSync: DAGasOracleSync + Clone;
+
+    /// The fee estimator.
+    type FeeEstimator: FeeEstimator + Clone;
+
+    /// Returns the EVM provider.
+    fn evm(&self) -> &Self::Evm;
+
+    /// Returns the entry point provider for v0.6.
+    fn ep_v0_6(&self) -> &Option<Self::EntryPointV0_6>;
+
+    /// Returns the entry point provider for v0.7 ABI entrypoints
+    fn ep_v0_7(&self, ep_version: EntryPointVersion) -> &Option<Self::EntryPointV0_7>;
+
+    /// Returns the DA gas oracle.
+    fn da_gas_oracle(&self) -> &Self::DAGasOracle;
+
+    /// Returns the DA gas oracle sync provider.
+    fn da_gas_oracle_sync(&self) -> &Option<Self::DAGasOracleSync>;
+
+    /// Returns the fee estimator.
+    fn fee_estimator(&self) -> &Self::FeeEstimator;
+
+    /// Returns the providers with the entry point for v0.6.
+    #[allow(clippy::type_complexity)]
+    fn ep_v0_6_providers(
+        &self,
+    ) -> Option<
+        ProvidersWithEntryPoint<
+            UserOperationV0_6,
+            Self::Evm,
+            Self::EntryPointV0_6,
+            Self::DAGasOracleSync,
+            Self::FeeEstimator,
+        >,
+    > {
+        self.ep_v0_6().as_ref().map(|ep| ProvidersWithEntryPoint {
+            evm: self.evm().clone(),
+            ep: ep.clone(),
+            da_gas_oracle_sync: self.da_gas_oracle_sync().clone(),
+            fee_estimator: self.fee_estimator().clone(),
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Returns the providers with the entry point for v0.7.
+    #[allow(clippy::type_complexity)]
+    fn ep_v0_7_providers(
+        &self,
+        ep_version: EntryPointVersion,
+    ) -> Option<
+        ProvidersWithEntryPoint<
+            UserOperationV0_7,
+            Self::Evm,
+            Self::EntryPointV0_7,
+            Self::DAGasOracleSync,
+            Self::FeeEstimator,
+        >,
+    > {
+        self.ep_v0_7(ep_version)
+            .as_ref()
+            .map(|ep| ProvidersWithEntryPoint {
+                evm: self.evm().clone(),
+                ep: ep.clone(),
+                da_gas_oracle_sync: self.da_gas_oracle_sync().clone(),
+                fee_estimator: self.fee_estimator().clone(),
+                _phantom: PhantomData,
+            })
+    }
+}
+
+/// Trait for providers with a specific entry point.
+pub trait ProvidersWithEntryPointT: Send + Sync + Clone {
+    /// User operation type.
+    type UO: UserOperation + From<UserOperationVariant> + Into<UserOperationVariant>;
+
+    /// The EVM provider.
+    type Evm: EvmProvider + Clone;
+
+    /// The entry point provider.
+    type EntryPoint: EntryPointProvider<Self::UO> + Clone;
+
+    /// The DA gas oracle sync provider.
+    type DAGasOracleSync: DAGasOracleSync + Clone;
+
+    /// The fee estimator.
+    type FeeEstimator: FeeEstimator + Clone;
+
+    /// Returns the EVM provider.
+    fn evm(&self) -> &Self::Evm;
+
+    /// Returns the entry point provider.
+    fn entry_point(&self) -> &Self::EntryPoint;
+
+    /// Returns the DA gas oracle sync provider.
+    fn da_gas_oracle_sync(&self) -> &Option<Self::DAGasOracleSync>;
+
+    /// Returns the fee estimator.
+    fn fee_estimator(&self) -> &Self::FeeEstimator;
+}
+
+/// Container for providers with a specific entry point.
+#[derive(Clone)]
+pub struct ProvidersWithEntryPoint<UO, E, EP, D, F> {
+    evm: E,
+    ep: EP,
+    da_gas_oracle_sync: Option<D>,
+    fee_estimator: F,
+    _phantom: PhantomData<UO>,
+}
+
+impl<UO, E, EP, D, F> ProvidersWithEntryPoint<UO, E, EP, D, F> {
+    /// Create a new ProvidersWithEntryPoint.
+    pub fn new(evm: E, ep: EP, da_gas_oracle_sync: Option<D>, fee_estimator: F) -> Self {
+        Self {
+            evm,
+            ep,
+            da_gas_oracle_sync,
+            fee_estimator,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<UO, E, EP, D, F> ProvidersWithEntryPointT for ProvidersWithEntryPoint<UO, E, EP, D, F>
+where
+    UO: UserOperation + From<UserOperationVariant> + Into<UserOperationVariant>,
+    E: EvmProvider + Clone,
+    EP: EntryPointProvider<UO> + Clone,
+    D: DAGasOracleSync + Clone,
+    F: FeeEstimator + Clone,
+{
+    type UO = UO;
+    type Evm = E;
+    type EntryPoint = EP;
+    type DAGasOracleSync = D;
+    type FeeEstimator = F;
+
+    fn evm(&self) -> &Self::Evm {
+        &self.evm
+    }
+
+    fn entry_point(&self) -> &Self::EntryPoint {
+        &self.ep
+    }
+
+    fn da_gas_oracle_sync(&self) -> &Option<Self::DAGasOracleSync> {
+        &self.da_gas_oracle_sync
+    }
+
+    fn fee_estimator(&self) -> &Self::FeeEstimator {
+        &self.fee_estimator
+    }
+}
+
+/// Get the authorization list from a transaction
+pub fn get_auth_list_from_transaction(tx: &Transaction) -> Vec<Eip7702Auth> {
+    tx.as_envelope()
+        .and_then(|e| e.as_eip7702())
+        .and_then(|t| t.tx().authorization_list())
+        .into_iter()
+        .flatten()
+        .cloned()
+        .map(Eip7702Auth::from)
+        .collect()
+}

@@ -1,0 +1,55 @@
+[package]
+name = "rundler-builder"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+alloy-consensus.workspace = true
+alloy-primitives.workspace = true
+alloy-signer.workspace = true
+alloy-signer-local.workspace = true
+
+anyhow.workspace = true
+async-trait.workspace = true
+enum_dispatch = "0.3.13"
+futures.workspace = true
+futures-util.workspace = true
+jsonrpsee = { workspace = true, features = [ "http-client" ] }
+linked-hash-map = "0.5.6"
+metrics.workspace = true
+metrics-derive.workspace = true
+prost.workspace = true
+rand.workspace = true
+reqwest = { workspace = true, default-features = false, features = ["json"] }
+rundler-provider.workspace = true
+rundler-signer.workspace = true
+rundler-sim.workspace = true
+rundler-task.workspace = true
+rundler-types.workspace = true
+rundler-utils.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+tonic-health.workspace = true
+tonic-reflection.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+alloy-network.workspace = true
+alloy-rpc-types-eth.workspace = true
+mockall.workspace = true
+rundler-provider = { workspace = true, features = ["test-utils"] }
+rundler-sim = { workspace = true, features = ["test-utils"] }
+rundler-types = { workspace = true, features = ["test-utils"] }
+
+[build-dependencies]
+tonic-build.workspace = true

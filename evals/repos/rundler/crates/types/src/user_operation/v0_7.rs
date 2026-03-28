@@ -1,0 +1,1595 @@
+// This file is part of Rundler.
+//
+// Rundler is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Rundler is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Rundler.
+// If not, see https://www.gnu.org/licenses/.
+
+use alloy_primitives::{
+    Address, B256, Bytes, FixedBytes, U256, address, b256, ruint::FromUintError,
+};
+use alloy_sol_types::{SolStruct, SolValue, eip712_domain, sol};
+use rundler_contracts::v0_7::{PackedUserOperation, PackedUserOperationNoSig};
+use rundler_utils::random::{random_bytes, random_bytes_array};
+
+use super::{UserOperation as UserOperationTrait, UserOperationId, UserOperationVariant};
+use crate::{
+    Entity, EntryPointVersion, aggregator::AggregatorCosts, authorization::Eip7702Auth,
+    chain::ChainSpec,
+};
+
+/// Gas overhead required by the entry point contract for the inner call
+pub const ENTRY_POINT_INNER_GAS_OVERHEAD: u128 = 10_000;
+
+/// Number of bytes in the fixed size portion of an ABI encoded user operation
+/// sender = 32 bytes
+/// nonce = 32 bytes
+/// init_code = 32 bytes + 32 bytes for the length + var bytes
+/// call_data = 32 bytes + 32 bytes for the length + var bytes
+/// account_gas_limits = 32 bytes
+/// pre_verification_gas = 32 bytes
+/// gas_fees = 32 bytes
+/// paymaster_and_data = 32 bytes + 32 bytes for the length + var bytes
+/// signature = 32 bytes + 32 bytes for the length + var bytes
+///
+/// 13 * 32 = 416
+const ABI_ENCODED_USER_OPERATION_FIXED_LEN: usize = 416;
+
+// keccak("PaymasterSignature")[:8]
+const PAYMASTER_SIG_MAGIC: [u8; 8] = [0x22, 0xe3, 0x25, 0xa2, 0x97, 0x43, 0x96, 0x56];
+// Minimum length of paymaster data that can contain a paymaster signature
+const MIN_PAYMASTER_DATA_WITH_SUFFIX_LEN: usize = 62;
+/// EIP-7702 factory marker
+pub const EIP7702_FACTORY_MARKER: Address = address!("7702000000000000000000000000000000000000");
+/// EIP-7702 initCode marker
+pub const EIP7702_INITCODE_MARKER: [u8; 20] = [
+    0x77, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+];
+// Placeholder for user operations that have invalid hashes due to structural issues
+const INVALID_HASH: B256 =
+    b256!("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+/// User Operation for Entry Point v0.7
+///
+/// Offchain version, must be packed before sending onchain
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive] // Prevent instantiation except with UserOperationBuilder
+pub struct UserOperation {
+    /*
+     * Required fields
+     */
+    /// Sender
+    sender: Address,
+    /// Semi-abstracted nonce
+    ///
+    /// The first 192 bits are the nonce key, the last 64 bits are the nonce value
+    nonce: U256,
+    /// Calldata
+    call_data: Bytes,
+    /// Call gas limit
+    call_gas_limit: u128,
+    /// Verification gas limit
+    verification_gas_limit: u128,
+    /// Pre-verification gas
+    pre_verification_gas: u128,
+    /// Max priority fee per gas
+    max_priority_fee_per_gas: u128,
+    /// Max fee per gas
+    max_fee_per_gas: u128,
+    /// Signature
+    signature: Bytes,
+    /*
+     * Optional fields
+     */
+    /// Factory, populated if deploying a new sender contract
+    factory: Option<Address>,
+    /// Factory data
+    factory_data: Bytes,
+    /// Paymaster, populated if using a paymaster
+    paymaster: Option<Address>,
+    /// Paymaster verification gas limit
+    paymaster_verification_gas_limit: u128,
+    /// Paymaster post-op gas limit
+    paymaster_post_op_gas_limit: u128,
+    /// Paymaster data
+    paymaster_data: Bytes,
+    /// eip 7702 - tuple of authority.
+    authorization_tuple: Option<Eip7702Auth>,
+    /// Paymaster signature - only entry point v0.9+
+    paymaster_signature: Option<Bytes>,
+
+    /*
+     * Cached fields, not part of the UO
+     */
+    /// Entry point version
+    entry_point_version: EntryPointVersion,
+    /// Entry point address
+    entry_point: Address,
+    /// Chain id
+    chain_id: u64,
+    /// The hash of the user operation
+    hash: B256,
+    /// The packed user operation
+    packed: PackedUserOperation,
+    /// The gas cost of the calldata
+    calldata_gas_cost: u128,
+    /// The EIP-7623 floor gas limit of the calldata
+    calldata_floor_gas_limit: u128,
+
+    /*
+     * Signature aggregator fields
+     */
+    /// Signature aggregator address
+    aggregator: Option<Address>,
+    /// The full original signature, after the `signature` field is modified post-aggregation
+    original_signature: Bytes,
+    /// The original calldata cost
+    original_calldata_cost: u128,
+    /// The original calldata floor limit
+    original_calldata_floor_limit: u128,
+    /// The costs associated with the aggregator
+    aggregator_costs: AggregatorCosts,
+}
+
+/// Unstructured User Operation
+///
+/// Provides mutable access to the user operation fields for type conversions and modifications
+pub struct UnstructuredUserOperation {
+    /// Sender
+    pub sender: Address,
+    /// Nonce
+    pub nonce: U256,
+    /// Calldata
+    pub call_data: Bytes,
+    /// Call gas limit
+    pub call_gas_limit: u128,
+    /// Verification gas limit
+    pub verification_gas_limit: u128,
+    /// Pre-verification gas
+    pub pre_verification_gas: u128,
+    /// Max priority fee per gas
+    pub max_priority_fee_per_gas: u128,
+    /// Max fee per gas
+    pub max_fee_per_gas: u128,
+    /// Signature
+    pub signature: Bytes,
+    /// Factory, populated if deploying a new sender contract
+    pub factory: Option<Address>,
+    /// Factory data
+    pub factory_data: Bytes,
+    /// Paymaster, populated if using a paymaster
+    pub paymaster: Option<Address>,
+    /// Paymaster verification gas limit
+    pub paymaster_verification_gas_limit: u128,
+    /// Paymaster post-op gas limit
+    pub paymaster_post_op_gas_limit: u128,
+    /// Paymaster data
+    pub paymaster_data: Bytes,
+    /// eip 7702 - tuple of authority.
+    pub authorization_tuple: Option<Eip7702Auth>,
+    /// Signature aggregator address
+    pub aggregator: Option<Address>,
+    /// Paymaster signature - only entry point v0.9+
+    pub paymaster_signature: Option<Bytes>,
+}
+
+impl UserOperationTrait for UserOperation {
+    type OptionalGas = UserOperationOptionalGas;
+
+    fn entry_point_version(&self) -> EntryPointVersion {
+        self.entry_point_version
+    }
+
+    fn entry_point(&self) -> Address {
+        self.entry_point
+    }
+
+    fn chain_id(&self) -> u64 {
+        self.chain_id
+    }
+
+    fn hash(&self) -> B256 {
+        self.hash
+    }
+
+    fn id(&self) -> UserOperationId {
+        UserOperationId {
+            sender: self.sender,
+            nonce: self.nonce,
+        }
+    }
+
+    fn sender(&self) -> Address {
+        self.sender
+    }
+
+    fn nonce(&self) -> U256 {
+        self.nonce
+    }
+
+    fn paymaster(&self) -> Option<Address> {
+        self.paymaster
+    }
+
+    fn factory(&self) -> Option<Address> {
+        self.factory
+    }
+
+    fn aggregator(&self) -> Option<Address> {
+        self.aggregator
+    }
+
+    fn call_data(&self) -> &Bytes {
+        &self.call_data
+    }
+
+    fn max_gas_cost(&self) -> U256 {
+        U256::from(
+            self.max_fee_per_gas
+                * (self.pre_verification_gas
+                    + self.call_gas_limit
+                    + self.verification_gas_limit
+                    + self.paymaster_verification_gas_limit
+                    + self.paymaster_post_op_gas_limit),
+        )
+    }
+
+    fn entities(&self) -> Vec<Entity> {
+        let mut ret = vec![Entity::account(self.sender)];
+        if let Some(factory) = self.factory {
+            ret.push(Entity::factory(factory));
+        }
+        if let Some(paymaster) = self.paymaster {
+            ret.push(Entity::paymaster(paymaster));
+        }
+        ret
+    }
+
+    fn heap_size(&self) -> usize {
+        self.packed.callData.len()
+            + self.packed.initCode.len()
+            + self.packed.paymasterAndData.len()
+            + self.call_data.len()
+            + self.signature.len()
+            + self.factory_data.len()
+            + self.paymaster_data.len()
+    }
+
+    fn max_fee_per_gas(&self) -> u128 {
+        self.max_fee_per_gas
+    }
+
+    fn max_priority_fee_per_gas(&self) -> u128 {
+        self.max_priority_fee_per_gas
+    }
+
+    fn signature(&self) -> &Bytes {
+        &self.signature
+    }
+
+    fn pre_verification_gas(&self) -> u128 {
+        self.pre_verification_gas
+    }
+
+    fn call_gas_limit(&self) -> u128 {
+        self.call_gas_limit
+    }
+
+    fn verification_gas_limit(&self) -> u128 {
+        self.verification_gas_limit
+    }
+
+    fn total_verification_gas_limit(&self) -> u128 {
+        self.verification_gas_limit + self.paymaster_verification_gas_limit
+    }
+
+    fn paymaster_post_op_gas_limit(&self) -> u128 {
+        self.paymaster_post_op_gas_limit
+    }
+
+    fn static_pre_verification_gas(&self, chain_spec: &ChainSpec) -> u128 {
+        self.calldata_gas_cost
+            + chain_spec.per_user_op_v0_7_gas()
+            + (if self.factory.is_some() {
+                chain_spec.per_user_op_deploy_overhead_gas()
+            } else {
+                0
+            })
+    }
+
+    fn calldata_floor_gas_limit(&self) -> u128 {
+        self.calldata_floor_gas_limit
+    }
+
+    fn required_pre_execution_buffer(&self) -> u128 {
+        // See EntryPoint::innerHandleOp
+        //
+        // Overhead prior to execution of the user operation is required to be
+        // At least the call gas limit, plus the paymaster post-op gas limit, plus
+        // a static overhead of 10K gas.
+        //
+        // To handle the 63/64ths rule also need to add a buffer of 1/63rd of that total*
+        ENTRY_POINT_INNER_GAS_OVERHEAD
+            + self.paymaster_post_op_gas_limit
+            + ((self.call_gas_limit
+                + self.paymaster_post_op_gas_limit
+                + ENTRY_POINT_INNER_GAS_OVERHEAD)
+                / 63)
+    }
+
+    fn aggregator_gas_limit(&self, chain_spec: &ChainSpec, bundle_size: Option<usize>) -> u128 {
+        if self.aggregator.is_none() {
+            return 0;
+        }
+        super::aggregator_gas_limit(chain_spec, &self.aggregator_costs, bundle_size)
+    }
+
+    fn transform_for_aggregator(
+        mut self,
+        chain_spec: &ChainSpec,
+        aggregator: Address,
+        aggregator_costs: AggregatorCosts,
+        new_signature: Bytes,
+    ) -> Self {
+        self.aggregator = Some(aggregator);
+        self.aggregator_costs = aggregator_costs;
+        self.original_signature = self.signature;
+        self.original_calldata_cost = self.calldata_gas_cost;
+        self.original_calldata_floor_limit = self.calldata_floor_gas_limit;
+        self.signature = new_signature;
+
+        // re-pack, hash stays the same as only signature changed
+        self.packed = pack_user_operation(self.clone());
+        // recalculate calldata gas cost
+        (self.calldata_gas_cost, self.calldata_floor_gas_limit) =
+            super::calc_calldata_gas_costs(&self.packed, chain_spec);
+
+        self
+    }
+
+    fn original_signature(&self) -> &Bytes {
+        &self.original_signature
+    }
+
+    fn with_original_signature(mut self) -> Self {
+        self.signature = self.original_signature.clone();
+        self.packed = pack_user_operation(self.clone());
+        self.calldata_gas_cost = self.original_calldata_cost;
+        self.calldata_floor_gas_limit = self.original_calldata_floor_limit;
+        self
+    }
+
+    fn extra_data_len(&self, bundle_size: usize) -> usize {
+        if self.aggregator.is_some() {
+            super::extra_data_len(&self.aggregator_costs, bundle_size)
+        } else {
+            0
+        }
+    }
+
+    fn abi_encoded_size(&self) -> usize {
+        ABI_ENCODED_USER_OPERATION_FIXED_LEN
+            + super::byte_array_abi_len(&self.packed.initCode)
+            + super::byte_array_abi_len(&self.packed.callData)
+            + super::byte_array_abi_len(&self.packed.paymasterAndData)
+            + super::byte_array_abi_len(&self.packed.signature)
+    }
+
+    fn authorization_tuple(&self) -> Option<&Eip7702Auth> {
+        self.authorization_tuple.as_ref()
+    }
+
+    fn effective_verification_gas_limit_efficiency_reject_threshold(
+        &self,
+        verification_gas_limit_efficiency_reject_threshold: f64,
+    ) -> f64 {
+        verification_gas_limit_efficiency_reject_threshold
+    }
+}
+
+impl UserOperation {
+    /// Packs the user operation to its offchain representation
+    pub fn pack(self) -> PackedUserOperation {
+        self.packed
+    }
+
+    /// Returns a reference to the packed user operation
+    pub fn packed(&self) -> &PackedUserOperation {
+        &self.packed
+    }
+
+    /// Converts the user operation into an unstructured user operation
+    pub fn into_unstructured(self) -> UnstructuredUserOperation {
+        UnstructuredUserOperation {
+            sender: self.sender,
+            nonce: self.nonce,
+            call_data: self.call_data,
+            call_gas_limit: self.call_gas_limit,
+            verification_gas_limit: self.verification_gas_limit,
+            pre_verification_gas: self.pre_verification_gas,
+            max_priority_fee_per_gas: self.max_priority_fee_per_gas,
+            max_fee_per_gas: self.max_fee_per_gas,
+            signature: self.signature,
+            factory: self.factory,
+            factory_data: self.factory_data,
+            paymaster: self.paymaster,
+            paymaster_verification_gas_limit: self.paymaster_verification_gas_limit,
+            paymaster_post_op_gas_limit: self.paymaster_post_op_gas_limit,
+            paymaster_data: self.paymaster_data,
+            authorization_tuple: self.authorization_tuple,
+            aggregator: self.aggregator,
+            paymaster_signature: self.paymaster_signature,
+        }
+    }
+
+    /// Get the paymaster data
+    pub fn paymaster_data(&self) -> &Bytes {
+        &self.paymaster_data
+    }
+
+    /// Get the factory data
+    pub fn factory_data(&self) -> &Bytes {
+        &self.factory_data
+    }
+
+    /// Get the paymaster verification gas limit
+    pub fn paymaster_verification_gas_limit(&self) -> u128 {
+        self.paymaster_verification_gas_limit
+    }
+
+    /// Get the paymaster post-op gas limit
+    pub fn paymaster_post_op_gas_limit(&self) -> u128 {
+        self.paymaster_post_op_gas_limit
+    }
+
+    /// Get the entry point version
+    pub fn entry_point_version(&self) -> EntryPointVersion {
+        self.entry_point_version
+    }
+}
+
+#[cfg(feature = "test-utils")]
+impl Default for UserOperation {
+    fn default() -> Self {
+        UserOperationBuilder::new(
+            &ChainSpec::default(),
+            EntryPointVersion::V0_7,
+            UserOperationRequiredFields {
+                sender: Address::ZERO,
+                nonce: U256::ZERO,
+                call_data: Bytes::new(),
+                signature: Bytes::new(),
+                call_gas_limit: 0,
+                verification_gas_limit: 0,
+                pre_verification_gas: 0,
+                max_fee_per_gas: 0,
+                max_priority_fee_per_gas: 0,
+            },
+        )
+        .build()
+    }
+}
+
+impl From<UserOperationVariant> for UserOperation {
+    /// Converts a UserOperationVariant to a UserOperation 0.7
+    ///
+    /// # Panics
+    ///
+    /// Panics if the variant is not v0.7. This is for use in contexts
+    /// where the variant is known to be v0.7.
+    fn from(value: UserOperationVariant) -> Self {
+        value.into_v0_7().expect("Expected UserOperationV0_7")
+    }
+}
+
+impl From<UserOperation> for super::UserOperationVariant {
+    fn from(op: UserOperation) -> Self {
+        super::UserOperationVariant::V0_7(op)
+    }
+}
+
+impl AsRef<UserOperation> for super::UserOperationVariant {
+    /// # Panics
+    ///
+    /// Panics if the variant is not v0.7. This is for use in contexts
+    /// where the variant is known to be v0.7.
+    fn as_ref(&self) -> &UserOperation {
+        match self {
+            super::UserOperationVariant::V0_7(op) => op,
+            _ => panic!("Expected UserOperationV0_7"),
+        }
+    }
+}
+
+impl AsMut<UserOperation> for super::UserOperationVariant {
+    /// # Panics
+    ///
+    /// Panics if the variant is not v0.7. This is for use in contexts
+    /// where the variant is known to be v0.7.
+    fn as_mut(&mut self) -> &mut UserOperation {
+        match self {
+            super::UserOperationVariant::V0_7(op) => op,
+            _ => panic!("Expected UserOperationV0_7"),
+        }
+    }
+}
+
+/// User Operation with optional gas for Entry Point v0.7
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct UserOperationOptionalGas {
+    /*
+     * Required fields
+     */
+    /// Sender
+    pub sender: Address,
+    /// Semi-abstracted nonce
+    pub nonce: U256,
+    /// Calldata
+    pub call_data: Bytes,
+    /// Signature, typically a dummy value for optional gas
+    pub signature: Bytes,
+    /// Entry point version
+    pub entry_point_version: EntryPointVersion,
+    /*
+     * Optional fields
+     */
+    /// Call gas limit
+    pub call_gas_limit: Option<u128>,
+    /// Verification gas limit
+    pub verification_gas_limit: Option<u128>,
+    /// Pre-verification gas
+    pub pre_verification_gas: Option<u128>,
+    /// Max priority fee per gas
+    pub max_priority_fee_per_gas: Option<u128>,
+    /// Max fee per gas
+    pub max_fee_per_gas: Option<u128>,
+    /// Factory
+    pub factory: Option<Address>,
+    /// Factory data
+    pub factory_data: Bytes,
+    /// Paymaster
+    pub paymaster: Option<Address>,
+    /// Paymaster verification gas limit
+    pub paymaster_verification_gas_limit: Option<u128>,
+    /// Paymaster post-op gas limit
+    pub paymaster_post_op_gas_limit: Option<u128>,
+    /// Paymaster data
+    pub paymaster_data: Bytes,
+    /// 7702 authorization contract address.
+    pub eip7702_auth_address: Option<Address>,
+    /// Signature aggregator address
+    pub aggregator: Option<Address>,
+    /// Paymaster signature - only entry point v0.9+
+    pub paymaster_signature: Option<Bytes>,
+}
+
+impl UserOperationOptionalGas {
+    /// Fill in the optional and dummy fields of the user operation with values
+    /// that will cause the maximum possible calldata gas cost.
+    ///
+    /// PANICS: if the aggregator on the user operation is not found in chain spec. Check this before calling this function.
+    pub fn max_fill(&self, chain_spec: &ChainSpec) -> UserOperation {
+        let max_4 = u32::MAX as u128;
+        let max_8 = u64::MAX as u128;
+
+        let mut builder = UserOperationBuilder::new(
+            chain_spec,
+            self.entry_point_version,
+            UserOperationRequiredFields {
+                sender: self.sender,
+                nonce: self.nonce,
+                call_data: self.call_data.clone(),
+                signature: vec![255_u8; self.signature.len()].into(),
+                call_gas_limit: max_4,
+                verification_gas_limit: max_4,
+                pre_verification_gas: max_4,
+                max_priority_fee_per_gas: max_8,
+                max_fee_per_gas: max_8,
+            },
+        );
+
+        if self.paymaster.is_some() {
+            builder = builder.paymaster(
+                self.paymaster.unwrap(),
+                max_4,
+                max_4,
+                vec![255_u8; self.paymaster_data.len()].into(),
+            );
+        }
+
+        if let Some(factory) = self.factory {
+            builder = builder.factory(factory, vec![255_u8; self.factory_data.len()].into());
+        }
+        if let Some(eip_7702_auth_address) = self.eip7702_auth_address {
+            builder = builder.authorization_tuple(Eip7702Auth::new_max_fill(
+                chain_spec.id,
+                eip_7702_auth_address,
+            ));
+        }
+        if let Some(aggregator) = self.aggregator {
+            builder = builder.aggregator(aggregator);
+        }
+        if let Some(paymaster_signature) = &self.paymaster_signature {
+            builder = builder.paymaster_signature(paymaster_signature.clone());
+        }
+
+        let uo = builder.build();
+
+        if let Some(agg) = uo.aggregator {
+            super::dummy_transform_for_aggregator(uo, agg, chain_spec)
+        } else {
+            uo
+        }
+    }
+
+    /// Fill in the optional and dummy fields of the user operation with random values.
+    ///
+    /// When estimating pre-verification gas, specifically on networks that use
+    /// compression algorithms on their data that they post to their data availability
+    /// layer (like Arbitrum), it is important to make sure that the data that is
+    /// random such that it compresses to a representative size.
+    //
+    /// Note that this will slightly overestimate the calldata gas needed as it uses
+    /// the worst case scenario for the unknown gas values and paymaster_and_data.
+    ///
+    /// PANICS: if the aggregator on the user operation is not found in chain spec. Check this before calling this function.
+    pub fn random_fill(&self, chain_spec: &ChainSpec) -> UserOperation {
+        let mut builder = UserOperationBuilder::new(
+            chain_spec,
+            self.entry_point_version,
+            UserOperationRequiredFields {
+                sender: self.sender,
+                nonce: self.nonce,
+                call_data: self.call_data.clone(),
+                signature: random_bytes(self.signature.len()),
+                call_gas_limit: u128::from_le_bytes(random_bytes_array::<16, 4>()),
+                verification_gas_limit: u128::from_le_bytes(random_bytes_array::<16, 4>()),
+                pre_verification_gas: u128::from_le_bytes(random_bytes_array::<16, 4>()),
+                max_priority_fee_per_gas: u128::from_le_bytes(random_bytes_array::<16, 8>()),
+                max_fee_per_gas: u128::from_le_bytes(random_bytes_array::<16, 8>()),
+            },
+        );
+
+        if self.paymaster.is_some() {
+            builder = builder.paymaster(
+                self.paymaster.unwrap(),
+                u128::from_le_bytes(random_bytes_array::<16, 4>()),
+                u128::from_le_bytes(random_bytes_array::<16, 4>()),
+                random_bytes(self.paymaster_data.len()),
+            )
+        }
+        if self.factory.is_some() {
+            builder = builder.factory(self.factory.unwrap(), random_bytes(self.factory_data.len()))
+        }
+        if let Some(address) = self.eip7702_auth_address {
+            builder =
+                builder.authorization_tuple(Eip7702Auth::new_random_fill(chain_spec.id, address));
+        }
+        if let Some(aggregator) = self.aggregator {
+            builder = builder.aggregator(aggregator);
+        }
+        if let Some(paymaster_signature) = &self.paymaster_signature {
+            builder = builder.paymaster_signature(paymaster_signature.clone());
+        }
+
+        let uo = builder.build();
+
+        if let Some(agg) = uo.aggregator {
+            super::dummy_transform_for_aggregator(uo, agg, chain_spec)
+        } else {
+            uo
+        }
+    }
+
+    /// Convert into a builder for producing a full user operation.
+    /// Fill in the optional fields of the user operation with default values if unset
+    pub fn into_user_operation_builder(
+        self,
+        chain_spec: &ChainSpec,
+        max_call_gas: u128,
+        max_verification_gas: u128,
+        max_paymaster_verification_gas: u128,
+    ) -> UserOperationBuilder<'_> {
+        // If unset or zero, default these to gas limits from settings
+        // Cap their values to the gas limits from settings
+        let cgl = super::default_if_none_or_equal(self.call_gas_limit, max_call_gas, 0);
+        let vgl =
+            super::default_if_none_or_equal(self.verification_gas_limit, max_verification_gas, 0);
+        let pgl = super::default_if_none_or_equal(
+            self.paymaster_verification_gas_limit,
+            max_paymaster_verification_gas,
+            0,
+        );
+        let pvg = super::default_if_none_or_equal(self.pre_verification_gas, max_call_gas, 0);
+
+        let mut builder = UserOperationBuilder::new(
+            chain_spec,
+            self.entry_point_version,
+            UserOperationRequiredFields {
+                sender: self.sender,
+                nonce: self.nonce,
+                call_data: self.call_data,
+                signature: self.signature,
+                call_gas_limit: cgl,
+                verification_gas_limit: vgl,
+                pre_verification_gas: pvg,
+                // These are unused in gas estimation, so default to zero
+                max_priority_fee_per_gas: self.max_priority_fee_per_gas.unwrap_or_default(),
+                max_fee_per_gas: self.max_fee_per_gas.unwrap_or_default(),
+            },
+        );
+        if let Some(factory) = self.factory {
+            builder = builder.factory(factory, self.factory_data);
+        }
+        if let Some(paymaster) = self.paymaster {
+            let paymaster_verification_gas_limit = pgl;
+            // If the user doesn't supply a post op, assume unused and zero
+            let paymaster_post_op_gas_limit = self.paymaster_post_op_gas_limit.unwrap_or_default();
+            builder = builder.paymaster(
+                paymaster,
+                paymaster_verification_gas_limit,
+                paymaster_post_op_gas_limit,
+                self.paymaster_data,
+            );
+        }
+        if let Some(contract) = self.eip7702_auth_address {
+            builder = builder.authorization_tuple(Eip7702Auth::new_dummy(chain_spec.id, contract));
+        }
+        builder
+    }
+
+    /// Abi encoded size of the user operation (with its dummy fields)
+    pub fn abi_encoded_size(&self) -> usize {
+        let mut base = ABI_ENCODED_USER_OPERATION_FIXED_LEN
+            + super::byte_array_abi_len(&self.call_data)
+            + super::byte_array_abi_len(&self.signature);
+        if self.factory.is_some() {
+            base += super::byte_array_abi_len(&self.factory_data) + 32; // account for factory address
+        }
+        if self.paymaster.is_some() {
+            base += super::byte_array_abi_len(&self.paymaster_data) + 64; // account for paymaster address and gas limits
+        }
+
+        base
+    }
+}
+
+impl From<super::UserOperationOptionalGas> for UserOperationOptionalGas {
+    /// # Panics
+    ///
+    /// Panics if the variant is not v0.7. This is for use in contexts
+    /// where the variant is known to be v0.7.
+    fn from(op: super::UserOperationOptionalGas) -> Self {
+        match op {
+            super::UserOperationOptionalGas::V0_7(op) => op,
+            _ => panic!("Expected UserOperationOptionalGasV0_7"),
+        }
+    }
+}
+
+/// Builder for UserOperation
+///
+/// Used to create a v0.7 while ensuring all required fields and grouped fields are present
+pub struct UserOperationBuilder<'a> {
+    // chain spec
+    chain_spec: &'a ChainSpec,
+    // entry point version
+    entry_point_version: EntryPointVersion,
+
+    // required fields
+    required: UserOperationRequiredFields,
+
+    // optional fields
+    factory: Option<Address>,
+    factory_data: Bytes,
+    paymaster: Option<Address>,
+    paymaster_verification_gas_limit: u128,
+    paymaster_post_op_gas_limit: u128,
+    paymaster_data: Bytes,
+    packed_uo: Option<PackedUserOperation>,
+
+    /// eip 7702 authorization tuple
+    authorization_tuple: Option<Eip7702Auth>,
+    /// Paymaster signature - only entry point v0.9+
+    paymaster_signature: Option<Bytes>,
+    /// Signature aggregator address
+    aggregator: Option<Address>,
+}
+
+/// Required fields for UserOperation v0.7
+pub struct UserOperationRequiredFields {
+    /// Sender
+    pub sender: Address,
+    /// Semi-abstracted nonce
+    pub nonce: U256,
+    /// Calldata
+    pub call_data: Bytes,
+    /// Call gas limit
+    pub call_gas_limit: u128,
+    /// Verification gas limit
+    pub verification_gas_limit: u128,
+    /// Pre-verification gas
+    pub pre_verification_gas: u128,
+    /// Max priority fee per gas
+    pub max_priority_fee_per_gas: u128,
+    /// Max fee per gas
+    pub max_fee_per_gas: u128,
+    /// Signature
+    pub signature: Bytes,
+}
+
+impl<'a> UserOperationBuilder<'a> {
+    /// Creates a new builder
+    pub fn new(
+        chain_spec: &'a ChainSpec,
+        entry_point_version: EntryPointVersion,
+        required: UserOperationRequiredFields,
+    ) -> Self {
+        Self {
+            chain_spec,
+            required,
+            factory: None,
+            factory_data: Bytes::new(),
+            paymaster: None,
+            paymaster_verification_gas_limit: 0,
+            paymaster_post_op_gas_limit: 0,
+            paymaster_data: Bytes::new(),
+            packed_uo: None,
+            authorization_tuple: None,
+            aggregator: None,
+            paymaster_signature: None,
+            entry_point_version,
+        }
+    }
+
+    /// Creates a builder from a packed user operation
+    pub fn from_packed(
+        puo: PackedUserOperation,
+        chain_spec: &'a ChainSpec,
+        entry_point_version: EntryPointVersion,
+        eip7702_auth: Option<Eip7702Auth>,
+    ) -> Result<Self, FromUintError<u128>> {
+        let mut builder = UserOperationBuilder::new(
+            chain_spec,
+            entry_point_version,
+            UserOperationRequiredFields {
+                sender: puo.sender,
+                nonce: puo.nonce,
+                call_data: puo.callData.clone(),
+                call_gas_limit: u128_from_be_slice(&puo.accountGasLimits[16..]),
+                verification_gas_limit: u128_from_be_slice(&puo.accountGasLimits[..16]),
+                pre_verification_gas: puo.preVerificationGas.try_into()?,
+                max_priority_fee_per_gas: u128_from_be_slice(&puo.gasFees[..16]),
+                max_fee_per_gas: u128_from_be_slice(&puo.gasFees[16..]),
+                signature: puo.signature.clone(),
+            },
+        );
+        if let Some(auth) = eip7702_auth {
+            builder = builder.authorization_tuple(auth);
+        }
+
+        builder = builder.packed(puo.clone());
+
+        if !puo.initCode.is_empty() {
+            let factory = Address::from_slice(&puo.initCode[..20]);
+            let factory_data = Bytes::from_iter(&puo.initCode[20..]);
+
+            builder = builder.factory(factory, factory_data);
+        }
+
+        if !puo.paymasterAndData.is_empty() {
+            let paymaster = Address::from_slice(&puo.paymasterAndData[..20]);
+            let paymaster_verification_gas_limit =
+                u128_from_be_slice(&puo.paymasterAndData[20..36]);
+            let paymaster_post_op_gas_limit = u128_from_be_slice(&puo.paymasterAndData[36..52]);
+            let paymaster_data = Bytes::from_iter(&puo.paymasterAndData[52..]);
+
+            builder = builder.paymaster(
+                paymaster,
+                paymaster_verification_gas_limit,
+                paymaster_post_op_gas_limit,
+                paymaster_data,
+            );
+        }
+
+        Ok(builder)
+    }
+
+    /// Creates a builder from an existing UO
+    pub fn from_uo(uo: UserOperation, chain_spec: &'a ChainSpec) -> Self {
+        Self {
+            chain_spec,
+            entry_point_version: uo.entry_point_version(),
+            required: UserOperationRequiredFields {
+                sender: uo.sender,
+                nonce: uo.nonce,
+                call_data: uo.call_data,
+                call_gas_limit: uo.call_gas_limit,
+                verification_gas_limit: uo.verification_gas_limit,
+                pre_verification_gas: uo.pre_verification_gas,
+                max_priority_fee_per_gas: uo.max_priority_fee_per_gas,
+                max_fee_per_gas: uo.max_fee_per_gas,
+                signature: uo.signature,
+            },
+            factory: uo.factory,
+            factory_data: uo.factory_data,
+            paymaster: uo.paymaster,
+            paymaster_verification_gas_limit: uo.paymaster_verification_gas_limit,
+            paymaster_post_op_gas_limit: uo.paymaster_post_op_gas_limit,
+            paymaster_data: uo.paymaster_data,
+            packed_uo: None,
+            authorization_tuple: uo.authorization_tuple,
+            aggregator: uo.aggregator,
+            paymaster_signature: uo.paymaster_signature,
+        }
+    }
+
+    /// Sets the factory and factory data
+    pub fn factory(mut self, factory: Address, factory_data: Bytes) -> Self {
+        self.factory = Some(factory);
+        self.factory_data = factory_data;
+        self
+    }
+
+    /// Sets the paymaster and associated fields
+    pub fn paymaster(
+        mut self,
+        paymaster: Address,
+        paymaster_verification_gas_limit: u128,
+        paymaster_post_op_gas_limit: u128,
+        paymaster_data: Bytes,
+    ) -> Self {
+        self.paymaster = Some(paymaster);
+        self.paymaster_verification_gas_limit = paymaster_verification_gas_limit;
+        self.paymaster_post_op_gas_limit = paymaster_post_op_gas_limit;
+        self.paymaster_data = paymaster_data;
+        self
+    }
+
+    /// Clears the paymaster and associated fields
+    pub fn clear_paymaster(mut self) -> Self {
+        self.paymaster = None;
+        self.paymaster_verification_gas_limit = 0;
+        self.paymaster_post_op_gas_limit = 0;
+        self.paymaster_data = Bytes::new();
+        self
+    }
+
+    /// Sets the pre-verification gas
+    pub fn pre_verification_gas(mut self, pre_verification_gas: u128) -> Self {
+        self.required.pre_verification_gas = pre_verification_gas;
+        self
+    }
+
+    /// Sets the verification gas limit
+    pub fn verification_gas_limit(mut self, verification_gas_limit: u128) -> Self {
+        self.required.verification_gas_limit = verification_gas_limit;
+        self
+    }
+
+    /// Sets the call gas limit
+    pub fn call_gas_limit(mut self, call_gas_limit: u128) -> Self {
+        self.required.call_gas_limit = call_gas_limit;
+        self
+    }
+
+    /// Sets the max fee per gas
+    pub fn max_fee_per_gas(mut self, max_fee_per_gas: u128) -> Self {
+        self.required.max_fee_per_gas = max_fee_per_gas;
+        self
+    }
+
+    /// Sets the max priority fee per gas
+    pub fn max_priority_fee_per_gas(mut self, max_priority_fee_per_gas: u128) -> Self {
+        self.required.max_priority_fee_per_gas = max_priority_fee_per_gas;
+        self
+    }
+
+    /// Sets the paymaster verification gas limit
+    pub fn paymaster_verification_gas_limit(
+        mut self,
+        paymaster_verification_gas_limit: u128,
+    ) -> Self {
+        self.paymaster_verification_gas_limit = paymaster_verification_gas_limit;
+        self
+    }
+
+    /// Sets the paymaster post-op gas limit
+    pub fn paymaster_post_op_gas_limit(mut self, paymaster_post_op_gas_limit: u128) -> Self {
+        self.paymaster_post_op_gas_limit = paymaster_post_op_gas_limit;
+        self
+    }
+
+    /// Sets the packed user operation, if known beforehand
+    pub fn packed(mut self, packed: PackedUserOperation) -> Self {
+        self.packed_uo = Some(packed);
+        self
+    }
+
+    /// Sets the authorization list
+    pub fn authorization_tuple(mut self, authorization_tuple: Eip7702Auth) -> Self {
+        self.authorization_tuple = Some(authorization_tuple);
+        self
+    }
+
+    /// Sets the aggregator
+    pub fn aggregator(mut self, aggregator: Address) -> Self {
+        self.aggregator = Some(aggregator);
+        self
+    }
+
+    /// Sets the paymaster signature
+    /// PANICS if entry point version is < v0.9
+    pub fn paymaster_signature(mut self, paymaster_signature: Bytes) -> Self {
+        if self.entry_point_version < EntryPointVersion::V0_9 {
+            panic!("Paymaster signature is only supported for entry point v0.9+");
+        }
+
+        self.paymaster_signature = Some(paymaster_signature);
+        self
+    }
+
+    /// Builds the UserOperation for the given entry point version
+    pub fn build(self) -> UserOperation {
+        let entry_point = self
+            .chain_spec
+            .entry_point_address(self.entry_point_version);
+        let delegation_address = self.authorization_tuple.as_ref().map(|auth| auth.address);
+
+        let uo = UserOperation {
+            sender: self.required.sender,
+            nonce: self.required.nonce,
+            factory: self.factory,
+            factory_data: self.factory_data,
+            call_data: self.required.call_data,
+            call_gas_limit: self.required.call_gas_limit,
+            verification_gas_limit: self.required.verification_gas_limit,
+            pre_verification_gas: self.required.pre_verification_gas,
+            max_priority_fee_per_gas: self.required.max_priority_fee_per_gas,
+            max_fee_per_gas: self.required.max_fee_per_gas,
+            paymaster: self.paymaster,
+            paymaster_verification_gas_limit: self.paymaster_verification_gas_limit,
+            paymaster_post_op_gas_limit: self.paymaster_post_op_gas_limit,
+            paymaster_data: self.paymaster_data,
+            authorization_tuple: self.authorization_tuple,
+            paymaster_signature: self.paymaster_signature,
+            signature: self.required.signature,
+            entry_point_version: self.entry_point_version,
+            entry_point,
+            chain_id: self.chain_spec.id,
+            hash: B256::ZERO,
+            packed: PackedUserOperation::default(),
+            calldata_gas_cost: 0,
+            calldata_floor_gas_limit: 0,
+            aggregator: self.aggregator,
+            original_signature: Bytes::new(),
+            original_calldata_cost: 0,
+            original_calldata_floor_limit: 0,
+            aggregator_costs: AggregatorCosts::default(),
+        };
+
+        let packed = self
+            .packed_uo
+            .unwrap_or_else(|| pack_user_operation(uo.clone()));
+        let hash = hash_packed_user_operation(
+            &packed,
+            entry_point,
+            self.entry_point_version,
+            self.chain_spec.id,
+            delegation_address,
+        );
+
+        let (calldata_gas_cost, calldata_floor_gas_limit) =
+            super::calc_calldata_gas_costs(&packed, self.chain_spec);
+
+        UserOperation {
+            hash,
+            packed,
+            calldata_gas_cost,
+            calldata_floor_gas_limit,
+            ..uo
+        }
+    }
+}
+
+fn pack_user_operation(uo: UserOperation) -> PackedUserOperation {
+    let init_code = if let Some(factory) = uo.factory {
+        let mut init_code = factory.to_vec();
+        init_code.extend_from_slice(&uo.factory_data);
+        Bytes::from(init_code)
+    } else {
+        Bytes::new()
+    };
+
+    let account_gas_limits = concat_u128_be(uo.verification_gas_limit, uo.call_gas_limit);
+    let gas_fees = concat_u128_be(uo.max_priority_fee_per_gas, uo.max_fee_per_gas);
+
+    let paymaster_and_data = if let Some(paymaster) = uo.paymaster {
+        let mut paymaster_and_data = paymaster.to_vec();
+        let pvgl: [u8; 16] = uo.paymaster_verification_gas_limit.to_be_bytes();
+        let pogl: [u8; 16] = uo.paymaster_post_op_gas_limit.to_be_bytes();
+        paymaster_and_data.extend_from_slice(&pvgl);
+        paymaster_and_data.extend_from_slice(&pogl);
+
+        if let Some(paymaster_signature) = uo.paymaster_signature {
+            // ignore the paymaster signature if paymaster and data doesn't end with the magic
+            if !uo.paymaster_data.ends_with(&PAYMASTER_SIG_MAGIC) {
+                paymaster_and_data.extend_from_slice(&uo.paymaster_data);
+            } else {
+                // remove the magic bytes from the end of paymaster and data
+                paymaster_and_data.extend_from_slice(
+                    &uo.paymaster_data[..uo.paymaster_data.len() - PAYMASTER_SIG_MAGIC.len()],
+                );
+                // append the paymaster signature
+                paymaster_and_data.extend_from_slice(&paymaster_signature);
+                // append the length of the paymaster signature in 2 bytes
+                paymaster_and_data
+                    .extend_from_slice(&(paymaster_signature.len() as u16).to_be_bytes());
+                // append the magic bytes
+                paymaster_and_data.extend_from_slice(&PAYMASTER_SIG_MAGIC);
+            }
+        } else {
+            paymaster_and_data.extend_from_slice(&uo.paymaster_data);
+        }
+
+        Bytes::from(paymaster_and_data)
+    } else {
+        Bytes::new()
+    };
+
+    PackedUserOperation {
+        sender: uo.sender,
+        nonce: uo.nonce,
+        initCode: init_code,
+        callData: uo.call_data,
+        accountGasLimits: FixedBytes::from(account_gas_limits),
+        preVerificationGas: U256::from(uo.pre_verification_gas),
+        gasFees: FixedBytes::from(gas_fees),
+        paymasterAndData: paymaster_and_data,
+        signature: uo.signature,
+    }
+}
+
+fn u128_from_be_slice(input: &[u8]) -> u128 {
+    let (int_bytes, _) = input.split_at(std::mem::size_of::<u128>());
+    u128::from_be_bytes(int_bytes.try_into().unwrap())
+}
+
+sol! {
+    #[allow(missing_docs)]
+    #[derive(Default, Debug, PartialEq, Eq)]
+    struct UserOperationHashEncoded {
+        bytes32 encodedHash;
+        address entryPoint;
+        uint256 chainId;
+    }
+
+    #[allow(missing_docs)]
+    #[derive(Default, Debug, PartialEq, Eq)]
+    struct UserOperationPackedForHash {
+        address sender;
+        uint256 nonce;
+        bytes32 hashInitCode;
+        bytes32 hashCallData;
+        bytes32 accountGasLimits;
+        uint256 preVerificationGas;
+        bytes32 gasFees;
+        bytes32 hashPaymasterAndData;
+    }
+}
+
+fn hash_packed_user_operation(
+    puo: &PackedUserOperation,
+    entry_point: Address,
+    entry_point_version: EntryPointVersion,
+    chain_id: u64,
+    delegation_address: Option<Address>,
+) -> B256 {
+    match entry_point_version {
+        EntryPointVersion::V0_6 => {
+            panic!("v0.7 user operation ABI created with v0.6 entry point version")
+        }
+        EntryPointVersion::V0_7 => hash_packed_user_operation_v0_7(puo, entry_point, chain_id),
+        EntryPointVersion::V0_8 | EntryPointVersion::V0_9 => hash_packed_user_operation_v0_8_plus(
+            puo.clone(),
+            entry_point,
+            chain_id,
+            delegation_address,
+        ),
+    }
+}
+
+fn hash_packed_user_operation_v0_7(
+    puo: &PackedUserOperation,
+    entry_point: Address,
+    chain_id: u64,
+) -> B256 {
+    let hash_init_code = alloy_primitives::keccak256(&puo.initCode);
+    let hash_call_data = alloy_primitives::keccak256(&puo.callData);
+    let hash_paymaster_and_data = alloy_primitives::keccak256(&puo.paymasterAndData);
+
+    let packed_for_hash = UserOperationPackedForHash {
+        sender: puo.sender,
+        nonce: puo.nonce,
+        hashInitCode: hash_init_code,
+        hashCallData: hash_call_data,
+        accountGasLimits: puo.accountGasLimits,
+        preVerificationGas: puo.preVerificationGas,
+        gasFees: puo.gasFees,
+        hashPaymasterAndData: hash_paymaster_and_data,
+    };
+
+    let hashed = alloy_primitives::keccak256(packed_for_hash.abi_encode());
+
+    let encoded = UserOperationHashEncoded {
+        encodedHash: hashed,
+        entryPoint: entry_point,
+        chainId: U256::from(chain_id),
+    };
+
+    alloy_primitives::keccak256(encoded.abi_encode())
+}
+
+fn hash_packed_user_operation_v0_8_plus(
+    puo: PackedUserOperation,
+    entry_point: Address,
+    chain_id: u64,
+    delegation_address: Option<Address>,
+) -> B256 {
+    let mut puo_no_sig: PackedUserOperationNoSig = puo.into();
+
+    if puo_no_sig.initCode.starts_with(&EIP7702_INITCODE_MARKER) {
+        let Some(delegation_address) = delegation_address else {
+            // We cannot calculate a valid hash without a delegation address
+            return INVALID_HASH;
+        };
+
+        puo_no_sig.initCode = [
+            delegation_address.as_ref(),
+            &puo_no_sig.initCode[EIP7702_INITCODE_MARKER.len()..],
+        ]
+        .concat()
+        .into();
+    }
+
+    // perform paymaster signature hash override
+    // if paymaster data length is incorrect, override will not be applied
+    let pd_len = puo_no_sig.paymasterAndData.len();
+    if pd_len >= MIN_PAYMASTER_DATA_WITH_SUFFIX_LEN
+        && puo_no_sig.paymasterAndData.ends_with(&PAYMASTER_SIG_MAGIC)
+    {
+        let paymaster_signature_length = u16::from_be_bytes(
+            puo_no_sig.paymasterAndData
+                [pd_len - PAYMASTER_SIG_MAGIC.len() - 2..pd_len - PAYMASTER_SIG_MAGIC.len()]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+
+        if pd_len >= paymaster_signature_length + MIN_PAYMASTER_DATA_WITH_SUFFIX_LEN {
+            // remove the paymaster signature, length, and magic bytes from the paymaster and data
+            let pd_no_sig = &puo_no_sig.paymasterAndData
+                [..pd_len - PAYMASTER_SIG_MAGIC.len() - 2 - paymaster_signature_length];
+            puo_no_sig.paymasterAndData = [pd_no_sig, &PAYMASTER_SIG_MAGIC].concat().into();
+        } else {
+            // paymaster signature is invalid, return invalid hash
+            return INVALID_HASH;
+        }
+    }
+
+    let domain = eip712_domain! {
+        name: "ERC4337",
+        version: "1",
+        chain_id: chain_id,
+        verifying_contract: entry_point,
+    };
+
+    puo_no_sig.eip712_signing_hash(&domain)
+}
+
+fn concat_u128_be(a: u128, b: u128) -> [u8; 32] {
+    let a = a.to_be_bytes();
+    let b = b.to_be_bytes();
+    std::array::from_fn(|i| {
+        if let Some(i) = i.checked_sub(a.len()) {
+            b[i]
+        } else {
+            a[i]
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_primitives::{address, b256, bytes, uint};
+
+    use super::*;
+
+    #[test]
+    fn test_pack_unpack() {
+        let cs = ChainSpec::default();
+        let builder = UserOperationBuilder::new(
+            &cs,
+            EntryPointVersion::V0_7,
+            UserOperationRequiredFields {
+                sender: Address::ZERO,
+                nonce: U256::ZERO,
+                call_data: Bytes::new(),
+                call_gas_limit: 0,
+                verification_gas_limit: 0,
+                pre_verification_gas: 0,
+                max_priority_fee_per_gas: 0,
+                max_fee_per_gas: 0,
+                signature: Bytes::new(),
+            },
+        );
+
+        let uo = builder.build();
+        let packed = uo.clone().pack();
+        let unpacked =
+            UserOperationBuilder::from_packed(packed, &cs, EntryPointVersion::V0_7, None)
+                .unwrap()
+                .build();
+
+        assert_eq!(uo, unpacked);
+    }
+
+    #[test]
+    fn test_pack_unpack_2() {
+        let cs = ChainSpec::default();
+        let builder = UserOperationBuilder::new(
+            &cs,
+            EntryPointVersion::V0_7,
+            UserOperationRequiredFields {
+                sender: Address::ZERO,
+                nonce: U256::ZERO,
+                call_data: Bytes::new(),
+                call_gas_limit: 0,
+                verification_gas_limit: 0,
+                pre_verification_gas: 0,
+                max_priority_fee_per_gas: 0,
+                max_fee_per_gas: 0,
+                signature: Bytes::new(),
+            },
+        );
+        let builder = builder
+            .factory(Address::random(), "0xdeadbeef".parse().unwrap())
+            .paymaster(Address::random(), 0, 0, Bytes::new());
+
+        let uo = builder.build();
+        let packed = uo.clone().pack();
+        let unpacked =
+            UserOperationBuilder::from_packed(packed, &cs, EntryPointVersion::V0_7, None)
+                .unwrap()
+                .build();
+
+        assert_eq!(uo, unpacked);
+    }
+
+    #[test]
+    fn test_hash() {
+        // From https://sepolia.etherscan.io/tx/0x51c1f40ce6e997a54b39a0eb783e472c2afa4ed3f2f11f97986f7f3a347b9d50
+        let cs = ChainSpec {
+            id: 11155111,
+            ..Default::default()
+        };
+
+        let puo = PackedUserOperation {
+            sender: address!("b292Cf4a8E1fF21Ac27C4f94071Cd02C022C414b"),
+            nonce: uint!(0xF83D07238A7C8814A48535035602123AD6DBFA63000000000000000000000001_U256),
+            initCode: Bytes::default(),
+            callData: bytes!(
+                "e9ae5c530000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001d8b292cf4a8e1ff21ac27c4f94071cd02c022c414b00000000000000000000000000000000000000000000000000000000000000009517e29f0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ad6330089d9a1fe89f4020292e1afe9969a5a2fc00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000001518000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000018e2fbe8980000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000800000000000000000000000002372912728f93ab3daaaebea4f87e6e28476d987000000000000000000000000000000000000000000000000002386f26fc10000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            ),
+            accountGasLimits: b256!(
+                "000000000000000000000000000114fc0000000000000000000000000012c9b5"
+            ),
+            preVerificationGas: U256::from(48916),
+            gasFees: b256!("000000000000000000000000524121000000000000000000000000109a4a441a"),
+            paymasterAndData: Bytes::default(),
+            signature: bytes!(
+                "3c7bfe22c9c2ef8994a9637bcc4df1741c5dc0c25b209545a7aeb20f7770f351479b683bd17c4d55bc32e2a649c8d2dff49dcfcc1f3fd837bcd88d1e69a434cf1c"
+            ),
+        };
+
+        let hash = b256!("e486401370d145766c3cf7ba089553214a1230d38662ae532c9b62eb6dadcf7e");
+        let uo = UserOperationBuilder::from_packed(puo, &cs, EntryPointVersion::V0_7, None)
+            .unwrap()
+            .build();
+        assert_eq!(uo.hash(), hash);
+    }
+
+    #[test]
+    fn test_builder() {
+        let factory_address = Address::random();
+        let paymaster_address = Address::random();
+        let cs = ChainSpec::default();
+
+        let uo = UserOperationBuilder::new(
+            &cs,
+            EntryPointVersion::V0_7,
+            UserOperationRequiredFields {
+                sender: Address::ZERO,
+                nonce: U256::ZERO,
+                call_data: Bytes::new(),
+                call_gas_limit: 0,
+                verification_gas_limit: 0,
+                pre_verification_gas: 0,
+                max_priority_fee_per_gas: 0,
+                max_fee_per_gas: 0,
+                signature: Bytes::new(),
+            },
+        )
+        .factory(factory_address, Bytes::new())
+        .paymaster(paymaster_address, 10, 20, Bytes::new())
+        .build();
+
+        assert_eq!(uo.factory, Some(factory_address));
+        assert_eq!(uo.paymaster, Some(paymaster_address));
+        assert_eq!(uo.paymaster_verification_gas_limit, 10);
+        assert_eq!(uo.paymaster_post_op_gas_limit, 20);
+    }
+
+    #[test]
+    fn test_aggregator() {
+        let cs = ChainSpec::default();
+        let aggregator = Address::random();
+        let orig_sig = bytes!("deadbeef");
+        let new_sig = bytes!("12341234");
+        let uo = UserOperationBuilder::new(
+            &cs,
+            EntryPointVersion::V0_7,
+            UserOperationRequiredFields {
+                sender: Address::ZERO,
+                nonce: U256::ZERO,
+                call_data: Bytes::new(),
+                call_gas_limit: 0,
+                verification_gas_limit: 0,
+                pre_verification_gas: 0,
+                max_priority_fee_per_gas: 0,
+                max_fee_per_gas: 0,
+                signature: orig_sig.clone(),
+            },
+        )
+        .aggregator(aggregator)
+        .build();
+
+        let original_calldata_cost = uo.calldata_gas_cost;
+
+        let uo = uo.transform_for_aggregator(
+            &cs,
+            aggregator,
+            AggregatorCosts::default(),
+            new_sig.clone(),
+        );
+
+        assert_eq!(uo.signature, new_sig);
+        assert_eq!(uo.original_signature, orig_sig);
+        assert_eq!(uo.packed.signature, new_sig);
+
+        let uo = uo.with_original_signature();
+        assert_eq!(uo.signature, orig_sig);
+        assert_eq!(uo.packed.signature, orig_sig);
+        assert_eq!(uo.calldata_gas_cost, original_calldata_cost);
+    }
+
+    #[test]
+    fn test_hash_v0_8() {
+        // From https://sepolia.basescan.org/tx/0xfe67b0dc11c280c9cd59642c866646f787bdda155f248c284f0e4dbe068839f1
+        let cs = ChainSpec {
+            id: 84532,
+            ..Default::default()
+        };
+
+        let puo = PackedUserOperation {
+            sender: address!("fF3CA848D35d31aB8Ab554220e163b9C1b244088"),
+            nonce: uint!(32607161661329966818242529853440_U256),
+            initCode: Bytes::default(),
+            callData: bytes!(
+                "b61d27f6000000000000000000000000ff3ca848d35d31ab8ab554220e163b9c1b244088000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000"
+            ),
+            accountGasLimits: b256!(
+                "0000000000000000000000000000c76d0000000000000000000000000000238c"
+            ),
+            preVerificationGas: U256::from(47196),
+            gasFees: b256!("00000000000000000000000000000001000000000000000000000000000493e1"),
+            paymasterAndData: bytes!(
+                "df32ad4a17be64101744c7edc411cbff8032975d0000000000000000000000000000745400000000000000000000000000000000000000000000000000000000801ffb9f39c43f9558387db3e33206affaffc0bae5042ad41caa5a6ba725259375e45e87dbd23af44c6f352e210a2e09f08272e32635de1c2481bfb5f457e0671b"
+            ),
+            signature: bytes!(
+                "00f04a4abdca2d4abfc90ea397ebc49ddf8955653e2bca28a1f72c4f024c91cf7740626a2ae8afe90b0d3ff651680903d2a9e83083142e53ec5c6ea70ecf906bf31c"
+            ),
+        };
+
+        let hash = b256!("063B6A12FDFB3DB99A1844B05709E346278575281DAB0FB99A20E400D9C760B5");
+        let uo = UserOperationBuilder::from_packed(puo, &cs, EntryPointVersion::V0_8, None)
+            .unwrap()
+            .build();
+        assert_eq!(uo.hash(), hash);
+    }
+
+    #[test]
+    fn test_hash_v0_8_7702() {
+        // From https://sepolia.basescan.org/tx/0x3177e44651c127dbdc76d29b347407601ca4e3381ba27e721e22254408768641
+        let cs = ChainSpec {
+            id: 84532,
+            ..Default::default()
+        };
+
+        let puo = PackedUserOperation {
+            sender: address!("f479F10B98a66180ebcA5AAe652512b1CFCDf0d3"),
+            nonce: uint!(32629663150294956114847377391616_U256),
+            initCode: bytes!("7702000000000000000000000000000000000000"),
+            callData: bytes!(
+                "b61d27f6000000000000000000000000f479f10b98a66180ebca5aae652512b1cfcdf0d3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000"
+            ),
+            accountGasLimits: b256!(
+                "0000000000000000000000000000af9e0000000000000000000000000000238c"
+            ),
+            preVerificationGas: U256::from(188368),
+            gasFees: b256!("00000000000000000000000000000001000000000000000000000000000493e1"),
+            paymasterAndData: bytes!(
+                "df32AD4a17bE64101744c7EDc411cBFF8032975D00000000000000000000000000007aed00000000000000000000000000000000000000000000000000000000786633be55bd0309df99a7147656499fa75c743b802d8799d03dbbc3944d87da5e679e3001ad094b57ec750f5ab98acb3f4d30f9ca8458eca208e2a33fb4b1d91b"
+            ),
+            signature: bytes!(
+                "00fffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c"
+            ),
+        };
+
+        // The delegation address for the EIP-7702 authorization
+        let delegation_address = address!("0x82cffc0f83a66f016f1273cdd5c43f86e78d2478");
+        let eip7702_auth = Eip7702Auth::new_dummy(cs.id, delegation_address);
+
+        let hash = b256!("9173f293dd690650cbc32afe9d3f6fbfd1ae21a6a86222eceead32426073a065");
+        let uo = UserOperationBuilder::from_packed(
+            puo,
+            &cs,
+            EntryPointVersion::V0_8,
+            Some(eip7702_auth),
+        )
+        .unwrap()
+        .build();
+        assert_eq!(uo.hash(), hash);
+    }
+
+    #[test]
+    fn test_hash_v0_9_paymaster_signature() {
+        // https://sepolia.basescan.org/tx/0xaf889842fce1257103d2d8c74d88852f3204e3906d3d65a6933a2931e3d4476f
+        let cs = ChainSpec {
+            id: 84532,
+            ..Default::default()
+        };
+
+        let puo = PackedUserOperation {
+            sender: address!("ccb42c44Ba23626cc8a8FDA2bCA65a6Be48b7Bf2"),
+            nonce: uint!(32607162721833283615804652257280_U256),
+            initCode: Bytes::default(),
+            callData: bytes!(
+                "b61d27f6000000000000000000000000ccb42c44ba23626cc8a8fda2bca65a6be48b7bf2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000"
+            ),
+            accountGasLimits: b256!(
+                "0000000000000000000000000000c7a30000000000000000000000000000238c"
+            ),
+            preVerificationGas: U256::from(47328),
+            gasFees: b256!("00000000000000000000000000000001000000000000000000000000000493e1"),
+            paymasterAndData: bytes!(
+                "2691cd1b083c2edd37db13bd4da8ce0cfc3126a10000000000000000000000000000747400000000000000000000000000000000000000000000000000000000009b50e8d2e506366c14da1f2eb2e15f4e44318ea36342607afbd156742aec68a4758783de1355b550911c5bd8fc8f70be10b9f6560aa268c10ee8113d1c0699571b004122e325a297439656"
+            ),
+            signature: bytes!(
+                "009b50e8d2e506366c14da1f2eb2e15f4e44318ea36342607afbd156742aec68a4758783de1355b550911c5bd8fc8f70be10b9f6560aa268c10ee8113d1c0699571b"
+            ),
+        };
+
+        let hash = b256!("4E12D8B45C2AD5CED3AC06F5CCBF1FDB89D136D000D869AAA4689B97B52FD834");
+        let uo = UserOperationBuilder::from_packed(puo, &cs, EntryPointVersion::V0_9, None)
+            .unwrap()
+            .build();
+        assert_eq!(uo.hash(), hash);
+    }
+}

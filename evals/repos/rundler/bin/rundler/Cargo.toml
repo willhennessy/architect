@@ -1,0 +1,68 @@
+[package]
+name = "rundler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = """
+ERC-4337 bundler implementation
+"""
+publish = false
+default-run = "rundler"
+
+[dependencies]
+alloy-consensus.workspace = true
+alloy-eips.workspace = true
+alloy-network.workspace = true
+
+alloy-primitives.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+aws-config.workspace = true
+aws-sdk-s3 = { version = "1.52", default-features = false }
+clap = { version = "4.5.16", features = ["derive", "env"] }
+config = "0.14.0"
+dotenvy = "0.15.7"
+futures.workspace = true
+go-parse-duration = "0.1"
+http.workspace = true
+itertools.workspace = true
+metrics.workspace = true
+metrics-derive.workspace = true
+metrics-exporter-prometheus = { version = "0.16.2", default-features = false, features = ["http-listener"] }
+metrics-process = "2.4.0"
+metrics-util = "0.19.0"
+opentelemetry = "0.28.0"
+opentelemetry-otlp = { version = "0.28.0", features = ["grpc-tonic"] }
+opentelemetry_sdk = "0.28.0"
+paste = "1.0"
+reth-tasks.workspace = true
+rundler-bls.workspace = true
+rundler-builder.workspace = true
+rundler-pbh.workspace = true
+rundler-pool.workspace = true
+rundler-provider.workspace = true
+rundler-rpc.workspace = true
+rundler-signer.workspace = true
+rundler-sim.workspace = true
+rundler-task.workspace = true
+rundler-types.workspace = true
+rundler-utils.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sscanf = "0.4.2"
+strum = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "sync"] }
+tokio-metrics = "0.4.0"
+tonic.workspace = true
+tracing.workspace = true
+tracing-appender = "0.2.3"
+tracing-log = "0.2.0"
+tracing-opentelemetry = "0.29.0"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt", "json"] }
+url.workspace = true
+
+[dev-dependencies]
+cargo-husky.workspace = true
