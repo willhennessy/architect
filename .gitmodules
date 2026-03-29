@@ -4,3 +4,6 @@
 [submodule "evals/rundler"]
 	path = evals/repos/rundler
 	url = https://github.com/alchemyplatform/rundler.git
+[submodule "evals/openfga"]
+	path = evals/openfga
+	url = https://github.com/openfga/openfga.git

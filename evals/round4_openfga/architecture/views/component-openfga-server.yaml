@@ -1,0 +1,39 @@
+version: 2
+id: "component-openfga-server"
+type: "component"
+title: "OpenFGA Server Components"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show the meaningful internal boundaries inside the main server runtime."
+scope: "The `openfga run` container and the components that handle transport, authorization, evaluation, and persistence."
+source_model: "architecture/model.yaml"
+parent_container_id: "openfga-server"
+element_ids:
+  - "api-surface"
+  - "auth-and-access-control"
+  - "command-services"
+  - "authorization-engines"
+  - "datastore-adapters"
+  - "in-memory-state-backend"
+  - "persistent-state-backend"
+  - "oidc-issuer"
+relationship_ids:
+  - "r-api-surface-calls-auth-access"
+  - "r-api-surface-calls-command-services"
+  - "r-auth-access-authenticates-with-oidc"
+  - "r-auth-access-calls-authorization-engines"
+  - "r-command-services-call-authorization-engines"
+  - "r-command-services-call-datastore-adapters"
+  - "r-authorization-engines-read-via-datastore-adapters"
+  - "r-datastore-adapters-store-state-in-persistent-backend"
+  - "r-datastore-adapters-store-state-in-memory-backend"
+assumptions:
+  - text: "Store CRUD, tuple writes, assertion reads/writes, and change-log reads share one command layer rather than separate domain services."
+    confidence: "strong_inference"
+unknowns:
+  - "ListObjects and Check can run through experimental weighted-graph paths, but the exact production split between engines depends on feature flags."
+notes:
+  - "The auth-and-access-control component is not just front-door authn; it can recursively use OpenFGA's own authorization engine against an internal access-control store."
+  - "The command-services component restores the repo's documented handler -> command -> graph/storage layering."
+  - "The authorization-engines component includes planner, graph/modelgraph logic, request-scoped storage wrappers, and cache invalidation coordination."

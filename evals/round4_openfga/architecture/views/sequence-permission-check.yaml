@@ -1,0 +1,153 @@
+version: 2
+id: "sequence-permission-check"
+type: "sequence"
+title: "Permission Check Workflow"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how an authorization check request is authenticated, evaluated, and answered."
+scope: "A representative `Check` request through the main OpenFGA server runtime."
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "client-applications"
+  - "api-surface"
+  - "auth-and-access-control"
+  - "command-services"
+  - "authorization-engines"
+  - "datastore-adapters"
+  - "persistent-state-backend"
+steps:
+  - order: 1
+    source_id: "client-applications"
+    target_id: "api-surface"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Submit a `Check` request over HTTP or gRPC with tuple key, consistency, and optional contextual tuples."
+    sync_async: "sync"
+    data_objects:
+      - "Check request"
+      - "Contextual tuples"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-readme"
+      - "e-check-rpc"
+  - order: 2
+    source_id: "api-surface"
+    target_id: "auth-and-access-control"
+    relationship_id: "r-api-surface-calls-auth-access"
+    label: "Validate the caller's authentication context and authorize the API method before executing business logic."
+    sync_async: "sync"
+    data_objects:
+      - "Bearer token or preshared key"
+      - "Access-control context"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-run"
+      - "e-authz"
+      - "e-check-rpc"
+  - order: 3
+    source_id: "auth-and-access-control"
+    target_id: "authorization-engines"
+    relationship_id: "r-auth-access-calls-authorization-engines"
+    label: "When access-control is enabled, reuse OpenFGA's own permission engine to decide whether the caller may invoke `Check` on the target store."
+    sync_async: "sync"
+    data_objects:
+      - "Caller claims"
+      - "Access-control tuples"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-authz"
+      - "e-check-rpc"
+  - order: 4
+    source_id: "api-surface"
+    target_id: "command-services"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Delegate the request to the command layer, which resolves the active authorization model and prepares graph execution."
+    sync_async: "sync"
+    data_objects:
+      - "Resolved authorization model ID"
+      - "Check request"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-check-rpc"
+      - "e-check-command"
+  - order: 5
+    source_id: "command-services"
+    target_id: "authorization-engines"
+    relationship_id: "r-command-services-call-authorization-engines"
+    label: "Execute the graph-based permission evaluation through the classic or weighted engine."
+    sync_async: "sync"
+    data_objects:
+      - "Check request"
+      - "Resolved authorization model ID"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-check-rpc"
+      - "e-check-command"
+  - order: 6
+    source_id: "authorization-engines"
+    target_id: "datastore-adapters"
+    relationship_id: "r-authorization-engines-read-via-datastore-adapters"
+    label: "Read tuples and cache invalidation metadata through request-scoped storage wrappers."
+    sync_async: "storage"
+    data_objects:
+      - "Relationship tuples"
+      - "Cache invalidation timestamps"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-check-command"
+      - "e-storage"
+  - order: 7
+    source_id: "datastore-adapters"
+    target_id: "persistent-state-backend"
+    relationship_id: "r-datastore-adapters-store-state-in-persistent-backend"
+    label: "Fetch persisted authorization data from the configured backend."
+    sync_async: "storage"
+    data_objects:
+      - "Authorization models"
+      - "Relationship tuples"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-storage"
+      - "e-check-command"
+  - order: 8
+    source_id: "authorization-engines"
+    target_id: "command-services"
+    relationship_id: "r-command-services-call-authorization-engines"
+    label: "Return the allow or deny result plus resolution metadata for logging and metrics."
+    sync_async: "sync"
+    data_objects:
+      - "Check decision"
+      - "Resolution metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-check-rpc"
+  - order: 9
+    source_id: "command-services"
+    target_id: "api-surface"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Return the evaluated result to the transport layer."
+    sync_async: "sync"
+    data_objects:
+      - "Check decision"
+      - "Resolution metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-check-rpc"
+  - order: 10
+    source_id: "api-surface"
+    target_id: "client-applications"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Respond with the final allow or deny decision."
+    sync_async: "sync"
+    data_objects:
+      - "Check response"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-check-rpc"
+assumptions:
+  - text: "This sequence shows the main evaluation path and not the optional shadow-check comparison path used for experimental validation."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether weighted-graph evaluation is active depends on per-store feature flags."
+notes:
+  - "OIDC key retrieval is omitted from the mainline sequence because it is conditional on auth configuration and may be cached between requests."

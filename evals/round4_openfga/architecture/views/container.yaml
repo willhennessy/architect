@@ -1,0 +1,29 @@
+version: 2
+id: "container"
+type: "container"
+title: "OpenFGA Container View"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show the main deployable runtime and the external dependencies it must coordinate with."
+scope: "The OpenFGA software system at container granularity."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "openfga-system"
+  - "openfga-server"
+  - "persistent-state-backend"
+  - "oidc-issuer"
+  - "telemetry-collector"
+relationship_ids:
+  - "r-openfga-system-contains-openfga-server"
+  - "r-openfga-server-authenticates-with-oidc"
+  - "r-openfga-server-stores-state-in-persistent-backend"
+  - "r-openfga-server-publishes-telemetry"
+assumptions:
+  - text: "The optional local playground stays inside the main server container because it is launched by the same `run` command and shares the server's HTTP dependency."
+    confidence: "strong_inference"
+unknowns:
+  - "The repository documents production deployments with ingress and multiple instances, but those nodes are not directly enforced by the code paths modeled here."
+notes:
+  - "The HTTP API is implemented as an in-process grpc-gateway connected to the server's own gRPC endpoint."
+  - "The external persistent backend shown here covers Postgres, MySQL, and SQLite; the memory adapter is process-local and is represented only in the component view."

@@ -54,6 +54,7 @@ If the user specifies a different output path, honor it.
 - Explore first, infer second, write last.
 - Build one canonical architecture model, then derive views from it.
 - Do not create separate inferred facts per view.
+- Read repo-local agent or contributor guidance files inside the target repo when they exist, and treat explicit architectural constraints there as high-strength documentation unless stronger runtime evidence disproves them.
 - Distinguish source layout from runtime architecture.
 - Treat deployment modes and packaging modes separately from runtime roles. If the same runtime role can run collocated or split, model the role as the container and the collocation choice as deployment evidence.
 - Use explicit confidence levels: `confirmed`, `strong_inference`, `weak_inference`.
@@ -64,6 +65,9 @@ If the user specifies a different output path, honor it.
 - Keep abstraction levels strict. Do not mix C4 levels in one view.
 - Treat data ownership and system-of-record information as first-class when applicable.
 - Model optional external infrastructure explicitly when it materially affects runtime behavior, but do not let configuration-gated adapters become primary containers unless they own core business state.
+- Do not assign the same data object to multiple systems of record unless the duplication is explicitly justified in the summary or notes.
+- If a capability supports multiple real transports or deployment boundaries, prefer an explicit mode split or a neutral protocol label over one precise but incomplete claim.
+- If storage interfaces or first-class APIs expose persisted entities, include them in data-ownership analysis even when they are not the star of a workflow view.
 
 ## Evidence Hierarchy
 
@@ -158,6 +162,7 @@ Inspect:
 - infra and deployment files
 - migrations and schemas
 - docs and ADRs
+- repo-local guidance files such as `AGENTS.md`, `CLAUDE.md`, or similarly named contributor/agent instructions when present
 
 Use targeted discovery. Prefer `rg --files` and focused `rg` searches over broad scans.
 Use a discovery budget:
@@ -174,12 +179,41 @@ Add an early path sanity check before writing anything:
 - verify the requested output path
 - ensure manifest scope paths and summary language refer to the actual repo-under-test path, not a copied or inferred placeholder
 
+### 4b. Capture repo-local architecture constraints
+
+If the target repo contains repo-local guidance files, extract any explicit architectural constraints before modeling. Especially look for:
+
+- mandated layering or call order
+- naming rules for runtime boundaries
+- data ownership terminology
+- "must not edit" or generated-file boundaries that affect evidence quality
+
+Treat these as strong documentation signals, but still verify them against runtime and code evidence before writing them into the model.
+
 ### 5. Identify repo archetype
 
 Determine which primary archetype best fits the repository. Base this on runtime and packaging evidence, not naming preference.
 
 Reason:
 The correct artifact set differs across libraries, monoliths, service-oriented systems, frontend apps, and infra repos.
+
+### 5b. Build a deployment mode matrix
+
+Before committing to containers and externals, enumerate any supported modes that materially change runtime boundaries. At minimum check:
+
+- process-local versus external state backends
+- single-binary versus split-service runtime modes
+- optional versus required externals
+- dev/test quickstart modes versus persistent production modes
+
+For each meaningful mode, note:
+
+- what changes boundary type
+- what stays the same
+- whether the difference belongs in the canonical model, a deployment view, or view notes
+
+Reason:
+Many repos support both in-process and externalized modes. Failing to model that split is a common source of false external dependencies and incorrect container boundaries.
 
 ### 6. Identify canonical architecture elements
 
@@ -201,6 +235,12 @@ Classify each important data object as one of:
 - local working state
 - cache or derived state
 - external source of truth
+
+Do a data coverage pass before moving on:
+
+- enumerate persisted entities surfaced by storage interfaces, migrations, schemas, or first-class CRUD APIs
+- ensure each important entity appears in `owned_data` and, where appropriate, `system_of_record`
+- check that no entity is accidentally assigned to two systems of record without an explicit reason
 
 If a dependency is configuration-gated and not required for baseline operation, model it as optional external infrastructure unless it owns core business state.
 
@@ -241,6 +281,7 @@ Critical workflows usually include:
 
 - request entry path
 - authentication or identity path
+- bootstrap or provisioning path when the system is not meaningfully usable without initial setup
 - primary business transaction
 - background processing or async propagation
 - any path that involves external system dependencies not visible in the container view (e.g., an API layer performing computation against an external system beyond simple routing)
@@ -257,6 +298,8 @@ Before writing views, do a relationship preflight. For each important relationsh
 If the relationship would force mixed abstraction levels in a view, change the model or use a different view.
 
 For config-gated behavior, record that conditionality explicitly. If a relationship depends on enabled namespaces, feature flags, optional integrations, or deployment mode, preserve the relationship in the canonical model when it is real, but call out the condition in view notes, assumptions, or unknowns instead of implying the traffic is always active.
+
+Before finalizing sequence views, cross-check step order against the actual handler/command path for that workflow. Do not let a plausible conceptual flow override the real execution order.
 
 ### 8. Cross-check operational reality
 
@@ -318,6 +361,11 @@ Run a lightweight consistency pass after generation. At minimum verify:
 - every relationship ID referenced by a view exists in `model.yaml`
 - every sequence participant exists in `model.yaml`
 - every sequence step source/target exists in `model.yaml`
+- no important persisted entity surfaced by storage or CRUD APIs is missing from ownership fields
+- no data object is assigned to multiple systems of record without explicit justification
+- sequence step ordering matches the actual handler/command path for the modeled workflow
+- protocol labels are directly evidenced, or intentionally generalized when multiple transports are supported
+- deployment-mode differences that materially change boundaries are either modeled explicitly or called out in notes/assumptions/unknowns
 - every sequence step that includes `relationship_id` uses a relationship whose direction matches the step source and target
 - component views contain components from only one parent container
 - system-context and container views contain only allowed kinds
@@ -341,7 +389,15 @@ The prompt MUST:
 
 ### 14. Give the drawing prompt to the user
 
-Finally, tell the user that the architecture has been successfully generated. Instruct the user to copy this prompt into Claude Chat to generate visual diagram(s).
+Finally:
+
+- write a single bundled file to `diagram-prompt.md` in the parent output folder alongside `architecture/`
+- include in that file:
+  - the drawing prompt
+  - a virtual directory tree for the generated architecture artifacts
+  - the full contents of the generated files, preserving relative paths such as `views/`
+- make the bundle self-contained so it can be uploaded to a chat tool that does not have filesystem access
+- then tell the user that the architecture has been successfully generated and that they can upload `diagram-prompt.md` to Claude Chat to generate visual diagram(s)
 
 ## Stable Naming and Deduplication
 

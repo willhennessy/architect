@@ -1,0 +1,31 @@
+version: 2
+id: "system-context"
+type: "system_context"
+title: "OpenFGA System Context"
+audience:
+  - "new_hires"
+  - "pms"
+  - "senior_architects"
+purpose: "Show what OpenFGA is, who uses it, and which external systems materially affect runtime behavior."
+scope: "OpenFGA as a software system plus its key external consumers and integrations."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "client-applications"
+  - "openfga-system"
+  - "oidc-issuer"
+  - "persistent-state-backend"
+  - "telemetry-collector"
+relationship_ids:
+  - "r-client-applications-use-openfga"
+  - "r-openfga-system-authenticates-with-oidc"
+  - "r-openfga-system-stores-state-in-persistent-backend"
+  - "r-openfga-system-publishes-telemetry"
+assumptions:
+  - text: "The datastore is shown as a single external system even though deployments can swap between several backend implementations."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether a given deployment uses OIDC, preshared keys, or no authentication is configuration dependent."
+notes:
+  - "Client traffic can enter over gRPC directly or over HTTP through SDKs and the grpc-gateway."
+  - "The default quickstart in-memory mode is process-local and therefore not shown as an external system in this view."
+  - "Telemetry and OIDC are optional integrations rather than mandatory dependencies for every deployment."

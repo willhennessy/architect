@@ -1,0 +1,149 @@
+version: 2
+id: "sequence-write-relationship-tuples"
+type: "sequence"
+title: "Tuple Write Workflow"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how OpenFGA validates and persists tuple mutations."
+scope: "A representative `Write` request through the main OpenFGA server runtime."
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "client-applications"
+  - "api-surface"
+  - "auth-and-access-control"
+  - "command-services"
+  - "datastore-adapters"
+  - "persistent-state-backend"
+steps:
+  - order: 1
+    source_id: "client-applications"
+    target_id: "api-surface"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Submit a tuple mutation request with writes, deletes, store ID, and an optional authorization model ID."
+    sync_async: "sync"
+    data_objects:
+      - "Write request"
+      - "Tuple mutations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+  - order: 2
+    source_id: "api-surface"
+    target_id: "command-services"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Delegate the write request to the command-oriented business layer."
+    sync_async: "sync"
+    data_objects:
+      - "Requested tuple mutations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+      - "e-write-command"
+  - order: 3
+    source_id: "command-services"
+    target_id: "datastore-adapters"
+    relationship_id: "r-command-services-call-datastore-adapters"
+    label: "Load the effective authorization model so the handler can resolve the active typesystem."
+    sync_async: "storage"
+    data_objects:
+      - "Authorization model"
+      - "Tuple mutations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+      - "e-write-command"
+  - order: 4
+    source_id: "datastore-adapters"
+    target_id: "persistent-state-backend"
+    relationship_id: "r-datastore-adapters-store-state-in-persistent-backend"
+    label: "Read the persisted authorization model for the target store."
+    sync_async: "storage"
+    data_objects:
+      - "Authorization model"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-command"
+      - "e-storage"
+  - order: 5
+    source_id: "api-surface"
+    target_id: "auth-and-access-control"
+    relationship_id: "r-api-surface-calls-auth-access"
+    label: "Authenticate the caller and verify write permission for the target store or modules using the resolved typesystem."
+    sync_async: "sync"
+    data_objects:
+      - "Caller claims"
+      - "Resolved authorization model ID"
+      - "Requested tuple mutations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+      - "e-authz"
+  - order: 6
+    source_id: "api-surface"
+    target_id: "command-services"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Invoke the write command to validate duplicates, tuple structure, and request options."
+    sync_async: "sync"
+    data_objects:
+      - "Validated tuple mutations"
+      - "Resolved authorization model ID"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+      - "e-write-command"
+  - order: 7
+    source_id: "command-services"
+    target_id: "datastore-adapters"
+    relationship_id: "r-command-services-call-datastore-adapters"
+    label: "Re-read the model for command validation, then issue a transactional delete-then-insert write."
+    sync_async: "storage"
+    data_objects:
+      - "Validated tuple deletions"
+      - "Validated tuple writes"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-command"
+  - order: 8
+    source_id: "datastore-adapters"
+    target_id: "persistent-state-backend"
+    relationship_id: "r-datastore-adapters-store-state-in-persistent-backend"
+    label: "Persist the tuple mutations and update change history in the configured backend."
+    sync_async: "storage"
+    data_objects:
+      - "Relationship tuples"
+      - "Tuple change history"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-command"
+      - "e-storage"
+  - order: 9
+    source_id: "command-services"
+    target_id: "api-surface"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Return success or a transactional/validation error to the transport layer."
+    sync_async: "sync"
+    data_objects:
+      - "Write result"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+      - "e-write-command"
+  - order: 10
+    source_id: "api-surface"
+    target_id: "client-applications"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Return success or a transactional/validation error."
+    sync_async: "sync"
+    data_objects:
+      - "Write response"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-rpc"
+assumptions:
+  - text: "The sequence focuses on tuple mutations and not on `WriteAuthorizationModel`, although model writes are another part of the same API surface."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether deletes or duplicate inserts are ignored versus rejected depends on request options."
+notes:
+  - "The handler resolves the typesystem before module-level write authorization, then the write command validates against the active model again before calling datastore `Write`."

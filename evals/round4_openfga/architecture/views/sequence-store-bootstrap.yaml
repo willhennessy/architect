@@ -1,0 +1,161 @@
+version: 2
+id: "sequence-store-bootstrap"
+type: "sequence"
+title: "Store Bootstrap Workflow"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how a new OpenFGA store is created and receives its first authorization model."
+scope: "The bootstrap path for provisioning a store and publishing its policy model."
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "client-applications"
+  - "api-surface"
+  - "auth-and-access-control"
+  - "command-services"
+  - "datastore-adapters"
+  - "persistent-state-backend"
+steps:
+  - order: 1
+    source_id: "client-applications"
+    target_id: "api-surface"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Submit `CreateStore` to provision a new authorization store."
+    sync_async: "sync"
+    data_objects:
+      - "CreateStore request"
+      - "Store metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-stores-rpc"
+  - order: 2
+    source_id: "api-surface"
+    target_id: "auth-and-access-control"
+    relationship_id: "r-api-surface-calls-auth-access"
+    label: "Authenticate the caller and authorize the store-creation API."
+    sync_async: "sync"
+    data_objects:
+      - "Caller claims"
+      - "Store-creation permission context"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-stores-rpc"
+      - "e-authz"
+  - order: 3
+    source_id: "api-surface"
+    target_id: "command-services"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Delegate store provisioning to the command layer."
+    sync_async: "sync"
+    data_objects:
+      - "Store metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-stores-rpc"
+      - "e-openfga-agents"
+  - order: 4
+    source_id: "command-services"
+    target_id: "datastore-adapters"
+    relationship_id: "r-command-services-call-datastore-adapters"
+    label: "Create the store record in the selected backend."
+    sync_async: "storage"
+    data_objects:
+      - "Store metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-stores-rpc"
+      - "e-storage"
+  - order: 5
+    source_id: "datastore-adapters"
+    target_id: "persistent-state-backend"
+    relationship_id: "r-datastore-adapters-store-state-in-persistent-backend"
+    label: "Persist the new store in the external backend for persistent deployments."
+    sync_async: "storage"
+    data_objects:
+      - "Store metadata"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-stores-rpc"
+      - "e-storage"
+  - order: 6
+    source_id: "client-applications"
+    target_id: "api-surface"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Submit `WriteAuthorizationModel` for the new store."
+    sync_async: "sync"
+    data_objects:
+      - "Authorization model"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-readme"
+      - "e-authz-model-rpc"
+  - order: 7
+    source_id: "api-surface"
+    target_id: "auth-and-access-control"
+    relationship_id: "r-api-surface-calls-auth-access"
+    label: "Authenticate the caller and authorize model publication."
+    sync_async: "sync"
+    data_objects:
+      - "Caller claims"
+      - "Authorization-model write permission context"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-authz-model-rpc"
+      - "e-authz"
+  - order: 8
+    source_id: "api-surface"
+    target_id: "command-services"
+    relationship_id: "r-api-surface-calls-command-services"
+    label: "Delegate model validation and publication to the command layer."
+    sync_async: "sync"
+    data_objects:
+      - "Authorization model"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-authz-model-rpc"
+      - "e-write-authzmodel-command"
+  - order: 9
+    source_id: "command-services"
+    target_id: "datastore-adapters"
+    relationship_id: "r-command-services-call-datastore-adapters"
+    label: "Validate schema and size, then persist the new authorization model."
+    sync_async: "storage"
+    data_objects:
+      - "Authorization model"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-authz-model-rpc"
+      - "e-write-authzmodel-command"
+  - order: 10
+    source_id: "datastore-adapters"
+    target_id: "persistent-state-backend"
+    relationship_id: "r-datastore-adapters-store-state-in-persistent-backend"
+    label: "Store the new authorization model and return its generated ID."
+    sync_async: "storage"
+    data_objects:
+      - "Authorization model"
+      - "Authorization model ID"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-write-authzmodel-command"
+      - "e-storage"
+  - order: 11
+    source_id: "api-surface"
+    target_id: "client-applications"
+    relationship_id: "r-client-applications-use-openfga"
+    label: "Return the created store and new authorization model ID."
+    sync_async: "sync"
+    data_objects:
+      - "CreateStore response"
+      - "WriteAuthorizationModel response"
+    confidence: "confirmed"
+    evidence_ids:
+      - "e-stores-rpc"
+      - "e-authz-model-rpc"
+assumptions:
+  - text: "The bootstrap sequence shows the persistent-backend path; the in-memory adapter follows the same logical steps inside the server process."
+    confidence: "strong_inference"
+unknowns:
+  - "The repo supports additional follow-on bootstrap state such as assertions, but that is not required for a store to begin serving core authorization queries."
+notes:
+  - "A usable OpenFGA store needs both a store record and at least one authorization model; that is why bootstrap is modeled as a combined lifecycle flow."
