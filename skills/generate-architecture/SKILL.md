@@ -328,6 +328,21 @@ Run a lightweight consistency pass after generation. At minimum verify:
 
 If validation fails, fix the artifacts before completing the task.
 
+### 13. Construct the drawing prompt
+
+ONLY after completing all previous steps, write a prompt that instructs another agent how to draw the architecture diagram(s).
+
+The prompt MUST:
+
+* Assign a role to the agent. The role should be rooted in the technical expertise of this particular architecture. For example, "You are a senior Rust engineer".
+* Point the agent to the architecture folder.
+* Give the agent basic context about the contents of the folder. For example, "This folder contains a semantic representation of the rundler codebase using the C4 model."
+* Instruct the agent to draw the architecture diagram.
+
+### 14. Give the drawing prompt to the user
+
+Finally, tell the user that the architecture has been successfully generated. Instruct the user to copy this prompt into Claude Chat to generate visual diagram(s).
+
 ## Stable Naming and Deduplication
 
 - Normalize names around responsibility, not implementation detail.
