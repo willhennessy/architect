@@ -1,0 +1,96 @@
+view_type: "sequence"
+title: "Record Sync (V2)"
+description: "Bidirectional sync flow for encrypted records between client and server."
+participants:
+  - ref: "atuin-cli"
+  - ref: "client-sync"
+  - ref: "client-record-store"
+  - ref: "client-encryption"
+  - ref: "client-api"
+  - ref: "atuin-sync-server"
+steps:
+  - seq: 1
+    source: "atuin-cli"
+    target: "client-sync"
+    label: "Trigger sync"
+    sync_async: "sync"
+
+  - seq: 2
+    source: "client-sync"
+    target: "client-record-store"
+    label: "Get local record status (host, tag, idx)"
+    sync_async: "sync"
+
+  - seq: 3
+    source: "client-sync"
+    target: "client-api"
+    label: "Get remote record status"
+    sync_async: "sync"
+
+  - seq: 4
+    source: "client-api"
+    target: "atuin-sync-server"
+    label: "GET /api/v0/record/status"
+    sync_async: "sync"
+    protocol: "https"
+
+  - seq: 5
+    source: "client-sync"
+    target: "client-sync"
+    label: "Compute diff (uploads and downloads)"
+    sync_async: "sync"
+
+  - seq: 6
+    source: "client-sync"
+    target: "client-record-store"
+    label: "Fetch local records to upload"
+    sync_async: "sync"
+
+  - seq: 7
+    source: "client-sync"
+    target: "client-encryption"
+    label: "Encrypt records with envelope encryption (PASETO V4)"
+    sync_async: "sync"
+
+  - seq: 8
+    source: "client-sync"
+    target: "client-api"
+    label: "Upload encrypted records"
+    sync_async: "sync"
+
+  - seq: 9
+    source: "client-api"
+    target: "atuin-sync-server"
+    label: "POST /api/v0/record"
+    sync_async: "sync"
+    protocol: "https"
+
+  - seq: 10
+    source: "client-sync"
+    target: "client-api"
+    label: "Download missing records from server"
+    sync_async: "sync"
+
+  - seq: 11
+    source: "client-api"
+    target: "atuin-sync-server"
+    label: "GET /api/v0/record/next"
+    sync_async: "sync"
+    protocol: "https"
+
+  - seq: 12
+    source: "client-sync"
+    target: "client-encryption"
+    label: "Decrypt downloaded records"
+    sync_async: "sync"
+
+  - seq: 13
+    source: "client-sync"
+    target: "client-record-store"
+    label: "Store decrypted records locally"
+    sync_async: "sync"
+
+notes:
+  - "The server never sees plaintext — all encryption/decryption happens client-side."
+  - "Sync is bidirectional: the client computes a diff and then both uploads and downloads."
+  - "V1 legacy sync is a separate code path for direct history entry sync, being phased out."

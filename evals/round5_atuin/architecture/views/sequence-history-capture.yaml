@@ -1,0 +1,52 @@
+view_type: "sequence"
+title: "History Capture"
+description: "How a shell command is recorded via shell hooks."
+participants:
+  - ref: "shell-user"
+  - ref: "atuin-cli"
+  - ref: "client-history-store"
+  - ref: "local-sqlite"
+steps:
+  - seq: 1
+    source: "shell-user"
+    target: "atuin-cli"
+    label: "Shell hook calls 'atuin history start <command>'"
+    sync_async: "sync"
+    notes: "Hot path — must be fast. Skips database initialization."
+
+  - seq: 2
+    source: "atuin-cli"
+    target: "client-history-store"
+    label: "Create history entry with command, cwd, hostname, session"
+    sync_async: "sync"
+
+  - seq: 3
+    source: "client-history-store"
+    target: "local-sqlite"
+    label: "INSERT history record"
+    sync_async: "sync"
+    protocol: "sqlite"
+
+  - seq: 4
+    source: "shell-user"
+    target: "atuin-cli"
+    label: "Shell hook calls 'atuin history end <id> --exit <code> --duration <ms>'"
+    sync_async: "sync"
+    notes: "Hot path — must be fast."
+
+  - seq: 5
+    source: "atuin-cli"
+    target: "client-history-store"
+    label: "Update history entry with exit code and duration"
+    sync_async: "sync"
+
+  - seq: 6
+    source: "client-history-store"
+    target: "local-sqlite"
+    label: "UPDATE history record"
+    sync_async: "sync"
+    protocol: "sqlite"
+
+notes:
+  - "'history start' and 'history end' are hot paths that skip database initialization for latency."
+  - "When the daemon is running, shell hooks route through the daemon's gRPC interface instead of directly spawning CLI processes."

@@ -1,0 +1,23 @@
+view_type: "component"
+title: "Client Library - Component View"
+description: "Internal components of the atuin-client library."
+parent_container: "client-library"
+elements:
+  - ref: "client-history-store"
+  - ref: "client-record-store"
+  - ref: "client-encryption"
+  - ref: "client-sync"
+  - ref: "client-api"
+  # Context elements for relationship rendering
+  - ref: "local-sqlite"
+  - ref: "atuin-sync-server"
+relationships:
+  - ref: "rel-sync-recordstore"
+  - ref: "rel-sync-encryption"
+  - ref: "rel-sync-api"
+  - ref: "rel-client-sqlite"
+  - ref: "rel-client-server"
+notes:
+  - "The record store is the V2 sync abstraction — all data types share this infrastructure via tagged records."
+  - "Encryption happens at the record store level before sync. The server never sees plaintext."
+  - "The history store uses a separate SQLite database from the record store."

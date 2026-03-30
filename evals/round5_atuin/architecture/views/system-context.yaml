@@ -1,0 +1,15 @@
+view_type: "system_context"
+title: "Atuin - System Context"
+description: "High-level view of Atuin and its external dependencies."
+elements:
+  - ref: "atuin-system"
+  - ref: "shell-user"
+  - ref: "atuin-sync-server"
+  - ref: "postgres"
+relationships:
+  - ref: "rel-user-cli"
+  - ref: "rel-client-server"
+  - ref: "rel-server-postgres"
+notes:
+  - "The sync server is optional — Atuin works fully offline with local SQLite."
+  - "The OIDC issuer and telemetry collector are omitted as they are not relevant at this level."

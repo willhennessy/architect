@@ -1,0 +1,18 @@
+view_type: "component"
+title: "Sync Server - Component View"
+description: "Internal components of the Atuin sync server."
+parent_container: "server-binary"
+elements:
+  - ref: "server-handlers"
+  - ref: "server-auth"
+  - ref: "server-database-trait"
+  # Context elements
+  - ref: "postgres"
+relationships:
+  - ref: "rel-handlers-auth"
+  - ref: "rel-handlers-db"
+  - ref: "rel-server-postgres"
+notes:
+  - "The Database trait has two implementations: atuin-server-postgres and atuin-server-sqlite."
+  - "Backend type is selected at startup based on the DB URI prefix."
+  - "Auth uses simple token-based sessions, not OIDC (OIDC is optional and separate)."

@@ -1,0 +1,19 @@
+scores:
+  element_accuracy: 3
+  relationship_completeness: 4
+  abstraction_discipline: 4
+  data_ownership_coverage: 4
+  workflow_coverage: 4
+  evidence_discipline: 4
+  archetype_fit: 4
+  efficiency: 5
+  total: 32  # out of 40
+  notes:
+    - "element_accuracy: Missing 5+ crates as components (dotfiles, kv, scripts, history, nucleo). Core containers correct."
+    - "relationship_completeness: All critical relationships present. Missing relationships for unmapped components."
+    - "abstraction_discipline: Clean C4 separation. Minor issue with client library as container vs component."
+    - "data_ownership_coverage: SoR correctly assigned. Missing ownership entries for dotfiles/kv/scripts data types."
+    - "workflow_coverage: Sync and history capture well-covered. Missing interactive search workflow."
+    - "evidence_discipline: All claims have evidence IDs. Confidence levels used appropriately. Unknowns recorded."
+    - "archetype_fit: full_stack_product is correct. Artifact set is appropriate for the archetype."
+    - "efficiency: Leveraged AGENTS.md heavily — minimal unnecessary file exploration."
