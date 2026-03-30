@@ -1,0 +1,246 @@
+# Ground Truth: Rundler
+# Source: Synthesized from 3 eval rounds + code inspection of alchemyplatform/rundler
+# Last updated: 2026-03-30
+
+repo: alchemyplatform/rundler
+archetype: service_oriented_backend
+# Note: The repo README and architecture docs describe it as modular with three
+# distinct runtime roles (RPC, Pool, Builder) that can run split or collocated.
+# "service_oriented_backend" is the correct archetype because the roles have
+# distinct runtime boundaries, even though they CAN run in one process.
+# "modular_monolith" is defensible but loses the split-deployment truth.
+
+system_name: Rundler
+description: >
+  ERC-4337 bundler that validates, pools, and submits user operation bundles
+  to EVM chains. Built by Alchemy in Rust.
+
+# === Expected Elements ===
+
+context_level:
+  system_of_interest:
+    - id: rundler-system
+      name: Rundler
+      kind: software_system
+      notes: "Single binary with three task roles. Can run all-in-one (node mode) or split (pool, builder, rpc subcommands)."
+
+  external_actors:
+    - id: dapp-user
+      name: "DApp / Wallet User"
+      kind: person
+      notes: "Submits ERC-4337 user operations via JSON-RPC"
+
+  external_systems:
+    - id: evm-node
+      name: "EVM Full Node"
+      kind: external_system
+      notes: "Chain state, simulation (debug_traceCall), transaction submission"
+      required: true
+
+    - id: entrypoint-contract
+      name: "EntryPoint Contract"
+      kind: external_system
+      notes: "ERC-4337 EntryPoint (v0.6, v0.7, v0.8, v0.9). Validates and executes bundles on-chain."
+      required: true
+
+    - id: aws-kms
+      name: "AWS KMS"
+      kind: external_system
+      notes: "Production transaction signing. Optional — local keys also supported."
+      required: false
+
+    - id: redis
+      name: "Redis"
+      kind: external_system
+      notes: "KMS key leasing for distributed builder workers. Only needed with KMS."
+      required: false
+
+    - id: flashbots-relay
+      name: "Flashbots Protect"
+      kind: external_system
+      notes: "Private bundle submission on Ethereum mainnet. One of several sender backends."
+      required: false
+
+containers:
+  - id: rpc-task
+    name: "RPC Server"
+    technology: "Rust / jsonrpsee"
+    source: "crates/rpc/"
+    responsibilities:
+      - "JSON-RPC endpoint (eth_, debug_, rundler_, admin_ namespaces)"
+      - "Gas estimation via simulation (depends on sim crate, calls EVM node directly)"
+      - "Routes UOs to Pool, debug commands to Builder"
+    owned_data: []
+    notes: "NOT a thin proxy — performs gas estimation via the sim crate against the EVM node."
+
+  - id: pool-task
+    name: "Pool (Mempool)"
+    technology: "Rust / tokio"
+    source: "crates/pool/"
+    responsibilities:
+      - "Validates incoming UOs via simulation"
+      - "Maintains in-memory mempool"
+      - "Tracks entity reputation"
+      - "Monitors chain state and handles reorgs"
+    owned_data: ["user_operations_mempool", "entity_reputation", "mined_uo_cache", "paymaster_balances"]
+    system_of_record: ["user_operation_lifecycle"]
+
+  - id: builder-task
+    name: "Builder"
+    technology: "Rust / tokio"
+    source: "crates/builder/"
+    responsibilities:
+      - "Selects UOs from pool, re-simulates, builds bundles"
+      - "Signs transactions (via signer module)"
+      - "Submits bundles on-chain (via pluggable sender backends)"
+      - "Tracks mining status, handles cancellations"
+    owned_data: ["pending_bundle_state"]
+
+components:
+  pool_task:
+    - id: pool-simulation
+      name: "Simulation Engine"
+      source: "crates/sim/"
+      notes: "SHARED across Pool, RPC, and Builder. Placed under Pool as primary consumer."
+      cross_cutting: true
+
+    - id: pool-chain-tracker
+      name: "Chain Tracker"
+      source: "crates/pool/src/chain.rs"
+
+    - id: pool-reputation
+      name: "Reputation Manager"
+      source: "crates/pool/src/mempool/"
+      owned_data: ["entity_reputation"]
+
+    - id: pool-server
+      name: "Pool Server"
+      source: "crates/pool/src/server/"
+      notes: "Local in-process + remote gRPC modes"
+
+  builder_task:
+    - id: builder-assigner
+      name: "Assigner"
+      source: "crates/builder/src/assigner.rs"
+
+    - id: builder-proposer
+      name: "Bundle Proposer"
+      source: "crates/builder/src/bundle_proposer.rs"
+
+    - id: builder-sender
+      name: "Bundle Sender (State Machine)"
+      source: "crates/builder/src/bundle_sender.rs"
+      notes: "State machine: Building -> Pending -> Cancelling -> CancelPending"
+
+    - id: builder-tx-sender
+      name: "Transaction Sender"
+      source: "crates/builder/src/sender/"
+      notes: "Pluggable: raw, flashbots, bloxroute, polygon_private"
+
+    - id: builder-signer
+      name: "Signer Manager"
+      source: "crates/signer/"
+      notes: "Local, mnemonic, AWS KMS with Redis key leasing"
+
+    - id: builder-server
+      name: "Builder Server"
+      source: "crates/builder/src/server/"
+      notes: "Local in-process + remote gRPC modes"
+
+# === Expected Relationships (critical) ===
+
+critical_relationships:
+  - source: dapp-user
+    target: rpc-task
+    protocol: "JSON-RPC over HTTPS"
+    notes: "User-facing API"
+
+  - source: rpc-task
+    target: pool-task
+    protocol: "in-process (node mode) or gRPC (distributed)"
+    notes: "UO submission and status queries"
+
+  - source: rpc-task
+    target: evm-node
+    protocol: "JSON-RPC over HTTPS"
+    notes: "Gas estimation via sim crate. Often missed — RPC is NOT a thin proxy."
+
+  - source: builder-task
+    target: pool-task
+    protocol: "in-process or gRPC"
+    notes: "Fetches UOs for bundling, reports failures"
+
+  - source: pool-task
+    target: evm-node
+    protocol: "JSON-RPC over HTTPS"
+    notes: "Simulation (debug_traceCall), chain state tracking"
+
+  - source: builder-task
+    target: evm-node
+    protocol: "JSON-RPC over HTTPS"
+    notes: "Bundle transaction submission"
+
+  - source: builder-task
+    target: entrypoint-contract
+    protocol: "EVM transaction (handleOps)"
+    notes: "On-chain bundle execution"
+
+  - source: builder-signer
+    target: aws-kms
+    protocol: "HTTPS"
+    notes: "Optional. Transaction signing."
+
+# === Expected Workflows ===
+
+critical_workflows:
+  - name: "UO Submission"
+    steps:
+      - "DApp submits UO via eth_sendUserOperation"
+      - "RPC validates format"
+      - "RPC forwards to Pool"
+      - "Pool simulates via sim crate (calls EVM node)"
+      - "Pool checks reputation"
+      - "Pool admits to mempool"
+
+  - name: "Bundle Building & Submission"
+    steps:
+      - "Builder receives block update"
+      - "Assigner assigns entrypoint to worker"
+      - "Proposer fetches UOs from Pool"
+      - "Proposer re-simulates and builds bundle"
+      - "Sender signs transaction (via Signer)"
+      - "Sender submits transaction (via Transaction Sender)"
+      - "Sender tracks mining status"
+
+  - name: "Gas Estimation"
+    steps:
+      - "DApp calls eth_estimateUserOperationGas"
+      - "RPC uses sim crate to simulate against EVM node"
+      - "RPC returns gas estimate"
+    notes: "This is where RPC's direct dependency on sim/EVM is visible."
+
+# === Common Mistakes ===
+# These are errors observed across eval rounds that the skill should avoid.
+
+common_mistakes:
+  - "Treating RPC as a thin proxy. It depends on the sim crate and calls the EVM node directly for gas estimation."
+  - "Using modular_monolith archetype. The three roles have distinct runtime boundaries and can be deployed separately."
+  - "Missing the sim crate's cross-cutting nature — it's used by Pool, RPC, AND Builder."
+  - "Using a forward-call relationship to represent response edges in sequence views."
+  - "Trusting docs/architecture/rpc.md over the Cargo.toml dependency on rundler-sim."
+  - "Not recognizing that Pool is the system of record for user operation lifecycle."
+
+# === Deployment Modes ===
+
+deployment_modes:
+  - name: "node (all-in-one)"
+    description: "Single process running RPC + Pool + Builder with in-process message passing"
+    command: "rundler node"
+
+  - name: "distributed"
+    description: "Separate processes for RPC, Pool, Builder communicating via gRPC"
+    commands: ["rundler pool", "rundler builder", "rundler rpc"]
+
+  - name: "backend"
+    description: "Pool + Builder in one process, behind a separate RPC gateway"
+    command: "rundler backend"

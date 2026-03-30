@@ -1,0 +1,217 @@
+# Ground Truth: OpenFGA
+# Source: Synthesized from round 4 eval + code inspection of openfga/openfga
+# Last updated: 2026-03-30
+
+repo: openfga/openfga
+archetype: modular_monolith
+# Single binary ("openfga run") with clean internal layering.
+# NOT service_oriented_backend — there is one deployable process.
+
+system_name: OpenFGA
+description: >
+  Fine-grained authorization engine inspired by Google Zanzibar.
+  Provides APIs to manage authorization stores, models, and relationship
+  tuples, and to answer authorization queries via graph-based resolution.
+
+# === Expected Elements ===
+
+context_level:
+  system_of_interest:
+    - id: openfga-system
+      name: OpenFGA
+      kind: software_system
+
+  external_actors:
+    - id: client-applications
+      name: "Client Applications"
+      kind: software_system
+      notes: "SDK consumers, services calling OpenFGA APIs"
+
+  external_systems:
+    - id: persistent-state-backend
+      name: "Persistent State Backend"
+      kind: external_system
+      notes: "Postgres, MySQL, or SQLite. Optional — in-memory adapter also supported."
+      required: false  # in-memory mode works without it
+      system_of_record: ["authorization_stores", "authorization_models", "relationship_tuples", "assertions", "tuple_change_history"]
+
+    - id: oidc-issuer
+      name: "OIDC Issuer"
+      kind: external_system
+      notes: "Optional. Token verification for API authentication."
+      required: false
+
+    - id: telemetry-collector
+      name: "Telemetry Collector"
+      kind: external_system
+      notes: "Optional. OpenTelemetry traces and metrics."
+      required: false
+
+containers:
+  - id: openfga-server
+    name: "OpenFGA Server"
+    technology: "Go, gRPC, grpc-gateway"
+    source: "cmd/run/run.go, pkg/server/server.go"
+    notes: "Single container — this is a modular monolith, not a multi-service system."
+
+  # In-memory state backend is NOT a separate container — it's a storage adapter
+  # within the server process. This distinction matters.
+
+components:
+  openfga_server:
+    - id: api-surface
+      name: "API Surface"
+      source: "cmd/run/run.go, pkg/server/server.go"
+      notes: "gRPC + HTTP gateway + optional playground + experimental AuthZEN"
+
+    - id: command-services
+      name: "Command Services"
+      source: "pkg/server/commands/"
+      notes: >
+        Business logic layer between API surface and storage/graph.
+        Handles write authorization, read operations, model management.
+        MUST be modeled — without it the architecture is flatter than the code.
+
+    - id: graph-engine
+      name: "Graph Resolution Engine"
+      source: "internal/graph/"
+      notes: "Zanzibar-style graph traversal for Check, ListObjects, ListUsers"
+
+    - id: typesystem-resolver
+      name: "Typesystem Resolver"
+      source: "pkg/typesystem/"
+      notes: "Parses and resolves authorization models into queryable typesystems"
+
+    - id: storage-layer
+      name: "Storage Layer"
+      source: "pkg/storage/"
+      notes: "Interface with adapters for Postgres, MySQL, SQLite, and in-memory"
+
+    - id: condition-evaluator
+      name: "Condition Evaluator"
+      source: "internal/condition/"
+      notes: "CEL-based condition evaluation for conditional relationship tuples"
+
+    - id: middleware-stack
+      name: "Middleware Stack"
+      source: "internal/middleware/"
+      notes: "Authn, request validation, logging, tracing interceptors"
+
+# === Data Ownership ===
+
+data_ownership:
+  authorization_stores:
+    system_of_record: persistent-state-backend
+    notes: "In-memory mode: process-local, lost on restart"
+
+  authorization_models:
+    system_of_record: persistent-state-backend
+
+  relationship_tuples:
+    system_of_record: persistent-state-backend
+
+  assertions:
+    system_of_record: persistent-state-backend
+    notes: "Often missed in modeling. Persisted alongside tuples."
+
+  tuple_change_history:
+    system_of_record: persistent-state-backend
+
+  resolver_caches:
+    type: "cache/derived"
+    owner: openfga-server
+    notes: "Request-scoped and shared caches for graph resolution"
+
+# === Critical Relationships ===
+
+critical_relationships:
+  - source: client-applications
+    target: api-surface
+    protocol: "gRPC or HTTP"
+
+  - source: api-surface
+    target: command-services
+    protocol: "in-process"
+    notes: "API surface delegates to command layer"
+
+  - source: command-services
+    target: graph-engine
+    protocol: "in-process"
+    notes: "Check/ListObjects/ListUsers queries"
+
+  - source: command-services
+    target: storage-layer
+    protocol: "in-process"
+    notes: "Tuple reads/writes, model reads"
+
+  - source: command-services
+    target: typesystem-resolver
+    protocol: "in-process"
+    notes: "Resolves authorization model before processing writes"
+
+  - source: graph-engine
+    target: storage-layer
+    protocol: "in-process"
+    notes: "Reads tuples during graph traversal"
+
+  - source: storage-layer
+    target: persistent-state-backend
+    protocol: "SQL (Postgres/MySQL/SQLite)"
+    notes: "Or in-memory adapter — no external dependency"
+
+  - source: api-surface
+    target: oidc-issuer
+    protocol: "HTTPS (JWKS)"
+    notes: "Optional. Token verification."
+
+# === Critical Workflows ===
+
+critical_workflows:
+  - name: "Check (Authorization Query)"
+    steps:
+      - "Client sends Check request via gRPC/HTTP"
+      - "API surface validates and authenticates"
+      - "Command service resolves typesystem for the store"
+      - "Command service delegates to graph engine"
+      - "Graph engine traverses relationship tuples via storage layer"
+      - "Graph engine evaluates conditions (if conditional tuples)"
+      - "Result returned to client"
+
+  - name: "Write Tuples"
+    steps:
+      - "Client sends Write request"
+      - "API surface validates"
+      - "Command service resolves typesystem FIRST"
+      - "Command service authorizes the write against the model"
+      - "Command service writes tuples via storage layer"
+    notes: "Typesystem resolution happens BEFORE write authorization. Order matters."
+
+  - name: "Store Bootstrap"
+    steps:
+      - "Client creates a store via CreateStore"
+      - "Client writes an authorization model via WriteAuthorizationModel"
+      - "Store is now ready for tuple writes and checks"
+    notes: "Often missed. System is not usable without this lifecycle."
+
+# === Common Mistakes ===
+
+common_mistakes:
+  - "Missing the command-services layer, making the architecture flatter than the code."
+  - "Assigning system-of-record to both openfga-system AND persistent-state-backend (duplicate SoR)."
+  - "Treating in-memory backend as an external system. It's a storage adapter within the process."
+  - "Missing assertions in the data ownership model."
+  - "Getting tuple-write sequence order wrong: typesystem resolution must come before write authorization."
+  - "Overstating transport specificity: the server supports both gRPC and HTTP, and experimentally AuthZEN."
+  - "Missing the store bootstrap lifecycle workflow."
+  - "Not modeling the condition evaluator (CEL) as a distinct component."
+
+# === Deployment Modes ===
+
+deployment_modes:
+  - name: "with persistent backend"
+    description: "OpenFGA server + Postgres/MySQL/SQLite"
+    notes: "Production mode. State survives restarts."
+
+  - name: "in-memory"
+    description: "OpenFGA server with in-memory storage adapter"
+    notes: "Dev/test mode. All state lost on restart. No external dependencies."

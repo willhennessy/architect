@@ -1,0 +1,213 @@
+# Eval Repo Catalog
+# Pre-vetted repositories for architecture eval cycles.
+# Each entry includes expected architectural properties to enable ground-truth comparison.
+#
+# Selection criteria:
+#   - Popular on GitHub (>1k stars)
+#   - Architecturally interesting (meaningful runtime boundaries, data ownership, deployment complexity)
+#   - Right-sized: within 2x of Rundler baseline (~337 filtered source files)
+#   - Not frontend-only, toy, or generated SDK repos
+
+repos:
+
+  # --- Already evaluated ---
+
+  - name: rundler
+    url: https://github.com/alchemyplatform/rundler
+    language: Rust
+    archetype: service_oriented_backend
+    stars: "~900"
+    description: ERC-4337 bundler implementation with modular task-based architecture
+    architectural_interest:
+      - Three distinct runtime roles (RPC, Pool, Builder) that can run split or collocated
+      - Shared simulation crate across multiple runtime units
+      - External chain dependency (EVM node)
+      - Data ownership boundaries around mempool state
+    eval_rounds: [1, 2, 3]
+    has_ground_truth: true
+
+  - name: openfga
+    url: https://github.com/openfga/openfga
+    language: Go
+    archetype: modular_monolith
+    stars: "~3.5k"
+    description: Fine-grained authorization engine inspired by Google Zanzibar
+    architectural_interest:
+      - Single-binary modular monolith with clean internal layering
+      - Multiple storage backends (Postgres, MySQL, SQLite, in-memory)
+      - Graph-based relationship resolution engine
+      - gRPC + HTTP dual transport
+    eval_rounds: [4]
+    has_ground_truth: true
+
+  # --- New candidates ---
+
+  - name: nats-server
+    url: https://github.com/nats-io/nats-server
+    language: Go
+    archetype: infrastructure_repo
+    stars: "~16k"
+    description: High-performance cloud-native messaging system
+    architectural_interest:
+      - Clustering and route mesh networking
+      - JetStream persistence layer with multiple storage engines
+      - Embedded authorization and account system
+      - Leaf node and gateway topologies
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~400 source files"
+
+  - name: caddy
+    url: https://github.com/caddyserver/caddy
+    language: Go
+    archetype: modular_monolith
+    stars: "~60k"
+    description: Fast, extensible web server with automatic HTTPS
+    architectural_interest:
+      - Plugin/module architecture with clean registration system
+      - Automatic certificate management (ACME)
+      - JSON config API + Caddyfile adapter pattern
+      - Reverse proxy, file server, and TLS as composable modules
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~350 source files"
+
+  - name: minio
+    url: https://github.com/minio/minio
+    language: Go
+    archetype: service_oriented_backend
+    stars: "~49k"
+    description: High-performance S3-compatible object storage
+    architectural_interest:
+      - Erasure coding and distributed storage engine
+      - S3 API compatibility layer
+      - IAM and policy engine
+      - Replication and lifecycle management
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~600 source files (may exceed limit)"
+    notes: "Check filtered size before committing. May need to scope to core."
+
+  - name: consul
+    url: https://github.com/hashicorp/consul
+    language: Go
+    archetype: infrastructure_repo
+    stars: "~28k"
+    description: Service mesh and service discovery platform
+    architectural_interest:
+      - Raft consensus for state replication
+      - Service catalog with health checking
+      - Connect (service mesh) sidecar proxy management
+      - Multi-datacenter federation
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~800+ source files"
+    notes: "Likely too large. Consider scoping to agent/ or internal/."
+
+  - name: traefik
+    url: https://github.com/traefik/traefik
+    language: Go
+    archetype: modular_monolith
+    stars: "~52k"
+    description: Cloud-native edge router and reverse proxy
+    architectural_interest:
+      - Provider-based configuration discovery (Docker, K8s, file, etc.)
+      - Middleware chain architecture
+      - Entrypoint → Router → Service pipeline
+      - Automatic TLS with multiple certificate resolvers
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~500 source files"
+
+  - name: gitea
+    url: https://github.com/go-gitea/gitea
+    language: Go
+    archetype: full_stack_product
+    stars: "~46k"
+    description: Self-hosted Git forge (GitHub alternative)
+    architectural_interest:
+      - Full-stack product with web UI, API, and git backend
+      - Multiple auth providers
+      - Webhook and CI integration layer
+      - Issue tracker, wiki, and package registry as modules
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~1000+ source files"
+    notes: "Too large for full eval. Skip unless scoping is possible."
+
+  - name: vegeta
+    url: https://github.com/tsenart/vegeta
+    language: Go
+    archetype: library_package
+    stars: "~23k"
+    description: HTTP load testing tool and library
+    architectural_interest:
+      - Clean library/CLI dual-mode architecture
+      - Streaming attack/result pipeline
+      - Pluggable reporters and encoders
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~50 source files"
+    notes: "Small but good test of library_package archetype handling."
+
+  - name: reth
+    url: https://github.com/paradigmxyz/reth
+    language: Rust
+    archetype: service_oriented_backend
+    stars: "~4k"
+    description: Modular Ethereum execution client
+    architectural_interest:
+      - Pipeline-based block execution architecture
+      - Modular storage engine (MDBX)
+      - P2P networking layer with session management
+      - Multiple node types (full, archive, light)
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~800+ source files"
+    notes: "Likely too large. Good architectural complexity but check size."
+
+  - name: atuin
+    url: https://github.com/atuinsh/atuin
+    language: Rust
+    archetype: full_stack_product
+    stars: "~21k"
+    description: Shell history sync and search
+    architectural_interest:
+      - Client/server split architecture
+      - Local SQLite + remote sync protocol
+      - Shell integration layer (bash, zsh, fish, nu)
+      - Encryption at rest with client-side keys
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~200 source files"
+
+  - name: vector
+    url: https://github.com/vectordotdev/vector
+    language: Rust
+    archetype: modular_monolith
+    stars: "~18k"
+    description: High-performance observability data pipeline
+    architectural_interest:
+      - Source → Transform → Sink pipeline architecture
+      - Plugin system with 100+ components
+      - Topology builder and health checking
+      - VRL (Vector Remap Language) embedded DSL
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~600+ source files"
+    notes: "Core is well-scoped but plugin count may inflate size."
+
+  - name: axum
+    url: https://github.com/tokio-rs/axum
+    language: Rust
+    archetype: library_package
+    stars: "~19k"
+    description: Ergonomic web framework built on Tokio/Tower/Hyper
+    architectural_interest:
+      - Tower service/layer abstraction
+      - Extractor pattern for request decomposition
+      - Router with type-safe path matching
+      - Middleware composition via Tower layers
+    eval_rounds: []
+    has_ground_truth: false
+    size_estimate: "~150 source files"

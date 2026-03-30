@@ -11,9 +11,10 @@ For each eval round, produce:
 
 - `evals/roundX_<repo>/architecture/`: generated architecture artifacts
 - `evals/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
+- `evals/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
 - `evals/roundX_<repo>/reflections.md`: answers to the two reflection questions
 
-The target repository under test must live separately under `evals/<repo>/` as a git submodule.
+The target repository under test must live separately under `evals/repos/<repo>/` or `evals/<repo>/` as a git submodule.
 
 Do not write generated architecture files inside the repository under test.
 
@@ -24,6 +25,7 @@ Do not write generated architecture files inside the repository under test.
 - Always keep the repository under test separate from eval outputs.
 - Always use `generate-architecture` to produce the architecture artifacts.
 - Always get review from a fresh subagent before finalizing the round.
+- Always score the output using the scoring rubric before writing reflections.
 - Always pause after writing reflections and ask the user whether to implement improvements to `generate-architecture`.
 - Do not implement improvements to `generate-architecture` unless the user explicitly says yes.
 
@@ -44,14 +46,16 @@ Normalize `<repo>` to a simple slug based on the repository name.
 
 ## Repo Selection Rules
 
-Choose a repository that is:
+**Primary source: use the eval catalog.** Read `evals/catalog.yaml` for pre-vetted repositories with known architectural properties. Prefer repos that have NOT been evaluated yet (`eval_rounds: []`). This eliminates the browsing step and ensures consistent, reproducible repo selection.
+
+**When to go off-catalog:** Only if the user explicitly requests a specific repo or all catalog entries have been evaluated. In that case, apply the selection criteria below.
+
+Selection criteria (for off-catalog repos):
 
 - popular on GitHub by stars
 - well-written and non-trivial
 - architecturally interesting
 - no more than `2x` the size of `evals/repos/rundler` after filtering out low-signal files
-
-Use browsing to find candidates. Favor repositories that expose meaningful runtime boundaries, data ownership boundaries, or deployment complexity.
 
 Prefer:
 
@@ -71,10 +75,7 @@ Use a two-stage size heuristic:
 
 1. Cheap pre-filter before checkout:
    - skip repos that are obviously huge by category: kernels, browsers, language runtimes, giant framework monorepos, platform ecosystems
-   - skip repos whose tree shape suggests very high token cost:
-     - many top-level packages or services
-     - obvious `vendor/`, `third_party/`, `generated/`, `dist/`, or giant docs trees
-     - many language ecosystems in one repo
+   - skip repos whose tree shape suggests very high token cost
    - prefer repos that feel like one system, product, or control plane rather than an ecosystem
 2. Hard cutoff after checkout:
    - compare filtered source file count against `evals/repos/rundler`
@@ -150,15 +151,44 @@ Keep the exploration scope limited to the repository under test. Do not explore 
 
 ### 6. Spawn a fresh subagent for review
 
-Spawn a fresh subagent with minimal context. Do not leak your conclusions. Give it:
+Spawn a fresh subagent with minimal context. Do not leak your conclusions. The subagent must be **skill-aware** — it reviews against the skill's own contract, not just general architecture sense.
+
+Give it:
 
 - the repository-under-test path
 - the generated architecture output path
-- the instruction to review semantic quality rather than formatting
+- the skill's output contract and rules (extracted from `skills/generate-architecture/SKILL.md`)
+- the scoring rubric (from `skills/run-architecture-eval/references/scoring-rubric.md`)
+- the ground truth file if one exists (from `evals/ground-truth/<repo>.yaml`)
 
 Use a prompt equivalent to:
 
-> You are a staff engineer with deep expertise in system architecture. Review the semantic architecture representation files for the codebase at `<repo_path>` using the generated artifacts in `<architecture_path>`. Write a report focused on semantic correctness, abstraction discipline, data ownership modeling, critical workflow coverage, unsupported claims, and missing or misleading relationships. Order findings by severity and include concrete file references where possible.
+> You are a staff engineer evaluating an automated architecture generation tool. Your job is to review the generated architecture artifacts AND score them quantitatively.
+>
+> **Repository under test:** `<repo_path>`
+> **Generated artifacts:** `<architecture_path>`
+>
+> **Skill contract (the tool's own rules — check compliance):**
+> - C4 boundary rules: System Context contains only the system of interest, people, and external systems. Container views contain only deployable/runtime units, datastores, queues, and relevant externals. Component views contain internal modules within exactly ONE container only.
+> - Data ownership: Every container/component should declare owned_data and system_of_record. No entity should be assigned to multiple systems of record without explicit justification.
+> - Evidence hierarchy (strongest to weakest): (1) Runtime/deploy reality, (2) Contract/state signals, (3) Behavioral code signals, (4) Documentation, (5) Naming-only signals.
+> - Confidence levels must be used: confirmed, strong_inference, weak_inference.
+> - Unknowns must be recorded, not invented.
+> - Sequence view participants must exist in the canonical model.
+> - Views must not mix C4 abstraction levels.
+>
+> **Ground truth reference (if provided):**
+> <contents of evals/ground-truth/<repo>.yaml, or "No ground truth available for this repo.">
+>
+> **Scoring rubric:**
+> <contents of skills/run-architecture-eval/references/scoring-rubric.md>
+>
+> **Your deliverable:**
+> 1. A semantic review report: findings ordered by severity with concrete file references.
+> 2. A quantitative score using the rubric (all 8 dimensions, 1-5 each, total out of 40).
+> 3. For each score, cite specific evidence supporting the rating.
+>
+> Focus on: semantic correctness, abstraction discipline, data ownership modeling, critical workflow coverage, unsupported claims, missing or misleading relationships, and compliance with the skill's own rules.
 
 Capture the subagent's output in:
 
@@ -171,7 +201,19 @@ Summarize:
 - any areas the subagent judged strong
 - unresolved disagreements or unknowns
 
-### 7. Apply the feedback
+### 7. Score the output
+
+Extract the subagent's quantitative scores and write them to:
+
+- `evals/roundX_<repo>/scores.yaml`
+
+Use the format defined in `skills/run-architecture-eval/references/scoring-rubric.md`.
+
+If ground truth exists, validate the subagent's scores against it. If you disagree with any score by more than 1 point, override it with your own assessment and note the disagreement.
+
+If previous rounds exist for the same repo or a different repo evaluated with the same skill version, include a comparison section showing score deltas.
+
+### 8. Apply the feedback
 
 Review the subagent feedback yourself and update the generated architecture artifacts as needed.
 
@@ -179,27 +221,28 @@ Do not blindly apply feedback. Re-check against code and evidence.
 
 If you disagree with a subagent suggestion, keep the existing model and record the disagreement in `subagent_feedback.md`.
 
-### 8. Reflect
+### 9. Reflect
 
 Answer both questions yourself:
 
-1. `now that you’ve done this, what would you have done differently?`
+1. `now that you've done this, what would you have done differently?`
 2. `what improvements should we make to the generate-architecture skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?`
 
 Write the answers to:
 
 - `evals/roundX_<repo>/reflections.md`
 
-### 9. Pause and ask the user
+### 10. Pause and ask the user
 
 After writing the files, stop and ask:
 
+- print the scores (total and per-dimension)
 - print both reflection answers in the assistant response
 - ask exactly: `Would you like me to implement these improvements to the skill?`
 
 Do not continue automatically.
 
-### 10. If the user says yes
+### 11. If the user says yes
 
 Implement the approved improvements to:
 
@@ -207,7 +250,9 @@ Implement the approved improvements to:
 
 Update companion metadata if needed.
 
-### 11. If the user says no
+After implementing improvements, update `evals/catalog.yaml` to record the eval round for the repo just evaluated.
+
+### 12. If the user says no
 
 Wait for further input.
 
@@ -215,13 +260,15 @@ Wait for further input.
 
 Before pausing for user input, verify:
 
-- the target repo exists under `evals/<repo>/`
+- the target repo exists under `evals/repos/<repo>/` or `evals/<repo>/`
 - the round output directory exists under `evals/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `subagent_feedback.md` exists
+- `scores.yaml` exists and contains all 8 dimensions
 - `reflections.md` exists
 - the generated architecture artifacts are not stored inside the repo under test
 - the subagent used for review was fresh for that round
+- if ground truth exists, scores were validated against it
 
 ## Common Mistakes To Avoid
 
