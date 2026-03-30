@@ -376,28 +376,26 @@ Run a lightweight consistency pass after generation. At minimum verify:
 
 If validation fails, fix the artifacts before completing the task.
 
-### 13. Construct the drawing prompt
+### 13. Construct the interactive diagram prompt
 
-ONLY after completing all previous steps, write a prompt that instructs another agent how to draw the architecture diagram(s).
+ONLY after completing all previous steps, construct a prompt that instructs Claude Imagine how to build an interactive, drill-down architecture diagram.
 
-The prompt MUST:
+Read [references/interactive-diagram-prompt.md](references/interactive-diagram-prompt.md) and follow its template exactly. The prompt you construct must cover all sections defined in that reference: role assignment, context, interactive drill-down behavior (navigation, breadcrumbs, visual affordances, relationships, detail panels, data sourcing), and layout guidance.
 
-* Assign a role to the agent. The role should be rooted in the technical expertise of this particular architecture. For example, "You are a senior Rust engineer".
-* Point the agent to the architecture folder.
-* Give the agent basic context about the contents of the folder. For example, "This folder contains a semantic representation of the rundler codebase using the C4 model."
-* Instruct the agent to draw the architecture diagram.
+Adapt the role and context sections to match the specific architecture you generated (e.g., reference the correct technology stack and system name).
 
-### 14. Give the drawing prompt to the user
+### 14. Bundle the prompt and artifacts for upload
 
 Finally:
 
 - write a single bundled file to `diagram-prompt.md` in the parent output folder alongside `architecture/`
 - include in that file:
-  - the drawing prompt
+  - the interactive diagram prompt constructed in step 13
   - a virtual directory tree for the generated architecture artifacts
   - the full contents of the generated files, preserving relative paths such as `views/`
-- make the bundle self-contained so it can be uploaded to a chat tool that does not have filesystem access
-- then tell the user that the architecture has been successfully generated and that they can upload `diagram-prompt.md` to Claude Chat to generate visual diagram(s)
+  - a mapping table showing which view files correspond to which drill-down levels, derived from `manifest.yaml`
+- make the bundle self-contained so it can be uploaded to Claude Chat (which uses Claude Imagine for diagram rendering) without filesystem access
+- then tell the user that the architecture has been successfully generated and that they can upload `diagram-prompt.md` to Claude Chat to generate an interactive drill-down diagram
 
 ## Stable Naming and Deduplication
 
