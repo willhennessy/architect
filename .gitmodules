@@ -7,3 +7,9 @@
 [submodule "evals/openfga"]
 	path = evals/openfga
 	url = https://github.com/openfga/openfga.git
+[submodule "evals/repos/atuin"]
+	path = evals/repos/atuin
+	url = https://github.com/atuinsh/atuin.git
+[submodule "evals/repos/vegeta"]
+	path = evals/repos/vegeta
+	url = https://github.com/tsenart/vegeta.git
