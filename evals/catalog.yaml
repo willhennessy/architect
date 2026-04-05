@@ -145,7 +145,7 @@ repos:
       - Clean library/CLI dual-mode architecture
       - Streaming attack/result pipeline
       - Pluggable reporters and encoders
-    eval_rounds: []
+    eval_rounds: [6]
     has_ground_truth: false
     size_estimate: "~50 source files"
     notes: "Small but good test of library_package archetype handling."
@@ -177,7 +177,7 @@ repos:
       - Local SQLite + remote sync protocol
       - Shell integration layer (bash, zsh, fish, nu)
       - Encryption at rest with client-side keys
-    eval_rounds: []
+    eval_rounds: [5]
     has_ground_truth: false
     size_estimate: "~200 source files"
 

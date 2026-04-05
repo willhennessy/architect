@@ -1,0 +1,14 @@
+view_type: "system_context"
+title: "Vegeta - System Context"
+description: "High-level view of Vegeta and its external interactions."
+elements:
+  - ref: "vegeta-system"
+  - ref: "operator"
+  - ref: "target-service"
+  - ref: "prometheus"
+relationships:
+  - ref: "rel-operator-cli"
+  - ref: "rel-attacker-target"
+  - ref: "rel-prom-scrape"
+notes:
+  - "Prometheus integration is optional — only active when -prometheus-addr flag is set during attack."

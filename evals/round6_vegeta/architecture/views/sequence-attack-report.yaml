@@ -1,0 +1,85 @@
+view_type: "sequence"
+title: "Attack → Report Pipeline"
+description: "Typical CLI workflow: run attack, stream results, generate report."
+participants:
+  - ref: "operator"
+  - ref: "vegeta-cli"
+  - ref: "attacker"
+  - ref: "pacer"
+  - ref: "targeter"
+  - ref: "dns-resolver"
+  - ref: "target-service"
+  - ref: "results-codec"
+  - ref: "metrics-engine"
+  - ref: "reporters"
+steps:
+  - seq: 1
+    source: "operator"
+    target: "vegeta-cli"
+    label: "Run: vegeta attack -rate=... -duration=..."
+    sync_async: "sync"
+
+  - seq: 2
+    source: "vegeta-cli"
+    target: "attacker"
+    label: "Create attacker with workers, timeouts, transport settings"
+    sync_async: "sync"
+
+  - seq: 3
+    source: "attacker"
+    target: "pacer"
+    label: "Compute wait interval for next hit"
+    sync_async: "sync"
+
+  - seq: 4
+    source: "attacker"
+    target: "targeter"
+    label: "Fetch next target request blueprint"
+    sync_async: "sync"
+
+  - seq: 5
+    source: "attacker"
+    target: "dns-resolver"
+    label: "Resolve target hostname (cached)"
+    sync_async: "sync"
+
+  - seq: 6
+    source: "attacker"
+    target: "target-service"
+    label: "Send HTTP request"
+    sync_async: "sync"
+    protocol: "http/https"
+
+  - seq: 7
+    source: "attacker"
+    target: "results-codec"
+    label: "Encode Result stream (gob by default)"
+    sync_async: "sync"
+
+  - seq: 8
+    source: "operator"
+    target: "vegeta-cli"
+    label: "Pipe to report: vegeta report"
+    sync_async: "sync"
+
+  - seq: 9
+    source: "vegeta-cli"
+    target: "results-codec"
+    label: "Decode Result stream"
+    sync_async: "sync"
+
+  - seq: 10
+    source: "vegeta-cli"
+    target: "metrics-engine"
+    label: "Aggregate latency/throughput/error metrics"
+    sync_async: "sync"
+
+  - seq: 11
+    source: "vegeta-cli"
+    target: "reporters"
+    label: "Render report output (text/json/histogram)"
+    sync_async: "sync"
+
+notes:
+  - "UNIX composability is a core design pattern: attack output can be piped directly to report or plot."
+  - "Pacer controls send rate independently of response latency to avoid coordinated omission bias."

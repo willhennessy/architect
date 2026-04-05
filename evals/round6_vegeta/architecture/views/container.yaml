@@ -1,0 +1,17 @@
+view_type: "container"
+title: "Vegeta - Container View"
+description: "The CLI binary and its core library."
+elements:
+  - ref: "vegeta-cli"
+  - ref: "vegeta-library"
+  - ref: "operator"
+  - ref: "target-service"
+  - ref: "prometheus"
+relationships:
+  - ref: "rel-operator-cli"
+  - ref: "rel-cli-library"
+  - ref: "rel-attacker-target"
+  - ref: "rel-prom-scrape"
+notes:
+  - "The library is the primary public API. The CLI is a thin wrapper."
+  - "Results flow as gob-encoded streams between CLI subcommands via UNIX pipes."
