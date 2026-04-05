@@ -10,6 +10,7 @@ Use this skill to run a full eval loop against a real repository. The goal is co
 For each eval round, produce:
 
 - `evals/roundX_<repo>/architecture/`: generated architecture artifacts
+- `evals/roundX_<repo>/diagram-prompt.md`: bundled upload file for Claude Imagine interactive diagram generation
 - `evals/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
 - `evals/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
 - `evals/roundX_<repo>/reflections.md`: answers to the two reflection questions
@@ -143,9 +144,15 @@ Set the output path to:
 
 - `evals/roundX_<repo>/architecture/`
 
+**Do not skip diagram prompt generation.** During eval runs, complete steps 13-14 from `generate-architecture` so every round includes `diagram-prompt.md` for visualization feedback.
+
+Required bundled output path:
+
+- `evals/roundX_<repo>/diagram-prompt.md`
+
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
-- the target repo under `evals/<repo>/`
+- the target repo under `evals/repos/<repo>/` or `evals/<repo>/`
 - the round output directory under `evals/roundX_<repo>/`
 - the skill files being evaluated if and only if the user later approves improvements
 
@@ -263,6 +270,7 @@ Before pausing for user input, verify:
 - the target repo exists under `evals/repos/<repo>/` or `evals/<repo>/`
 - the round output directory exists under `evals/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
+- `diagram-prompt.md` exists and includes prompt + virtual tree + full artifact contents
 - `subagent_feedback.md` exists
 - `scores.yaml` exists and contains all 8 dimensions
 - `reflections.md` exists
