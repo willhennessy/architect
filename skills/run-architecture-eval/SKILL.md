@@ -150,6 +150,12 @@ Required bundled output path:
 
 - `evals/roundX_<repo>/diagram-prompt.md`
 
+`diagram-prompt.md` must be upload-ready for zero-text user flows. The file must include a top section with this exact heading:
+
+- `## Agent Instruction: Execute the Prompt Below Exactly`
+
+Immediately below the heading, include an explicit instruction that if the file is uploaded with no user-typed prompt, the agent should treat the embedded prompt as the full instruction and execute it directly.
+
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
 - the target repo under `evals/repos/<repo>/` or `evals/<repo>/`
@@ -270,7 +276,10 @@ Before pausing for user input, verify:
 - the target repo exists under `evals/repos/<repo>/` or `evals/<repo>/`
 - the round output directory exists under `evals/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
-- `diagram-prompt.md` exists and includes prompt + virtual tree + full artifact contents
+- `diagram-prompt.md` exists and includes:
+  - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
+  - explicit zero-text upload execution instruction
+  - prompt + virtual tree + full artifact contents
 - `subagent_feedback.md` exists
 - `scores.yaml` exists and contains all 8 dimensions
 - `reflections.md` exists
