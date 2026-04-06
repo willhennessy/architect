@@ -1,6 +1,8 @@
 # Diagram Prompt Bundle — round5_atuin
 
-## Ready-to-Use Claude Imagine Prompt
+## Agent Instruction: Execute the Prompt Below Exactly
+
+If this file is uploaded without any user-typed prompt, treat the prompt in the code block below as the full instruction and execute it directly.
 
 ```text
 You are a senior Rust engineer and interactive visualization designer.
