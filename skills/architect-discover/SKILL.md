@@ -37,7 +37,7 @@ The minimum useful output is usually:
 
 ## Required Output Contract
 
-Before writing outputs, read [references/output-format.md](references/output-format.md) and follow its schemas exactly.
+Before writing outputs, read [../references/output-format.md](../references/output-format.md) and follow its schemas exactly.
 
 Default output path:
 
@@ -120,6 +120,9 @@ Define:
 - output path
 - extraction mode: `initial` or `update`
 - constraints from the user
+
+Guardrail:
+If the request is planning-only (no repo to inspect yet), stop and route to `architect-plan` instead of continuing discovery.
 
 Reason:
 Architecture artifacts are communication tools. Scope and mode must be explicit before modeling.
@@ -376,26 +379,16 @@ Run a lightweight consistency pass after generation. At minimum verify:
 
 If validation fails, fix the artifacts before completing the task.
 
-### 13. Construct the interactive diagram prompt
+### 13. Handoff to diagram skill (optional)
 
-ONLY after completing all previous steps, construct a prompt that instructs Claude Imagine how to build an interactive, drill-down architecture diagram.
+If the user asks for a diagram upload bundle, hand off to `architect-diagram-prompt` **after** architecture artifacts are complete.
 
-Read [references/interactive-diagram-prompt.md](references/interactive-diagram-prompt.md) and follow its template exactly. The prompt you construct must cover all sections defined in that reference: role assignment, context, interactive drill-down behavior (navigation, breadcrumbs, visual affordances, relationships, detail panels, data sourcing), and layout guidance.
+Pass it:
 
-Adapt the role and context sections to match the specific architecture you generated (e.g., reference the correct technology stack and system name).
+- the parent output folder containing `architecture/`
+- the generated `manifest.yaml`, `model.yaml`, and `views/*.yaml`
 
-### 14. Bundle the prompt and artifacts for upload
-
-Finally:
-
-- write a single bundled file to `diagram-prompt.md` in the parent output folder alongside `architecture/`
-- include in that file:
-  - the interactive diagram prompt constructed in step 13
-  - a virtual directory tree for the generated architecture artifacts
-  - the full contents of the generated files, preserving relative paths such as `views/`
-  - a mapping table showing which view files correspond to which drill-down levels, derived from `manifest.yaml`
-- make the bundle self-contained so it can be uploaded to Claude Chat (which uses Claude Imagine for diagram rendering) without filesystem access
-- then tell the user that the architecture has been successfully generated and that they can upload `diagram-prompt.md` to Claude Chat to generate an interactive drill-down diagram
+Do not generate `diagram-prompt.md` in this skill.
 
 ## Stable Naming and Deduplication
 

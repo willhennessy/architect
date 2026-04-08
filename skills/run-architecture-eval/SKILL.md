@@ -144,7 +144,11 @@ Set the output path to:
 
 - `evals/roundX_<repo>/architecture/`
 
-**Do not skip diagram prompt generation.** During eval runs, complete steps 13-14 from `architect-discover` so every round includes `diagram-prompt.md` for visualization feedback.
+Then invoke `architect-diagram-prompt` using the parent round folder as output root so it reads `architecture/` and writes:
+
+- `evals/roundX_<repo>/diagram-prompt.md`
+
+**Do not skip diagram prompt generation.** During eval runs, invoke `architect-diagram-prompt` after `architect-discover` so every round includes `diagram-prompt.md` for visualization feedback.
 
 Required bundled output path:
 

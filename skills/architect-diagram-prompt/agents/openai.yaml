@@ -1,0 +1,7 @@
+interface:
+  display_name: "Architecture Diagram Prompt"
+  short_description: "Bundle architecture artifacts into an upload-ready Claude Imagine diagram prompt"
+  default_prompt: "Use $architect-diagram-prompt to generate diagram-prompt.md from existing architecture artifacts."
+
+policy:
+  allow_implicit_invocation: true

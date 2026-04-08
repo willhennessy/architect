@@ -1,6 +1,11 @@
-# Output Format
+# Architecture Output Contract (Shared)
 
-This skill emits a canonical architecture model plus derived view files as structured text. Visualization is out of scope.
+This schema is shared by:
+
+- `architect-discover`
+- `architect-plan`
+
+Both skills must emit architecture artifacts that conform to this contract.
 
 Use YAML unless the user explicitly requests another structured text format.
 
@@ -24,20 +29,22 @@ Use lowercase kebab-case for file names and IDs where practical.
 
 ## Canonical Model First
 
-`model.yaml` is the source of truth. All view files must reference model IDs rather than redefining architecture facts. Do not invent view-local elements or relationships.
+`model.yaml` is the source of truth. All views must reference model IDs rather than redefining architecture facts.
 
 ## `manifest.yaml`
 
 Purpose:
-Index the artifacts and record scope, mode, archetype, and modeling assumptions.
+Index generated artifacts and capture scope, mode, and evidence basis.
 
 Schema:
 
 ```yaml
 version: 2
 system_name: "<system name>"
-generated_by_skill: "architect-discover"
+generated_by_skill: "<architect-discover|architect-plan>"
 mode: "<initial|update>"
+evidence_basis: "<code|plan|mixed>"
+architecture_state: "<proposed|approved|implementing|drifted>"   # optional
 repo_archetype: "<library_package|frontend_only_app|modular_monolith|service_oriented_backend|full_stack_product|infrastructure_repo>"
 modeling_style:
   primary: "C4"
@@ -57,10 +64,6 @@ artifacts:
   - id: "model"
     path: "architecture/model.yaml"
     type: "canonical_model"
-    status: "complete"
-  - id: "system-context"
-    path: "architecture/views/system-context.yaml"
-    type: "system_context"
     status: "complete"
 assumptions:
   - text: "<assumption>"
@@ -85,24 +88,24 @@ elements:
   - id: "<stable id>"
     name: "<canonical display name>"
     aliases:
-      - "<optional alternate names from code or docs>"
+      - "<optional alias>"
     kind: "<person|software_system|external_system|container|component|database|queue|cache|deployment_node|library_module>"
     c4_level: "<context|container|component|deployment>"
     description: "<what it is>"
     responsibility: "<primary responsibility>"
     technology: "<primary technology or blank>"
     owned_data:
-      - "<data entities primarily owned here>"
+      - "<data entity>"
     system_of_record:
-      - "<entities for which this element is authoritative>"
+      - "<authoritative entities>"
     runtime_boundary: "<process|deployable|internal_module|external|data_store|network_zone>"
     deployable: <true|false>
     external: <true|false>
     parent_id: "<required for components; blank otherwise>"
     source_paths:
-      - "<repo-relative path>"
+      - "<repo-relative path or plan://... reference>"
     tags:
-      - "<optional tags>"
+      - "<optional tag>"
     confidence: "<confirmed|strong_inference|weak_inference>"
     evidence_ids:
       - "<evidence id>"
@@ -110,20 +113,20 @@ relationships:
   - id: "<stable id>"
     source_id: "<element id>"
     target_id: "<element id>"
-    label: "<meaningful relationship label>"
+    label: "<relationship label>"
     interaction_type: "<uses|calls|publishes|subscribes|reads|writes|stores|authenticates_with|renders|triggers|contains|deploys_to>"
     directionality: "<unidirectional|bidirectional>"
     sync_async: "<sync|async|storage|human|n_a>"
-    protocol: "<https|grpc|sql|kafka|s3|in_process|manual|blank>"
+    protocol: "<https|grpc|sql|kafka|s3|in_process|manual|n_a|blank>"
     data_objects:
-      - "<order|invoice|session|...>"
+      - "<data object>"
     confidence: "<confirmed|strong_inference|weak_inference>"
     evidence_ids:
       - "<evidence id>"
 evidence:
   - id: "<evidence id>"
-    path: "<repo-relative path>"
-    kind: "<runtime_entrypoint|deploy_config|api_schema|migration|infra|queue_definition|code_path|doc|directory_name>"
+    path: "<repo-relative path or plan://... reference>"
+    kind: "<runtime_entrypoint|deploy_config|api_schema|migration|infra|queue_definition|code_path|doc|directory_name|plan_requirement|plan_constraint|plan_assumption|plan_tradeoff|user_intent|diagram_annotation>"
     strength: "<high|medium|low>"
     reason: "<why this source supports the model>"
 unknowns:
@@ -135,15 +138,15 @@ assumptions:
 
 ### Required Modeling Rules
 
-- Every element must have `id`, `name`, `kind`, `c4_level`, `description`, `responsibility`, `owned_data`, `system_of_record`, `runtime_boundary`, `source_paths`, `confidence`, and `evidence_ids`.
-- Every relationship must have `id`, `source_id`, `target_id`, `label`, `interaction_type`, `directionality`, `sync_async`, `data_objects`, `confidence`, and `evidence_ids`.
+- Every element must include `id`, `name`, `kind`, `c4_level`, `description`, `responsibility`, `owned_data`, `system_of_record`, `runtime_boundary`, `source_paths`, `confidence`, and `evidence_ids`.
+- Every relationship must include `id`, `source_id`, `target_id`, `label`, `interaction_type`, `directionality`, `sync_async`, `data_objects`, `confidence`, and `evidence_ids`.
 - `component` elements must set `parent_id`.
-- `container` elements must not set a `parent_id`.
+- `container` elements must not set `parent_id`.
 - `library_package` repos may use `library_module` elements instead of containers when no deployable runtime exists.
 
 ## View Files
 
-Views are filtered presentations of the canonical model. They may add audience and narrative metadata, but they must not redefine element facts.
+Views are filtered presentations of the canonical model.
 
 Common schema:
 
@@ -174,22 +177,15 @@ notes:
 
 #### `system_context`
 
-Allowed element kinds:
+Allowed kinds:
 
 - `person`
 - `software_system`
 - `external_system`
 
-Disallowed:
-
-- `component`
-- `database`
-- `queue`
-- `cache`
-
 #### `container`
 
-Allowed element kinds:
+Allowed kinds:
 
 - `person`
 - `software_system`
@@ -199,15 +195,7 @@ Allowed element kinds:
 - `queue`
 - `cache`
 
-Disallowed:
-
-- `component`
-- `library_module`
-
 #### `component`
-
-Purpose:
-Show meaningful internal modules inside exactly one parent container.
 
 Additional required field:
 
@@ -215,19 +203,11 @@ Additional required field:
 parent_container_id: "<container id>"
 ```
 
-Allowed element kinds:
-
-- `component`
-- `database`
-- `queue`
-- `cache`
-- external dependencies already defined in the model when necessary
-
-Do not include components from multiple parent containers in one component view.
+Component views must only include components from one parent container.
 
 ### `sequence`
 
-Sequence views must reference only elements already defined in `model.yaml`.
+Sequence views must reference only model-defined elements.
 
 Schema:
 
@@ -238,7 +218,7 @@ type: "sequence"
 title: "<title>"
 audience:
   - "<audience>"
-purpose: "<what workflow this explains>"
+purpose: "<workflow this explains>"
 scope: "<workflow scope>"
 source_model: "architecture/model.yaml"
 participant_ids:
@@ -260,12 +240,7 @@ unknowns: []
 notes: []
 ```
 
-Do not invent ad hoc sequence participants.
-
 ### `deployment`
-
-Purpose:
-Show placement of deployable containers into nodes, zones, regions, or networks when topology matters.
 
 Additional required fields:
 
@@ -277,12 +252,9 @@ placement:
     element_id: "<container id>"
 ```
 
-Only create this view if topology materially changes understanding of the system.
+Only emit deployment views when topology materially changes understanding.
 
 ## `summary.md`
-
-Purpose:
-Provide a stable executive summary of the generated model.
 
 Use this fixed structure:
 
@@ -348,52 +320,14 @@ changes:
   removed_views:
     - "<view id>"
 notes:
-  - "<summary of significant architectural deltas>"
+  - "<summary of significant deltas>"
 ```
 
-## Minimal Example
+## Planning Evidence Mapping
 
-```yaml
-version: 2
-system_name: "Order Platform"
-repo_archetype: "service_oriented_backend"
-elements:
-  - id: "order-api"
-    name: "Order API"
-    aliases: ["orders-service"]
-    kind: "container"
-    c4_level: "container"
-    description: "Exposes order operations."
-    responsibility: "Create and query orders."
-    technology: "Node.js"
-    owned_data: ["order"]
-    system_of_record: ["order"]
-    runtime_boundary: "deployable"
-    deployable: true
-    external: false
-    parent_id: ""
-    source_paths: ["services/order-api"]
-    tags: ["backend"]
-    confidence: "strong_inference"
-    evidence_ids: ["ev-entry", "ev-routes"]
-relationships:
-  - id: "web-app-calls-order-api"
-    source_id: "web-app"
-    target_id: "order-api"
-    label: "Calls order endpoints"
-    interaction_type: "calls"
-    directionality: "unidirectional"
-    sync_async: "sync"
-    protocol: "https"
-    data_objects: ["order"]
-    confidence: "confirmed"
-    evidence_ids: ["ev-client"]
-evidence:
-  - id: "ev-entry"
-    path: "services/order-api/src/main.ts"
-    kind: "runtime_entrypoint"
-    strength: "high"
-    reason: "Defines the API process entrypoint."
-unknowns: []
-assumptions: []
-```
+When producing artifacts from planning input (no codebase scan):
+
+- Use `evidence_basis: plan` in `manifest.yaml`.
+- Use `plan://...` references in `source_paths` and evidence `path`.
+- Use evidence `kind` values from plan categories (`plan_requirement`, `plan_constraint`, `plan_assumption`, `plan_tradeoff`, `user_intent`, `diagram_annotation`).
+- Keep confidence levels explicit and conservative.
