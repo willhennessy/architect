@@ -1,6 +1,6 @@
 ---
 name: run-architecture-eval
-description: Run a repeatable eval round for the architect-discover skill. Use this when you want to evaluate a new version of the skill on a fresh codebase, get subagent review of the generated architecture artifacts, reflect on the run, and optionally apply improvements to architect after user approval.
+description: Run a repeatable eval round for the architect-discover skill. Use this when you want to evaluate a new version of the skill on a fresh codebase, get subagent review of the generated architecture artifacts, reflect on the run, and optionally apply improvements to architect-discover after user approval.
 ---
 
 Use this skill to run a full eval loop against a real repository. The goal is consistent evaluation of `architect-discover`, not ad hoc repo exploration.
