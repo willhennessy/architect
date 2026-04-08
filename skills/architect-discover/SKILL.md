@@ -37,7 +37,7 @@ The minimum useful output is usually:
 
 ## Required Output Contract
 
-Before writing outputs, read [../references/output-format.md](../references/output-format.md) and follow its schemas exactly.
+Before writing outputs, read [../references/architecture-contract.md](../references/architecture-contract.md) and follow its schemas exactly.
 
 Default output path:
 

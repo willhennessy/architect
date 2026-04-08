@@ -11,7 +11,7 @@ Read these before writing output:
 
 - [../references/interactive-diagram-prompt.md](../references/interactive-diagram-prompt.md)
 - [../references/diagram-bundle-format.md](../references/diagram-bundle-format.md)
-- [../references/output-format.md](../references/output-format.md)
+- [../references/architecture-contract.md](../references/architecture-contract.md)
 
 ## Inputs
 

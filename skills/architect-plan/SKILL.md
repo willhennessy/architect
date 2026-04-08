@@ -9,7 +9,7 @@ This skill must emit the same artifact schema as `architect-discover`.
 
 ## Required Output Contract
 
-Before writing outputs, read [../references/output-format.md](../references/output-format.md) and follow it exactly.
+Before writing outputs, read [../references/architecture-contract.md](../references/architecture-contract.md) and follow it exactly.
 
 Default output path:
 
@@ -139,7 +139,7 @@ Before presenting for approval or finishing any iteration, verify:
 
 Complete only when:
 
-1. all artifacts conform to `../references/output-format.md`
+1. all artifacts conform to `../references/architecture-contract.md`
 2. `manifest.yaml` includes `generated_by_skill: architect-plan`
 3. planning evidence is explicit in `evidence` and confidence fields
 4. `architecture_state` is present and accurately reflects explicit user approval state
