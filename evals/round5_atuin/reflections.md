@@ -10,7 +10,7 @@
 
 **Questioned whether client-library should be a container.** A Rust library crate is not independently deployable. The skill says containers are "deployable/runtime units." The client library is consumed by two runtime units (CLI and daemon) but is not itself a runtime unit. A stricter interpretation would model it as a shared component set, with the CLI and daemon as the only true containers. I chose to model it as a container for clarity, but this deserves debate.
 
-## 2. What improvements should we make to the generate-architecture skill?
+## 2. What improvements should we make to the architect skill?
 
 ### A. Add guidance for shared library crates in multi-binary repos
 

@@ -55,7 +55,7 @@ architecture/
 ```yaml
 version: 2
 system_name: "OpenFGA"
-generated_by_skill: "generate-architecture"
+generated_by_skill: "architect"
 mode: "initial"
 repo_archetype: "modular_monolith"
 modeling_style:

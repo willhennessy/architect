@@ -24,7 +24,7 @@ The main thing I would not change is the core conclusion: Rundler is best modele
 
 # what improvements should we make to the SKILL.md file in order to improve performance of the skill in future runs on other arbitrary software?
 
-The biggest gap is that the skill is strong on artifact shape, but weaker on operational guardrails. That means it can reach the right answer, but sometimes with avoidable rework. I’d improve `skills/generate-architecture/SKILL.md` in these ways:
+The biggest gap is that the skill is strong on artifact shape, but weaker on operational guardrails. That means it can reach the right answer, but sometimes with avoidable rework. I’d improve `skills/architect/SKILL.md` in these ways:
 
 1. Add a mandatory “modeling ledger” step before writing YAML.
    - Required fields: `system_in_scope`, `repo_archetype`, `stable_runtime_units`, `state_owners`, `optional_externals`, `deployment_modes`, `out_of_scope`.

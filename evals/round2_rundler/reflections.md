@@ -10,7 +10,7 @@ Second, I would have run a targeted semantic consistency pass across the generat
 
 Third, I would have inspected the Builder transport stack earlier. The repo has a clean `TransactionSender` abstraction, and I initially let the transaction tracker absorb too much responsibility. A quick pass over `crates/builder/src/sender/` before writing the component model would have led to a cleaner first draft.
 
-## 2. what improvements should we make to the generate-architecture skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?
+## 2. what improvements should we make to the architect skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?
 
 1. Add a mandatory reply-edge consistency check for sequence views.
 The skill should explicitly verify that any sequence step using `relationship_id` matches the relationship direction in the canonical model. If a step is a response path, the skill should either reference a reverse relationship that exists in the model or omit `relationship_id` entirely.

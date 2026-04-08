@@ -10,7 +10,7 @@
 
 **Scoped the model boundary more explicitly.** I didn't decide upfront whether plugin/extension mechanisms (aggregators, submission proxies) were in-scope. This led to them being silently omitted rather than explicitly excluded. The modeling ledger should have a `plugin_mechanisms` field to force this decision.
 
-## 2. What improvements should we make to generate-architecture?
+## 2. What improvements should we make to architect?
 
 ### A. Add a cross-cutting dependency analysis step
 
