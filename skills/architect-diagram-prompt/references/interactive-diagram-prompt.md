@@ -1,4 +1,4 @@
-# Interactive Diagram Prompt Specification (Shared)
+# Interactive Diagram Prompt Specification
 
 Use this specification when constructing the interactive prompt inside `diagram-prompt.md`.
 

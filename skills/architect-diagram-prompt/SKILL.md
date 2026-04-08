@@ -30,14 +30,14 @@ Use this skill only after architecture artifacts already exist.
 ## Workflow
 
 1. **Validate bundle requirements**
-   - Read [../references/diagram-bundle-format.md](../references/diagram-bundle-format.md).
+   - Read [references/diagram-bundle-format.md](references/diagram-bundle-format.md).
    - Verify the output root and required architecture artifact paths exist.
 
 2. **Load architecture artifacts**
    - Read `manifest.yaml`, `model.yaml`, `summary.md`, and all available `views/*.yaml` (plus optional `diff.yaml`).
 
 3. **Construct the interactive diagram prompt**
-   - Read [../references/interactive-diagram-prompt.md](../references/interactive-diagram-prompt.md).
+   - Read [references/interactive-diagram-prompt.md](references/interactive-diagram-prompt.md).
    - Build the prompt using that specification and adapt role/context to the actual system and stack.
 
 4. **Build drill-down mappings**

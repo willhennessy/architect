@@ -1,4 +1,4 @@
-# Diagram Bundle Format (Shared)
+# Diagram Bundle Format
 
 Use this contract when producing `diagram-prompt.md` from generated architecture artifacts.
 
