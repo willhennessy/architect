@@ -1,6 +1,6 @@
 ---
 name: architect-plan
-description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; emit canonical architecture artifacts using the shared schema. Use when the user is designing a new system or major feature and wants architecture steering without repo discovery.
+description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts using the shared schema. Use when the user is designing a new system or major feature and wants architecture steering without repo discovery.
 ---
 
 Use this skill for planning-mode architecture work. It is for **pre-implementation** design, not codebase discovery.
@@ -45,6 +45,8 @@ If critical constraints are missing, record unknowns explicitly instead of inven
   - default `proposed`
   - set `approved` only when the user explicitly approves
   - do not auto-transition to `implementing`; the end user decides when implementation starts
+- Run an explicit engineer feedback/revision loop until approval.
+- Preserve stable IDs across revisions for unchanged architecture concepts.
 - Record unknowns; do not fabricate precision.
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
 
@@ -105,9 +107,22 @@ Write `summary.md` using the fixed shared structure.
 
 In update mode, write `diff.yaml`.
 
-### 7) Validate
+### 7) Engineer feedback and revision loop
 
-Before finishing, verify:
+After producing a draft:
+
+- present the architecture artifacts, rationale, and unknowns to the engineer
+- ask for targeted feedback on boundaries, ownership, risks, and tradeoffs
+- apply feedback and regenerate artifacts
+- keep `architecture_state: proposed` during iteration
+- preserve stable IDs for unchanged elements and relationships
+- run Step 8 validation after each revision
+
+Repeat until the engineer explicitly approves.
+
+### 8) Validate
+
+Before presenting for approval or finishing any iteration, verify:
 
 - all view element/relationship IDs resolve in `model.yaml`
 - sequence participants and steps resolve in `model.yaml`
@@ -128,3 +143,4 @@ Complete only when:
 2. `manifest.yaml` includes `generated_by_skill: architect-plan`
 3. planning evidence is explicit in `evidence` and confidence fields
 4. `architecture_state` is present and accurately reflects explicit user approval state
+5. engineer feedback has been incorporated through at least one explicit feedback/revision cycle when feedback is provided
