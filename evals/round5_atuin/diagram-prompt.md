@@ -10,7 +10,7 @@ You are a senior Rust engineer and interactive visualization designer.
 Build a single interactive architecture diagram for **Atuin** from the provided files.
 
 Output requirements:
-1) Return one self-contained HTML file (inline CSS + inline JavaScript, no external dependencies).
+1) Draw one self-contained diagram.
 2) The diagram must support progressive drill-down navigation:
    - Level 1: System Context
    - Level 2: Container View
@@ -41,7 +41,7 @@ Output requirements:
 
 Known container set (for validation): Atuin CLI, Atuin Daemon, Client Library, Local SQLite Databases, Sync Server
 
-Now generate the interactive diagram HTML.
+Now generate the interactive diagram.
 ```
 
 ## View-to-Level Mapping
