@@ -35,6 +35,10 @@ Claude Architect helps senior engineers steer coding agents at planning time by 
 ## Main integration point
 **Coding agent planning mode.**
 
+Invocation model:
+- Default: auto-trigger Architect when the user is in planning context
+- Manual override: `/architect`
+
 In plan mode, the agent must produce:
 1. Architecture diagram
 2. Explanation of **WHY**
@@ -44,7 +48,28 @@ This gives the engineer a clear moment to critique and steer direction before im
 
 After architecture review, the agent must implement code according to the architecture diagram. If the agent discovers a reason to change the architecture during implementation, surface that to the engineer for review. A key principle is that the engineer should be aware of all architecture decisions.
 
+**Trust gate:** no implementation starts until architecture state = `approved`. If architecture drift is detected during implementation, the workflow routes back to architecture review before continuing.
+
 **Anthropic product angle:** the end-state is to build this as a single integrated Architect product inside Claude with Imagine built in (not a permanent multi-tool handoff flow).
+
+## Bridge contract
+### Inputs
+- Engineer intent (text, rough diagram, or whiteboard photo)
+- Constraints
+- Optional project context references
+
+### Outputs
+- Semantic architecture artifact
+- WHY / rationale
+- Evidence (plan assumptions, constraints, tradeoffs)
+- Open questions
+- State marker
+
+### State machine
+- `proposed`
+- `approved`
+- `implementing`
+- `drifted`
 
 ## Why this wedge
 Instead of targeting engineers maintaining mature, complex systems, v2 focuses on **greenfield builds** where architecture is still fluid.
@@ -62,6 +87,13 @@ Goal: invalidate or validate these as quickly as possible.
     3. When using plan mode today, how much depth do you try to understand about the architecture that the agent is proposing? (some people will not care and fully trust the agent to architect)
     4. How do you get that information? Does the agent offer it proactively, or do you have to ask? Do you have to read the code?
     5. Have you ever asked the agent to draw a system diagram? How was it?
+    6. Would you add an architecture review step to planning mode every week if it took <10 minutes?
+
+   **Validation criteria (first 10 interviews):**
+   - ≥70% report missing key architecture context in current plan-mode output at least occasionally
+   - ≥60% say they would use architecture steering in planning at least weekly
+   - ≥50% prefer diagram-assisted review over text-only planning output for major features
+
 2. **Visual architecture diagrams with point-and-click feedback improve vibe coding quality.**
    They help engineers identify otherwise invisible architecture decisions made by the agent and steer the agent more effectively.
 3. **This interaction improves engineer understanding of system evolution.**
@@ -71,11 +103,17 @@ Goal: invalidate or validate these as quickly as possible.
 ---
 
 ## Success metrics (v2)
+
+### Engine quality metrics
+1. % of architecture claims with explicit evidence
+2. Reviewer-rated trust/correctness of rationale
+3. Hallucination rate on architecture claims (target: low and decreasing over rounds)
+
+### Workflow utility metrics
 1. % of planning sessions with at least one engineer-requested architectural change
 2. Time to approved architecture plan
 3. Engineer-rated confidence before implementation
 4. % of implementation PRs matching approved architecture intent
-5. % of architecture claims with explicit evidence + reviewer-rated trust/correctness of rationale
 
 ---
 
@@ -104,16 +142,22 @@ Later, we will generate an HTML diagram. This will enable more interactivity, bu
 
 ## Product flow + roadmap
 
+### Phase 0 — Architecture engine + eval foundation (already built)
+1. Semantic architecture generation skill exists
+2. Structured output contract exists (model + views + summary + manifest)
+3. Eval loop exists with scoring and reflections
+
 ### Phase 1 — Plan mode diagram + simple chat-based feedback
 1. Engineer provides intent (text, rough diagram, or whiteboard photo)
-2. Agent runs planning mode and generates architecture diagram + WHY.
-3. Agent writes the final output to a single file per the skill definition. (later, generate HTML diagram to support point and click comments)
-4. **Prototype workflow (temporary):** Engineer uploads the output file to Claude Chat.
-5. Claude Chat generates an interactive diagram using Claude Imagine.
-6. Engineer reviews and gives feedback (MVP via chat with the coding agent; later point-and-click comments)
-7. Agent iterates on plan + architecture
-8. Engineer approves architecture
-9. Agent implements
+2. Architect auto-triggers in planning mode (or user invokes `/architect`)
+3. Agent runs planning mode and generates architecture diagram + WHY.
+4. Agent writes the final output to a single file per the skill definition. (later, generate HTML diagram to support point and click comments)
+5. **Prototype workflow (temporary):** Engineer uploads the output file to Claude Chat.
+6. Claude Chat generates an interactive diagram using Claude Imagine.
+7. Engineer reviews and gives feedback (MVP via chat with the coding agent; later point-and-click comments)
+8. Agent iterates on plan + architecture
+9. Engineer approves architecture
+10. Agent implements
 
 #### Personal milestones (publish observations)
 1. Agent understanding of architecture
@@ -172,3 +216,29 @@ For greenfield planning, evidence is primarily **plan evidence**:
 
 3. **Risk:** Workflow overhead hurts adoption.
    - **Mitigation:** Keep MVP in existing planning chat flow; no heavy UI dependency.
+
+---
+
+## Product architecture
+
+### Capability layer (architecture engine)
+- Semantic architecture generation
+- Evidence and confidence model
+- Canonical model + derived views
+- Evaluation loop with scoring and reflections
+
+### Experience layer (Claude Architect UX)
+- Planning-mode invocation (auto + manual override)
+- Feedback and revision loop
+- Approval gate before implementation
+- Drift detection and return-to-review workflow
+- Integrated diagram interaction experience
+
+---
+
+## Appendix C — Claude-native end-state
+The long-term product should be a native Claude Architect experience with built-in Imagine interaction:
+- no manual artifact upload for normal usage
+- architecture generation, visualization, feedback, and revision in one integrated loop
+- persistent architecture state across planning, implementation, and PR review
+- first-class architecture diffs and risk flags in code review workflows
