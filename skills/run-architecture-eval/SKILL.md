@@ -1,9 +1,9 @@
 ---
 name: run-architecture-eval
-description: Run a repeatable eval round for the architect skill. Use this when you want to evaluate a new version of the skill on a fresh codebase, get subagent review of the generated architecture artifacts, reflect on the run, and optionally apply improvements to architect after user approval.
+description: Run a repeatable eval round for the architect-discover skill. Use this when you want to evaluate a new version of the skill on a fresh codebase, get subagent review of the generated architecture artifacts, reflect on the run, and optionally apply improvements to architect after user approval.
 ---
 
-Use this skill to run a full eval loop against a real repository. The goal is consistent evaluation of `architect`, not ad hoc repo exploration.
+Use this skill to run a full eval loop against a real repository. The goal is consistent evaluation of `architect-discover`, not ad hoc repo exploration.
 
 ## Outcome
 
@@ -24,11 +24,11 @@ Do not write generated architecture files inside the repository under test.
 - Always compute the next round number before naming outputs.
 - Always store evaluation outputs in `evals/roundX_<repo>/`.
 - Always keep the repository under test separate from eval outputs.
-- Always use `architect` to produce the architecture artifacts.
+- Always use `architect-discover` to produce the architecture artifacts.
 - Always get review from a fresh subagent before finalizing the round.
 - Always score the output using the scoring rubric before writing reflections.
-- Always pause after writing reflections and ask the user whether to implement improvements to `architect`.
-- Do not implement improvements to `architect` unless the user explicitly says yes.
+- Always pause after writing reflections and ask the user whether to implement improvements to `architect-discover`.
+- Do not implement improvements to `architect-discover` unless the user explicitly says yes.
 
 ## Naming Rules
 
@@ -138,13 +138,13 @@ Decision rule:
 
 ### 5. Run architect
 
-Invoke `architect` on the repository under test.
+Invoke `architect-discover` on the repository under test.
 
 Set the output path to:
 
 - `evals/roundX_<repo>/architecture/`
 
-**Do not skip diagram prompt generation.** During eval runs, complete steps 13-14 from `architect` so every round includes `diagram-prompt.md` for visualization feedback.
+**Do not skip diagram prompt generation.** During eval runs, complete steps 13-14 from `architect-discover` so every round includes `diagram-prompt.md` for visualization feedback.
 
 Required bundled output path:
 
@@ -170,7 +170,7 @@ Give it:
 
 - the repository-under-test path
 - the generated architecture output path
-- the skill's output contract and rules (extracted from `skills/architect/SKILL.md`)
+- the skill's output contract and rules (extracted from `skills/architect-discover/SKILL.md`)
 - the scoring rubric (from `skills/run-architecture-eval/references/scoring-rubric.md`)
 - the ground truth file if one exists (from `evals/ground-truth/<repo>.yaml`)
 
@@ -239,7 +239,7 @@ If you disagree with a subagent suggestion, keep the existing model and record t
 Answer both questions yourself:
 
 1. `now that you've done this, what would you have done differently?`
-2. `what improvements should we make to the architect skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?`
+2. `what improvements should we make to the architect-discover skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?`
 
 Write the answers to:
 
@@ -259,7 +259,7 @@ Do not continue automatically.
 
 Implement the approved improvements to:
 
-- `skills/architect/`
+- `skills/architect-discover/`
 
 Update companion metadata if needed.
 

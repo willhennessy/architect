@@ -3,7 +3,7 @@
 ## Reviewer
 
 Self-review (subagent unavailable in this environment). Reviewed against:
-- architect skill contract
+- architect-discover skill contract
 - C4 boundary rules
 - scoring rubric
 

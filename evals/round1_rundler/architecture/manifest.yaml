@@ -1,6 +1,6 @@
 version: 2
 system_name: "Rundler"
-generated_by_skill: "architect"
+generated_by_skill: "architect-discover"
 mode: "initial"
 repo_archetype: "service_oriented_backend"
 modeling_style:

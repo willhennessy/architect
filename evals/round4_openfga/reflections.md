@@ -4,7 +4,7 @@
 
 I would have read the target repository's own `AGENTS.md` earlier and treated its explicit layering rule as a mandatory modeling constraint before drafting the component view. I also would have forced an early deployment-mode checkpoint for persistence, because OpenFGA supports both process-local memory and external SQL backends and that distinction materially affects boundary modeling. Finally, I would have enumerated the minimum critical lifecycle flows up front instead of stopping at query and tuple-write paths; for OpenFGA, bootstrap is part of the architecture, not an optional extra.
 
-## 2. what improvements should we make to the architect skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?
+## 2. what improvements should we make to the architect-discover skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?
 
 1. Add an explicit step to read repo-local agent or contributor guidance files inside the target repo when they exist, because they can contain authoritative architectural layering or terminology that is stronger than README prose.
 2. Add a required "deployment mode matrix" checkpoint before modeling stateful dependencies. The skill should ask: which supported modes are in-process, which are external, and which are optional? That would have prevented the initial datastore mistake here.

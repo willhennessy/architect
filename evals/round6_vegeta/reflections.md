@@ -8,7 +8,7 @@
 
 **Documented the library-as-container tradeoff upfront.** I intentionally modeled `vegeta-library` as a container to make architecture explicit, but the stricter C4 interpretation would treat it as components under CLI. I should have called out this decision earlier in the summary/manifest notes.
 
-## 2. What improvements should we make to the architect skill?
+## 2. What improvements should we make to the architect-discover skill?
 
 ### A. Add explicit guidance for library_package repo modeling
 
