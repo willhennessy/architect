@@ -1,3 +1,6 @@
 {
-  "notes": {}
+  "notes": {
+    "eval-greenfield-api-marketplace-payments": "with_skill run showed clear improvement in ownership boundaries and async fulfillment flow. Keep emphasis on explicit webhook idempotency and reconciliation rationale.",
+    "iteration_observations": "Only one case has been fully executed so far. Remaining case folders are scaffold placeholders and should be excluded from benchmark calculations until populated."
+  }
 }

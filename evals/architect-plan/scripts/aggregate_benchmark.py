@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import math
 import statistics
 from pathlib import Path
 
@@ -23,13 +22,28 @@ def mean_std(values):
     return {"mean": sum(values) / len(values), "stddev": statistics.pstdev(values)}
 
 
+def _is_placeholder_run(run_dir: Path, timing: dict, grading: dict) -> bool:
+    total_tokens = float(timing.get("total_tokens", 0) or 0)
+    duration_ms = float(timing.get("duration_ms", 0) or 0)
+
+    outputs_dir = run_dir / "outputs"
+    has_outputs = outputs_dir.exists() and any(outputs_dir.rglob("*"))
+
+    lane_a_checks = (grading.get("lane_a_contract", {}) or {}).get("checks", []) or []
+
+    return (total_tokens == 0 and duration_ms == 0 and not has_outputs and len(lane_a_checks) == 0)
+
+
 def collect_run_metrics(run_dir: Path):
     grading = load_json(run_dir / "grading.json", {})
     timing = load_json(run_dir / "timing.json", {})
 
-    lane_a = grading.get("lane_a_contract", {})
-    lane_b = grading.get("lane_b_semantic", {})
-    lane_c = grading.get("lane_c_steering_loop", {})
+    if _is_placeholder_run(run_dir, timing, grading):
+        return None
+
+    lane_a = grading.get("lane_a_contract", {}) or {}
+    lane_b = grading.get("lane_b_semantic", {}) or {}
+    lane_c = grading.get("lane_c_steering_loop", {}) or {}
 
     return {
         "contract_pass": bool(lane_a.get("passed", False)),
@@ -46,6 +60,7 @@ def collect_run_metrics(run_dir: Path):
 def summarize(metrics_list):
     if not metrics_list:
         return {
+            "case_count": 0,
             "contract_pass_rate": None,
             "semantic_score_40": {"mean": None, "stddev": None},
             "feedback_incorporation_success_rate": {"mean": None, "stddev": None},
@@ -67,6 +82,7 @@ def summarize(metrics_list):
     tok_stats = mean_std([m["total_tokens"] for m in metrics_list])
 
     return {
+        "case_count": len(metrics_list),
         "contract_pass_rate": contract_rate,
         "semantic_score_40": semantic,
         "feedback_incorporation_success_rate": fic,
@@ -118,9 +134,13 @@ def main() -> int:
         with_dir = case_dir / "with_skill"
         base_dir = case_dir / baseline_mode
         if with_dir.exists():
-            with_metrics.append(collect_run_metrics(with_dir))
+            m = collect_run_metrics(with_dir)
+            if m is not None:
+                with_metrics.append(m)
         if base_dir.exists():
-            base_metrics.append(collect_run_metrics(base_dir))
+            m = collect_run_metrics(base_dir)
+            if m is not None:
+                base_metrics.append(m)
 
     with_summary = summarize(with_metrics)
     base_summary = summarize(base_metrics)

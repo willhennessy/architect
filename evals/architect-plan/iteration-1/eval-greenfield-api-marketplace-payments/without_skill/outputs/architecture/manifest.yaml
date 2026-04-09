@@ -1,0 +1,6 @@
+version: 1
+system_name: "B2B Marketplace Platform"
+generated_by_skill: "none"
+mode: "initial"
+repo_archetype: "service_oriented_backend"
+overall_summary: "Single service style plan with direct integrations."

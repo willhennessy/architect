@@ -1,0 +1,86 @@
+version: 2
+id: "sequence-checkout-to-fulfillment"
+type: "sequence"
+title: "Checkout to Fulfillment"
+audience:
+  - "senior_architects"
+  - "pms"
+purpose: "Explain synchronous checkout and asynchronous fulfillment handoff."
+scope: "Order creation, payment processing, webhook reconciliation, and fulfillment enqueue/consume."
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "buyer"
+  - "marketplace-api"
+  - "order-service"
+  - "payment-service"
+  - "stripe"
+  - "fulfillment-queue"
+  - "fulfillment-worker"
+steps:
+  - order: 1
+    source_id: "buyer"
+    target_id: "marketplace-api"
+    relationship_id: "buyer-uses-api"
+    label: "Submit checkout request"
+    sync_async: "sync"
+    data_objects: ["checkout-request"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+  - order: 2
+    source_id: "marketplace-api"
+    target_id: "order-service"
+    relationship_id: "api-calls-order"
+    label: "Create pending order"
+    sync_async: "sync"
+    data_objects: ["order", "checkout-state"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core"]
+  - order: 3
+    source_id: "order-service"
+    target_id: "payment-service"
+    relationship_id: "order-calls-payment"
+    label: "Initiate payment intent"
+    sync_async: "sync"
+    data_objects: ["payment-attempt", "order"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-payments"]
+  - order: 4
+    source_id: "payment-service"
+    target_id: "stripe"
+    relationship_id: "payment-calls-stripe"
+    label: "Create payment intent"
+    sync_async: "sync"
+    data_objects: ["processor-transaction"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-payments"]
+  - order: 5
+    source_id: "stripe"
+    target_id: "payment-service"
+    relationship_id: "stripe-webhook-payment"
+    label: "Send payment success webhook"
+    sync_async: "async"
+    data_objects: ["payment-event"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-payments"]
+  - order: 6
+    source_id: "order-service"
+    target_id: "fulfillment-queue"
+    relationship_id: "order-publishes-fulfillment-job"
+    label: "Publish fulfillment job after reconciled payment"
+    sync_async: "async"
+    data_objects: ["fulfillment-job"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-tradeoff-async"]
+  - order: 7
+    source_id: "fulfillment-worker"
+    target_id: "fulfillment-queue"
+    relationship_id: "worker-consumes-fulfillment-job"
+    label: "Consume and process fulfillment"
+    sync_async: "async"
+    data_objects: ["fulfillment-job"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-tradeoff-async"]
+assumptions: []
+unknowns: []
+notes:
+  - "Retry and DLQ specifics are deferred and should be validated in implementation planning."

@@ -1,0 +1,56 @@
+version: 1
+system_name: "B2B Marketplace Platform"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "api"
+    name: "Marketplace API"
+    kind: "container"
+    c4_level: "container"
+    description: "Main service"
+    responsibility: "Everything"
+    technology: "Node"
+    owned_data: ["order", "payment", "catalog"]
+    system_of_record: ["order", "payment", "catalog"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://generic"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev1"]
+  - id: "stripe"
+    name: "Stripe"
+    kind: "external_system"
+    c4_level: "context"
+    description: "Payment provider"
+    responsibility: "Payments"
+    technology: "Stripe"
+    owned_data: ["processor-transaction"]
+    system_of_record: ["processor-transaction"]
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://generic"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev1"]
+relationships:
+  - id: "api-stripe"
+    source_id: "api"
+    target_id: "stripe"
+    label: "Calls Stripe"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["payment"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev1"]
+evidence:
+  - id: "ev1"
+    path: "plan://generic"
+    kind: "user_intent"
+    strength: "low"
+    reason: "Generic interpretation"
+unknowns: []
+assumptions: []

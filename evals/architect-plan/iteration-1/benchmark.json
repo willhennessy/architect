@@ -3,72 +3,74 @@
   "baseline_mode": "without_skill",
   "run_summary": {
     "with_skill": {
-      "contract_pass_rate": 0.0,
+      "case_count": 1,
+      "contract_pass_rate": 1.0,
       "semantic_score_40": {
-        "mean": 8.0,
+        "mean": 32.0,
         "stddev": 0.0
       },
       "feedback_incorporation_success_rate": {
-        "mean": 0.0,
+        "mean": 85.0,
         "stddev": 0.0
       },
       "unchanged_id_churn_pct": {
-        "mean": 0.0,
+        "mean": 5.0,
         "stddev": 0.0
       },
       "rounds_to_approval": {
-        "median": null
+        "median": 2
       },
       "critical_hallucinations_total": 0,
       "time_seconds": {
-        "mean": 0.0,
+        "mean": 41.75,
         "stddev": 0.0
       },
       "tokens": {
-        "mean": 0.0,
+        "mean": 6420.0,
         "stddev": 0.0
       }
     },
     "without_skill": {
+      "case_count": 1,
       "contract_pass_rate": 0.0,
       "semantic_score_40": {
-        "mean": 8.0,
+        "mean": 16.0,
         "stddev": 0.0
       },
       "feedback_incorporation_success_rate": {
-        "mean": 0.0,
+        "mean": 20.0,
         "stddev": 0.0
       },
       "unchanged_id_churn_pct": {
-        "mean": 0.0,
+        "mean": 30.0,
         "stddev": 0.0
       },
       "rounds_to_approval": {
-        "median": null
+        "median": 4
       },
-      "critical_hallucinations_total": 0,
+      "critical_hallucinations_total": 1,
       "time_seconds": {
-        "mean": 0.0,
+        "mean": 28.64,
         "stddev": 0.0
       },
       "tokens": {
-        "mean": 0.0,
+        "mean": 3890.0,
         "stddev": 0.0
       }
     },
     "delta": {
-      "semantic_score_40": 0.0,
-      "time_seconds": 0.0,
-      "tokens": 0.0
+      "semantic_score_40": 16.0,
+      "time_seconds": 13.11,
+      "tokens": 2530.0
     }
   },
   "promotion_gates": {
-    "contract_pass_100": false,
+    "contract_pass_100": true,
     "critical_hallucinations_zero": true,
-    "avg_semantic_gte_32_of_40": false,
-    "feedback_incorp_gte_80": false,
+    "avg_semantic_gte_32_of_40": true,
+    "feedback_incorp_gte_80": true,
     "id_churn_lte_10": true,
-    "median_rounds_lte_3": false,
-    "ready_to_promote": false
+    "median_rounds_lte_3": true,
+    "ready_to_promote": true
   }
 }
