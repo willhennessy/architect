@@ -3,65 +3,65 @@
   "baseline_mode": "without_skill",
   "run_summary": {
     "with_skill": {
-      "case_count": 1,
+      "case_count": 4,
       "contract_pass_rate": 1.0,
       "semantic_score_40": {
-        "mean": 32.0,
-        "stddev": 0.0
+        "mean": 32.8,
+        "stddev": 0.8000000000000007
       },
       "feedback_incorporation_success_rate": {
-        "mean": 85.0,
-        "stddev": 0.0
+        "mean": 84.25,
+        "stddev": 3.766629793329841
       },
       "unchanged_id_churn_pct": {
-        "mean": 5.0,
-        "stddev": 0.0
+        "mean": 5.5,
+        "stddev": 1.118033988749895
       },
       "rounds_to_approval": {
-        "median": 2
+        "median": 2.0
       },
       "critical_hallucinations_total": 0,
       "time_seconds": {
-        "mean": 41.75,
-        "stddev": 0.0
+        "mean": 43.84,
+        "stddev": 3.4962908917880395
       },
       "tokens": {
-        "mean": 6420.0,
-        "stddev": 0.0
+        "mean": 6837.5,
+        "stddev": 312.59998400511796
       }
     },
     "without_skill": {
-      "case_count": 1,
+      "case_count": 4,
       "contract_pass_rate": 0.0,
       "semantic_score_40": {
-        "mean": 16.0,
-        "stddev": 0.0
+        "mean": 16.8,
+        "stddev": 0.8000000000000007
       },
       "feedback_incorporation_success_rate": {
-        "mean": 20.0,
-        "stddev": 0.0
+        "mean": 24.25,
+        "stddev": 3.766629793329841
       },
       "unchanged_id_churn_pct": {
-        "mean": 30.0,
-        "stddev": 0.0
+        "mean": 27.25,
+        "stddev": 2.165063509461097
       },
       "rounds_to_approval": {
-        "median": 4
+        "median": 4.0
       },
-      "critical_hallucinations_total": 1,
+      "critical_hallucinations_total": 4,
       "time_seconds": {
-        "mean": 28.64,
-        "stddev": 0.0
+        "mean": 27.765,
+        "stddev": 1.9139683905435856
       },
       "tokens": {
-        "mean": 3890.0,
-        "stddev": 0.0
+        "mean": 3785.0,
+        "stddev": 188.48076824970764
       }
     },
     "delta": {
-      "semantic_score_40": 16.0,
-      "time_seconds": 13.11,
-      "tokens": 2530.0
+      "semantic_score_40": 15.999999999999996,
+      "time_seconds": 16.075000000000003,
+      "tokens": 3052.5
     }
   },
   "promotion_gates": {

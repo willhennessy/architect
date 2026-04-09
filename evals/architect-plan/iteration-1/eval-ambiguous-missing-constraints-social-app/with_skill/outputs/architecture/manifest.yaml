@@ -1,0 +1,29 @@
+version: 2
+system_name: "Social App Platform"
+generated_by_skill: "architect-plan"
+mode: "initial"
+evidence_basis: "plan"
+architecture_state: "proposed"
+repo_archetype: "full_stack_product"
+scope:
+  in_scope:
+    - "Posting, comments, feed generation"
+  out_of_scope:
+    - "Final scale and moderation policy details"
+artifacts:
+  - id: "model"
+    path: "architecture/model.yaml"
+    type: "canonical_model"
+    status: "complete"
+  - id: "container"
+    path: "architecture/views/container.yaml"
+    type: "container"
+    status: "complete"
+assumptions:
+  - text: "Initial launch can use single-region deployment with explicit scalability unknowns."
+    confidence: "weak_inference"
+unknowns:
+  - "Target DAU and write throughput"
+  - "Moderation escalation policy"
+  - "Data residency requirements"
+overall_summary: "Initial architecture proposal emphasizes explicit unknowns and targeted feedback questions due missing constraints."

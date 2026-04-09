@@ -1,6 +1,9 @@
 {
   "notes": {
     "eval-greenfield-api-marketplace-payments": "with_skill run showed clear improvement in ownership boundaries and async fulfillment flow. Keep emphasis on explicit webhook idempotency and reconciliation rationale.",
-    "iteration_observations": "Only one case has been fully executed so far. Remaining case folders are scaffold placeholders and should be excluded from benchmark calculations until populated."
+    "iteration_observations": "Only one case has been fully executed so far. Remaining case folders are scaffold placeholders and should be excluded from benchmark calculations until populated.",
+    "eval-async-event-heavy-notifications": "with_skill improved async boundaries, provider abstraction, and retry workflow clarity.",
+    "eval-compliance-constrained-phi-intake": "with_skill isolated PHI, authz, and immutable audit SoR boundaries clearly.",
+    "eval-ambiguous-missing-constraints-social-app": "with_skill explicitly captured unknowns and confidence calibration under sparse constraints."
   }
 }

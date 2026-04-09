@@ -1,0 +1,6 @@
+version: 1
+system_name: "Social App Platform"
+generated_by_skill: "none"
+mode: "initial"
+repo_archetype: "full_stack_product"
+overall_summary: "Simple app server and DB."

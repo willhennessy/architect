@@ -1,27 +1,57 @@
 {
   "lane_a_contract": {
     "passed": false,
-    "checks": []
+    "checks": [
+      {
+        "name": "schema_conformance",
+        "passed": false,
+        "evidence": "Baseline output missing structured contract elements/views."
+      },
+      {
+        "name": "generated_by_skill",
+        "passed": false,
+        "evidence": "generated_by_skill=none"
+      },
+      {
+        "name": "evidence_basis_plan",
+        "passed": false,
+        "evidence": "evidence_basis missing"
+      },
+      {
+        "name": "architecture_state_rules",
+        "passed": true,
+        "evidence": "No invalid transition detected"
+      },
+      {
+        "name": "no_dangling_ids",
+        "passed": true,
+        "evidence": "No dangling IDs in limited model"
+      }
+    ]
   },
   "lane_b_semantic": {
     "scores": {
-      "scope_boundary_correctness": 1,
-      "data_ownership_sor_clarity": 1,
-      "workflow_sequence_correctness": 1,
-      "rationale_quality": 1,
-      "uncertainty_handling": 1
+      "scope_boundary_correctness": 2,
+      "data_ownership_sor_clarity": 2,
+      "workflow_sequence_correctness": 2,
+      "rationale_quality": 2,
+      "uncertainty_handling": 2
     },
-    "semantic_raw_total": 5,
-    "semantic_score_40": 8.0,
-    "evidence_notes": []
+    "semantic_raw_total": 10,
+    "semantic_score_40": 16.0,
+    "evidence_notes": [
+      "Scored against case-specific assertions and produced artifacts."
+    ]
   },
   "lane_c_steering_loop": {
     "asks_targeted_feedback": false,
-    "feedback_incorporation_success_rate": 0,
-    "unchanged_id_churn_pct": 0,
-    "rounds_to_approval": 0,
-    "critical_hallucinations": 0,
-    "evidence_notes": []
+    "feedback_incorporation_success_rate": 22,
+    "unchanged_id_churn_pct": 27,
+    "rounds_to_approval": 4,
+    "critical_hallucinations": 1,
+    "evidence_notes": [
+      "Derived from scripted round behavior and artifact deltas."
+    ]
   },
   "gate_readiness": {
     "contract_pass_100": false,

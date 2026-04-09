@@ -1,0 +1,29 @@
+version: 1
+system_name: "PHI Intake Platform"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "intake-service"
+    name: "Intake Service"
+    kind: "container"
+    c4_level: "container"
+    description: "Single backend"
+    responsibility: "Ingest and export"
+    technology: "Node"
+    owned_data: ["patient-intake-record", "audit-event"]
+    system_of_record: ["patient-intake-record", "audit-event"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://generic"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev1"]
+relationships: []
+evidence:
+  - id: "ev1"
+    path: "plan://generic"
+    kind: "user_intent"
+    strength: "low"
+    reason: "Generic interpretation"
+unknowns: []
+assumptions: []

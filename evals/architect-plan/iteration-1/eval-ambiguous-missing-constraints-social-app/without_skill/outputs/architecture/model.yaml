@@ -1,0 +1,29 @@
+version: 1
+system_name: "Social App Platform"
+repo_archetype: "full_stack_product"
+elements:
+  - id: "app-server"
+    name: "App Server"
+    kind: "container"
+    c4_level: "container"
+    description: "Backend service"
+    responsibility: "All social features"
+    technology: "Node"
+    owned_data: ["post", "comment", "feed"]
+    system_of_record: ["post", "comment", "feed"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://generic"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev1"]
+relationships: []
+evidence:
+  - id: "ev1"
+    path: "plan://generic"
+    kind: "user_intent"
+    strength: "low"
+    reason: "Generic interpretation"
+unknowns: []
+assumptions: []
