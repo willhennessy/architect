@@ -38,3 +38,15 @@ python3 evals/architect-plan/scripts/aggregate_benchmark.py --iteration evals/ar
 ```
 
 6. Promote only when all gates pass in `benchmark.json`.
+## Pattern analysis and blind review
+
+After grading and before promotion:
+
+- identify assertions that always pass in both variants and tighten/remove them
+- investigate assertions that always fail in both variants
+- check for flaky assertions (inconsistent outcomes)
+- highlight assertions where with-skill outperforms baseline
+- optionally run blind comparison for holistic quality when assertion scores are close
+
+Capture these findings in `iteration-N/feedback.json` and reflect assertion updates in `evals.json` for the next iteration.
+

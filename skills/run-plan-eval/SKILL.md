@@ -71,6 +71,21 @@ Write `grading.json` per run using the rubric.
 - Use:
   - `python3 evals/architect-plan/scripts/aggregate_benchmark.py --iteration evals/architect-plan/iteration-N`
 
+### 5b) Analyze assertion patterns
+
+Before deciding promotions, analyze assertion behavior across runs:
+
+- identify assertions that always pass in both variants (likely low-signal; remove/tighten)
+- identify assertions that always fail in both variants (broken, too hard, or mis-specified)
+- identify flaky assertions (inconsistent pass/fail across repeated runs)
+- identify assertions that pass with skill but fail in baseline (core skill value)
+
+Record findings in `iteration-N/feedback.json` and update `evals.json` assertions for the next iteration when needed.
+
+### 5c) Optional blind comparison
+
+For qualitative ties where assertions are inconclusive, run a blind holistic comparison between with-skill and baseline outputs (without variant labels) and record notes in `feedback.json`.
+
 ### 6) Gate promotion
 
 Promotion gates (all required):
