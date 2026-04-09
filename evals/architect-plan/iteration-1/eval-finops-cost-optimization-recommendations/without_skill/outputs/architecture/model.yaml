@@ -1,0 +1,29 @@
+version: 1
+system_name: "FinOps Recommendation Engine"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "app"
+    name: "App Service"
+    kind: "container"
+    c4_level: "container"
+    description: "Single generic service"
+    responsibility: "Handle all workflows"
+    technology: "Node"
+    owned_data: ["entity"]
+    system_of_record: ["entity"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://generic"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev1"]
+relationships: []
+evidence:
+  - id: "ev1"
+    path: "plan://generic"
+    kind: "user_intent"
+    strength: "low"
+    reason: "Generic interpretation"
+unknowns: []
+assumptions: []

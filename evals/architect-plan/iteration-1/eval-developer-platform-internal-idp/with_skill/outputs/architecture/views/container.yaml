@@ -1,0 +1,24 @@
+version: 2
+id: "container"
+type: "container"
+title: "Container View"
+audience: ["senior_architects"]
+purpose: "Show runtime and state boundaries for planning review."
+scope: "Core API, async worker/queue, and primary datastore"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "primary-user"
+  - "api-service"
+  - "workflow-worker"
+  - "workflow-queue"
+  - "primary-db"
+relationship_ids:
+  - "user-calls-api"
+  - "api-publishes-queue"
+  - "worker-consumes-queue"
+  - "api-writes-db"
+  - "worker-writes-db"
+assumptions: []
+unknowns: []
+notes:
+  - "This planning view prioritizes boundary clarity over implementation detail."

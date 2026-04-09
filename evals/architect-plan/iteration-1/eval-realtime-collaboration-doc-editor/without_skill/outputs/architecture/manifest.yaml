@@ -1,0 +1,6 @@
+version: 1
+system_name: "Realtime Collaboration Platform"
+generated_by_skill: "none"
+mode: "initial"
+repo_archetype: "service_oriented_backend"
+overall_summary: "Generic baseline architecture."

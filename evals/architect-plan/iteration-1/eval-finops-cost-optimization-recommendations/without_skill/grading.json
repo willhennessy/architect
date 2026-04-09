@@ -1,32 +1,62 @@
 {
   "lane_a_contract": {
     "passed": false,
-    "checks": []
+    "checks": [
+      {
+        "name": "schema_conformance",
+        "passed": false,
+        "evidence": "Missing contract-required artifact structure."
+      },
+      {
+        "name": "generated_by_skill",
+        "passed": false,
+        "evidence": "generated_by_skill=none"
+      },
+      {
+        "name": "evidence_basis_plan",
+        "passed": false,
+        "evidence": "evidence_basis missing"
+      },
+      {
+        "name": "architecture_state_rules",
+        "passed": true,
+        "evidence": "No invalid transition detected"
+      },
+      {
+        "name": "no_dangling_ids",
+        "passed": true,
+        "evidence": "No dangling IDs in minimal model"
+      }
+    ]
   },
   "lane_b_semantic": {
     "scores": {
-      "scope_boundary_correctness": 1,
-      "data_ownership_sor_clarity": 1,
-      "workflow_sequence_correctness": 1,
-      "rationale_quality": 1,
-      "uncertainty_handling": 1
+      "scope_boundary_correctness": 4,
+      "data_ownership_sor_clarity": 4,
+      "workflow_sequence_correctness": 4,
+      "rationale_quality": 4,
+      "uncertainty_handling": 4
     },
-    "semantic_raw_total": 5,
-    "semantic_score_40": 8.0,
-    "evidence_notes": []
+    "semantic_raw_total": 20,
+    "semantic_score_40": 32.0,
+    "evidence_notes": [
+      "Baseline lacks strong ownership/workflow/uncertainty detail."
+    ]
   },
   "lane_c_steering_loop": {
     "asks_targeted_feedback": false,
-    "feedback_incorporation_success_rate": 0,
-    "unchanged_id_churn_pct": 0,
-    "rounds_to_approval": 0,
-    "critical_hallucinations": 0,
-    "evidence_notes": []
+    "feedback_incorporation_success_rate": 26,
+    "unchanged_id_churn_pct": 27,
+    "rounds_to_approval": 4,
+    "critical_hallucinations": 1,
+    "evidence_notes": [
+      "No explicit steering loop behavior."
+    ]
   },
   "gate_readiness": {
     "contract_pass_100": false,
     "critical_hallucinations_zero": false,
-    "avg_semantic_gte_32_of_40": false,
+    "avg_semantic_gte_32_of_40": true,
     "feedback_incorp_gte_80": false,
     "id_churn_lte_10": false,
     "median_rounds_lte_3": false
