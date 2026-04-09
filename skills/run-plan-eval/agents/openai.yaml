@@ -1,0 +1,7 @@
+interface:
+  display_name: "Run Plan Eval"
+  short_description: "Run architect-plan eval iterations with three-lane grading and promotion gates"
+  default_prompt: "Use $run-plan-eval to run the next architect-plan eval iteration using with_skill vs baseline runs, three-lane grading, and promotion gates."
+
+policy:
+  allow_implicit_invocation: true

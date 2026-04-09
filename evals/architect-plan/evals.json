@@ -1,0 +1,309 @@
+{
+  "skill_name": "architect-plan",
+  "version": 1,
+  "notes": "Planning-mode eval corpus for three-lane evaluation. Iterate in iteration-N directories.",
+  "evals": [
+    {
+      "id": 1,
+      "slug": "greenfield-api-marketplace-payments",
+      "category": "greenfield_api_system",
+      "prompt": "Design architecture for a greenfield B2B marketplace API. Requirements: buyer/seller accounts, catalog, checkout, Stripe payments, order webhooks, and admin analytics. Constraints: launch in 8 weeks, small team (4 engineers), SOC2 roadmap, and no multi-region for v1.",
+      "expected_output": "Clear bounded services/containers, payment workflow, ownership of order/payment state, and explicit unknowns for SOC2 roadmap scope.",
+      "assertions": [
+        "Separates API boundary from payment provider integration boundary.",
+        "Defines a single system of record for order and payment entities.",
+        "Includes webhook handling sequence with idempotency concerns.",
+        "Captures launch constraints as plan evidence and confidence levels."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Use an async queue between checkout and fulfillment; remove direct sync fulfillment calls.",
+          "expected_revision_assertions": [
+            "Checkout-to-fulfillment path is async in revised flow.",
+            "Existing unchanged IDs are preserved."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Clarify what data is authoritative in payments vs orders and call out reconciliation.",
+          "expected_revision_assertions": [
+            "System-of-record boundaries for orders vs payments are explicit.",
+            "Reconciliation flow is represented in sequence or notes."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "slug": "async-event-heavy-notifications",
+      "category": "async_event_heavy",
+      "prompt": "Design architecture for a notification platform handling email, SMS, and push with 5M events/day. Requirements: templates, scheduling, retries, dead-letter queue, customer segmentation, and observability. Constraint: providers can fail and must be swappable.",
+      "expected_output": "Event-driven architecture with queue/topic boundaries, retry/DLQ ownership, provider abstraction, and failure isolation.",
+      "assertions": [
+        "Shows event ingestion, processing, and retry/DLQ paths.",
+        "Avoids assigning provider adapters as core system-of-record owners.",
+        "Includes observability path for delivery outcomes.",
+        "Captures provider-swappability as tradeoff/evidence."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Separate template rendering from channel delivery workers.",
+          "expected_revision_assertions": [
+            "Template rendering boundary separated from delivery workers.",
+            "Sequence updated without introducing dangling IDs."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Add explicit backpressure and retry budget decisions.",
+          "expected_revision_assertions": [
+            "Backpressure strategy documented in architecture rationale.",
+            "Retry budget assumptions are explicit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "slug": "compliance-constrained-phi-intake",
+      "category": "compliance_constrained",
+      "prompt": "Design a patient intake platform for clinics. Requirements: e-sign forms, PHI storage, role-based access, audit trails, and exports to EHR systems. Constraints: HIPAA-like controls from day one, encryption at rest/in transit, least privilege.",
+      "expected_output": "Architecture with explicit PHI boundaries, access-control components, audit logging, and clear compliance assumptions/unknowns.",
+      "assertions": [
+        "Identifies PHI system-of-record boundaries and sensitive data flows.",
+        "Includes audit trail ownership and immutability considerations.",
+        "Shows RBAC/authn/authz boundaries separately from business logic.",
+        "Captures compliance assumptions and unresolved control decisions."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Split operational logs from compliance audit logs and tighten retention policy ownership.",
+          "expected_revision_assertions": [
+            "Operational logs and compliance audit logs are distinct entities.",
+            "Retention policy ownership is explicit."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Call out key management boundary and rotation responsibilities.",
+          "expected_revision_assertions": [
+            "Key management boundary appears in model/views.",
+            "Rotation responsibility is attributed in rationale."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "slug": "cost-constrained-analytics-mvp",
+      "category": "cost_constrained",
+      "prompt": "Design architecture for a product analytics MVP for startups. Requirements: ingest events, basic dashboards, cohort reports, and CSV export. Constraints: strict monthly infra budget under $2k, one backend engineer maintaining the system.",
+      "expected_output": "Cost-aware architecture with minimal moving parts, explicit cost tradeoffs, and deferred complexity recorded as assumptions.",
+      "assertions": [
+        "Avoids unnecessary service sprawl given budget constraint.",
+        "Documents tradeoffs between managed services vs self-hosting.",
+        "Defines authoritative ownership for event and aggregate datasets.",
+        "Records deferred capabilities as explicit unknowns or out-of-scope."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Prefer one deployable backend + managed warehouse for v1; remove speculative streaming service.",
+          "expected_revision_assertions": [
+            "Streaming service removed or marked deferred.",
+            "Managed warehouse role and ownership clarified."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Add explicit operational burden notes for on-call and maintenance overhead.",
+          "expected_revision_assertions": [
+            "Operational burden appears in rationale/tradeoffs.",
+            "Architecture choices reflect maintenance constraints."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "slug": "ambiguous-missing-constraints-social-app",
+      "category": "ambiguous_missing_constraints",
+      "prompt": "Design architecture for a new social app with posting, comments, and feeds. No extra constraints provided.",
+      "expected_output": "Reasonable initial architecture proposal with clearly labeled assumptions and unknowns instead of fabricated certainty.",
+      "assertions": [
+        "Unknowns are explicitly listed for scale, moderation, and abuse handling.",
+        "Confidence levels reflect weak evidence where constraints are missing.",
+        "No invented hard requirements appear as confirmed facts.",
+        "Provides targeted questions for engineer feedback."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Target 200k DAU in year one and add image uploads with moderation queue.",
+          "expected_revision_assertions": [
+            "Scale assumptions updated with new DAU constraint.",
+            "Image moderation queue appears in architecture."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Regulatory requirement: EU user data must stay in EU region.",
+          "expected_revision_assertions": [
+            "Data residency boundary is explicit.",
+            "Any multi-region implications are documented as tradeoffs."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "slug": "multi-tenant-saas-roles-billing",
+      "category": "greenfield_api_system",
+      "prompt": "Design architecture for a multi-tenant SaaS project management app with org workspaces, role-based permissions, audit history, and seat-based billing.",
+      "expected_output": "Tenant boundary strategy, identity and authorization boundaries, billing integration flow, and ownership for tenant metadata.",
+      "assertions": [
+        "Defines tenant boundary approach and key data partitioning decision.",
+        "Separates authn/authz from billing workflow responsibilities.",
+        "Includes audit history ownership and consistency assumptions.",
+        "Captures migration/scale unknowns for tenant growth."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Add requirement for enterprise SSO and SCIM provisioning.",
+          "expected_revision_assertions": [
+            "SSO/SCIM boundaries and dependencies are added.",
+            "Existing IDs preserved for unchanged modules."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Clarify whether billing events are source-of-truth in app or provider.",
+          "expected_revision_assertions": [
+            "SoR assignment for billing entities is explicit and non-duplicated."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "slug": "realtime-collaboration-doc-editor",
+      "category": "async_event_heavy",
+      "prompt": "Design architecture for a collaborative document editor with realtime presence, comments, and offline edits sync.",
+      "expected_output": "Clear realtime vs persistence boundaries, conflict-resolution workflow, and explicit unknowns for offline merge strategy.",
+      "assertions": [
+        "Distinguishes ephemeral presence state from authoritative document state.",
+        "Models sync/conflict path in sequence workflow.",
+        "Avoids implying guaranteed ordering where not supported.",
+        "Captures tradeoffs for offline conflict resolution strategy."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Move from naive last-write-wins to CRDT-based merge strategy.",
+          "expected_revision_assertions": [
+            "Conflict-resolution design updated to reflect CRDT strategy.",
+            "Associated assumptions and risks updated."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Add document export pipeline for PDF and DOCX.",
+          "expected_revision_assertions": [
+            "Export boundary added without confusing SoR ownership."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "slug": "finops-cost-optimization-recommendations",
+      "category": "cost_constrained",
+      "prompt": "Design architecture for an internal FinOps recommendation engine that ingests cloud billing exports, computes optimization suggestions, and notifies owners weekly. Constraint: must run mostly in batch with predictable spend.",
+      "expected_output": "Batch-oriented architecture with explicit cost controls, data ownership for billing snapshots, and recommendation workflow.",
+      "assertions": [
+        "Uses batch-first workflow and avoids unnecessary realtime complexity.",
+        "Defines ownership for imported billing snapshots and derived recommendations.",
+        "Includes notification path and failure handling.",
+        "Tradeoffs explain cost predictability decisions."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Add support for ad-hoc on-demand recommendation runs with rate limits.",
+          "expected_revision_assertions": [
+            "On-demand path added with guardrails and capacity assumptions."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Need explainability metadata for each recommendation.",
+          "expected_revision_assertions": [
+            "Explainability data ownership and flow are explicit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "slug": "policy-enforced-content-moderation",
+      "category": "compliance_constrained",
+      "prompt": "Design architecture for user-generated content moderation with policy rules, appeal workflows, and regulator reporting exports.",
+      "expected_output": "Policy decision boundaries, moderation queue workflows, and reporting/audit ownership with compliance evidence.",
+      "assertions": [
+        "Separates policy rules service from moderation execution pipeline.",
+        "Models appeal workflow as first-class sequence path.",
+        "Defines ownership for moderation decisions and audit evidence.",
+        "Captures regulator reporting assumptions and unknowns."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Add human-in-the-loop review stage for high-risk categories.",
+          "expected_revision_assertions": [
+            "Human review stage appears in workflow and state transitions."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Need immutable evidence retention for overturned decisions.",
+          "expected_revision_assertions": [
+            "Evidence retention boundary and SoR clarified for appeals outcomes."
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "slug": "developer-platform-internal-idp",
+      "category": "greenfield_api_system",
+      "prompt": "Design architecture for an internal developer platform with service catalog, golden templates, and deploy workflow integration with existing CI systems.",
+      "expected_output": "Control-plane architecture with clear boundaries between catalog metadata, template generation, and deployment orchestration.",
+      "assertions": [
+        "Clearly separates control-plane APIs from execution workers.",
+        "Defines ownership for service metadata and template artifacts.",
+        "Includes integration boundaries to existing CI systems.",
+        "Captures extensibility assumptions and plugin boundary unknowns."
+      ],
+      "engineer_feedback_rounds": [
+        {
+          "round": 1,
+          "feedback": "Support policy-as-code checks before deployment orchestration.",
+          "expected_revision_assertions": [
+            "Policy-as-code stage added with clear fail/allow behavior."
+          ]
+        },
+        {
+          "round": 2,
+          "feedback": "Clarify rollback ownership and state transitions after failed deploys.",
+          "expected_revision_assertions": [
+            "Rollback workflow and ownership explicitly modeled."
+          ]
+        }
+      ]
+    }
+  ]
+}
