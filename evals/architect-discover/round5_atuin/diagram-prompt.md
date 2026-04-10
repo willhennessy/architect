@@ -80,7 +80,7 @@ round5_atuin/
 skill_version: "1.0"
 repo: "atuinsh/atuin"
 repo_path: "evals/repos/atuin"
-output_path: "evals/round5_atuin/architecture"
+output_path: "evals/architect-discover/round5_atuin/architecture"
 extraction_mode: "initial"
 archetype: "full_stack_product"
 audiences:

@@ -10,9 +10,9 @@
 - data ownership
 - what is intentionally not modeled
 
-That would have reduced churn in `evals/round1_rundler/architecture/model.yaml`.
+That would have reduced churn in `evals/architect-discover/round1_rundler/architecture/model.yaml`.
 
-4. I would have used the blog post earlier, but only for goals and deployment intent. It wouldn’t have changed the structure much, but it would have improved the framing in `evals/round1_rundler/architecture/summary.md` around why modularity exists.
+4. I would have used the blog post earlier, but only for goals and deployment intent. It wouldn’t have changed the structure much, but it would have improved the framing in `evals/architect-discover/round1_rundler/architecture/summary.md` around why modularity exists.
 
 5. I would probably add one more explicit note in the artifacts about what Rundler does not own:
 

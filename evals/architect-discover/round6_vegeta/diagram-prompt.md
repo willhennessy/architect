@@ -76,7 +76,7 @@ round6_vegeta/
 skill_version: "1.0"
 repo: "tsenart/vegeta"
 repo_path: "evals/repos/vegeta"
-output_path: "evals/round6_vegeta/architecture"
+output_path: "evals/architect-discover/round6_vegeta/architecture"
 extraction_mode: "initial"
 archetype: "library_package"
 audiences:

@@ -9,11 +9,11 @@ Use this skill to run a full eval loop against a real repository. The goal is co
 
 For each eval round, produce:
 
-- `evals/roundX_<repo>/architecture/`: generated architecture artifacts
-- `evals/roundX_<repo>/diagram-prompt.md`: bundled upload file for Claude Imagine interactive diagram generation
-- `evals/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
-- `evals/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
-- `evals/roundX_<repo>/reflections.md`: answers to the two reflection questions
+- `evals/architect-discover/roundX_<repo>/architecture/`: generated architecture artifacts
+- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`: bundled upload file for Claude Imagine interactive diagram generation
+- `evals/architect-discover/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
+- `evals/architect-discover/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
+- `evals/architect-discover/roundX_<repo>/reflections.md`: answers to the two reflection questions
 
 The target repository under test must live separately under `evals/repos/<repo>/` or `evals/<repo>/` as a git submodule.
 
@@ -22,7 +22,7 @@ Do not write generated architecture files inside the repository under test.
 ## Hard Rules
 
 - Always compute the next round number before naming outputs.
-- Always store evaluation outputs in `evals/roundX_<repo>/`.
+- Always store evaluation outputs in `evals/architect-discover/roundX_<repo>/`.
 - Always keep the repository under test separate from eval outputs.
 - Always use `architect-discover` to produce the architecture artifacts.
 - Always get review from a fresh subagent before finalizing the round.
@@ -36,12 +36,12 @@ Determine `X` by scanning existing round output directories directly under `eval
 
 Examples:
 
-- `evals/round1_rundler/` counts as round `1`
-- `evals/round2/` counts as round `2`
+- `evals/architect-discover/round1_rundler/` counts as round `1`
+- `evals/architect-discover/round2/` counts as round `2`
 
 Use the next highest round number for both:
 
-- `evals/roundX_<repo>/`
+- `evals/architect-discover/roundX_<repo>/`
 
 Normalize `<repo>` to a simple slug based on the repository name.
 
@@ -95,7 +95,7 @@ If a chosen candidate exceeds the size limit after inspection, discard it and ch
 
 Before touching a candidate repo:
 
-- find the next round number from existing `evals/round*` directories
+- find the next round number from existing `evals/architect-discover/round*` directories
 - compute the Rundler baseline using the filtered `rg --files` count defined in this skill
 
 Do not create the round output directory until the repository slug is known.
@@ -112,7 +112,7 @@ For the final candidate, confirm:
 
 After choosing the final candidate, create:
 
-- `evals/roundX_<repo>/`
+- `evals/architect-discover/roundX_<repo>/`
 
 ALWAYS create this directory as soon as you choose the repo name.
 
@@ -142,17 +142,17 @@ Invoke `architect-discover` on the repository under test.
 
 Set the output path to:
 
-- `evals/roundX_<repo>/architecture/`
+- `evals/architect-discover/roundX_<repo>/architecture/`
 
 Then invoke `architect-diagram-prompt` using the parent round folder as output root so it reads `architecture/` and writes:
 
-- `evals/roundX_<repo>/diagram-prompt.md`
+- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`
 
 **Do not skip diagram prompt generation.** During eval runs, invoke `architect-diagram-prompt` after `architect-discover` so every round includes `diagram-prompt.md` for visualization feedback.
 
 Required bundled output path:
 
-- `evals/roundX_<repo>/diagram-prompt.md`
+- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`
 
 `diagram-prompt.md` must be upload-ready for zero-text user flows. The file must include a top section with this exact heading:
 
@@ -163,7 +163,7 @@ Immediately below the heading, include an explicit instruction that if the file 
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
 - the target repo under `evals/repos/<repo>/` or `evals/<repo>/`
-- the round output directory under `evals/roundX_<repo>/`
+- the round output directory under `evals/architect-discover/roundX_<repo>/`
 - the skill files being evaluated if and only if the user later approves improvements
 
 ### 6. Spawn a fresh subagent for review
@@ -209,7 +209,7 @@ Use a prompt equivalent to:
 
 Capture the subagent's output in:
 
-- `evals/roundX_<repo>/subagent_feedback.md`
+- `evals/architect-discover/roundX_<repo>/subagent_feedback.md`
 
 Summarize:
 
@@ -222,7 +222,7 @@ Summarize:
 
 Extract the subagent's quantitative scores and write them to:
 
-- `evals/roundX_<repo>/scores.yaml`
+- `evals/architect-discover/roundX_<repo>/scores.yaml`
 
 Use the format defined in `skills/run-architecture-eval/references/scoring-rubric.md`.
 
@@ -247,7 +247,7 @@ Answer both questions yourself:
 
 Write the answers to:
 
-- `evals/roundX_<repo>/reflections.md`
+- `evals/architect-discover/roundX_<repo>/reflections.md`
 
 ### 10. Pause and ask the user
 
@@ -278,7 +278,7 @@ Wait for further input.
 Before pausing for user input, verify:
 
 - the target repo exists under `evals/repos/<repo>/` or `evals/<repo>/`
-- the round output directory exists under `evals/roundX_<repo>/`
+- the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
