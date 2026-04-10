@@ -34,8 +34,8 @@
       "case_count": 10,
       "contract_pass_rate": 0.0,
       "semantic_score_40": {
-        "mean": 25.919999999999998,
-        "stddev": 7.463618425401984
+        "mean": 17.28,
+        "stddev": 0.6400000000000006
       },
       "feedback_incorporation_success_rate": {
         "mean": 26.2,
@@ -59,7 +59,7 @@
       }
     },
     "delta": {
-      "semantic_score_40": 7.360000000000003,
+      "semantic_score_40": 16.0,
       "time_seconds": 17.42,
       "tokens": 3216.0
     }

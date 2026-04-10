@@ -31,14 +31,14 @@
   },
   "lane_b_semantic": {
     "scores": {
-      "scope_boundary_correctness": 4,
-      "data_ownership_sor_clarity": 4,
-      "workflow_sequence_correctness": 4,
-      "rationale_quality": 4,
-      "uncertainty_handling": 4
+      "scope_boundary_correctness": 3,
+      "data_ownership_sor_clarity": 2,
+      "workflow_sequence_correctness": 2,
+      "rationale_quality": 2,
+      "uncertainty_handling": 2
     },
-    "semantic_raw_total": 20,
-    "semantic_score_40": 32.0,
+    "semantic_raw_total": 11,
+    "semantic_score_40": 17.6,
     "evidence_notes": [
       "Baseline lacks strong ownership/workflow/uncertainty detail."
     ]
