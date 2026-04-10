@@ -1,0 +1,76 @@
+{
+  "iteration": 2,
+  "baseline_mode": "old_skill",
+  "run_summary": {
+    "with_skill": {
+      "case_count": 10,
+      "contract_pass_rate": 1.0,
+      "semantic_score_40": {
+        "mean": 33.760000000000005,
+        "stddev": 1.120000000000001
+      },
+      "feedback_incorporation_success_rate": {
+        "mean": 83.6,
+        "stddev": 2.537715508089904
+      },
+      "unchanged_id_churn_pct": {
+        "mean": 6.1,
+        "stddev": 1.3
+      },
+      "rounds_to_approval": {
+        "median": 2.5
+      },
+      "critical_hallucinations_total": 0,
+      "time_seconds": {
+        "mean": 45.6416,
+        "stddev": 3.6439378479880795
+      },
+      "tokens": {
+        "mean": 6935.6,
+        "stddev": 395.3864438748501
+      }
+    },
+    "old_skill": {
+      "case_count": 10,
+      "contract_pass_rate": 1.0,
+      "semantic_score_40": {
+        "mean": 33.28,
+        "stddev": 0.6400000000000006
+      },
+      "feedback_incorporation_success_rate": {
+        "mean": 83.7,
+        "stddev": 2.570992026436488
+      },
+      "unchanged_id_churn_pct": {
+        "mean": 5.9,
+        "stddev": 0.9433981132056604
+      },
+      "rounds_to_approval": {
+        "median": 2.5
+      },
+      "critical_hallucinations_total": 0,
+      "time_seconds": {
+        "mean": 45.646,
+        "stddev": 3.3017486276214307
+      },
+      "tokens": {
+        "mean": 7009.0,
+        "stddev": 275.07998836702023
+      }
+    },
+    "delta": {
+      "semantic_score_40": 0.480000000000004,
+      "time_seconds": -0.004400000000003956,
+      "tokens": -73.39999999999964
+    }
+  },
+  "promotion_gates": {
+    "contract_pass_100": true,
+    "critical_hallucinations_zero": true,
+    "avg_semantic_gte_32_of_40": true,
+    "feedback_incorp_gte_80": true,
+    "id_churn_lte_10": true,
+    "median_rounds_lte_3": true,
+    "ready_to_promote": true
+  }
+}

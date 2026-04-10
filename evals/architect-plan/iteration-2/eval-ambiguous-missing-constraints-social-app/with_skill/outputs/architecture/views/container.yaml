@@ -1,0 +1,26 @@
+version: 2
+id: "container"
+type: "container"
+title: "Social App Containers"
+audience: ["senior_architects"]
+purpose: "Present initial boundaries while highlighting uncertainty."
+scope: "API, feed, moderation queue, canonical storage"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "end-user"
+  - "social-api"
+  - "feed-service"
+  - "moderation-queue"
+  - "social-db"
+relationship_ids:
+  - "user-calls-social-api"
+  - "social-api-stores-content"
+  - "social-api-calls-feed"
+  - "social-api-publishes-moderation"
+assumptions:
+  - text: "Feed computation boundary may merge into API depending target scale."
+    confidence: "weak_inference"
+unknowns:
+  - "Throughput and moderation SLOs"
+notes:
+  - "This proposal intentionally carries explicit unknowns due sparse prompt constraints."

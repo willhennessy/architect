@@ -1,0 +1,25 @@
+version: 2
+id: "container"
+type: "container"
+title: "PHI Intake Platform Containers"
+audience: ["senior_architects"]
+purpose: "Show PHI, authz, and audit boundaries."
+scope: "Intake, authorization, storage, audit, and export"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "clinic-staff"
+  - "intake-api"
+  - "authz-service"
+  - "phi-store"
+  - "compliance-audit-log"
+  - "ehr-system"
+relationship_ids:
+  - "staff-calls-intake-api"
+  - "intake-calls-authz"
+  - "intake-writes-phi-store"
+  - "intake-writes-audit"
+  - "intake-exports-ehr"
+assumptions: []
+unknowns: []
+notes:
+  - "Operational logs are intentionally separated from compliance audit SoR."

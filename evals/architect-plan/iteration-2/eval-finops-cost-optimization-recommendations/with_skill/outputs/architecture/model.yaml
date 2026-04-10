@@ -1,0 +1,166 @@
+version: 2
+system_name: "FinOps Recommendation Engine"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "primary-user"
+    name: "Primary User"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "Primary actor for system workflows."
+    responsibility: "Trigger core use-cases."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://requirements/core"]
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+  - id: "api-service"
+    name: "API Service"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Entry-point service for synchronous interactions."
+    responsibility: "Validate and orchestrate workflow requests."
+    technology: "TypeScript/Node"
+    owned_data: ["request-state"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://requirements/core"]
+    tags: ["api"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core"]
+  - id: "workflow-worker"
+    name: "Workflow Worker"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Asynchronous processor for background operations."
+    responsibility: "Execute deferred workflows and retries."
+    technology: "TypeScript/Node"
+    owned_data: ["workflow-attempt"]
+    system_of_record: ["workflow-attempt"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://tradeoffs/async"]
+    tags: ["async"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "workflow-queue"
+    name: "Workflow Queue"
+    aliases: []
+    kind: "queue"
+    c4_level: "container"
+    description: "Queue boundary for async workload."
+    responsibility: "Buffer and isolate async processing."
+    technology: "SQS/Kafka"
+    owned_data: ["workflow-job"]
+    system_of_record: []
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://tradeoffs/async"]
+    tags: ["async"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "primary-db"
+    name: "Primary Database"
+    aliases: []
+    kind: "database"
+    c4_level: "container"
+    description: "Authoritative transactional datastore."
+    responsibility: "Persist canonical domain entities."
+    technology: "PostgreSQL"
+    owned_data: ["domain-entity"]
+    system_of_record: ["domain-entity"]
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://requirements/core"]
+    tags: ["state"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core"]
+relationships:
+  - id: "user-calls-api"
+    source_id: "primary-user"
+    target_id: "api-service"
+    label: "Calls primary API"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["request"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+  - id: "api-publishes-queue"
+    source_id: "api-service"
+    target_id: "workflow-queue"
+    label: "Publishes async job"
+    interaction_type: "publishes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["workflow-job"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "worker-consumes-queue"
+    source_id: "workflow-worker"
+    target_id: "workflow-queue"
+    label: "Consumes workflow jobs"
+    interaction_type: "subscribes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["workflow-job"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "api-writes-db"
+    source_id: "api-service"
+    target_id: "primary-db"
+    label: "Writes canonical state"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["domain-entity"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core"]
+  - id: "worker-writes-db"
+    source_id: "workflow-worker"
+    target_id: "primary-db"
+    label: "Writes workflow outcomes"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["workflow-attempt"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+evidence:
+  - id: "ev-req-core"
+    path: "plan://requirements/core"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Case prompt defines primary workflow and constraints."
+  - id: "ev-trd-async"
+    path: "plan://tradeoffs/async"
+    kind: "plan_tradeoff"
+    strength: "medium"
+    reason: "Async boundary chosen to isolate latency/failure and support scaling."
+unknowns:
+  - "Exact scale and SLO targets pending further product constraints"
+assumptions:
+  - text: "Background processing requires idempotent retry handling."
+    confidence: "strong_inference"

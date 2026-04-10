@@ -1,0 +1,38 @@
+version: 2
+id: "container"
+type: "container"
+title: "Marketplace Platform - Containers"
+audience:
+  - "senior_architects"
+  - "pms"
+purpose: "Show deployable runtime boundaries, queue, datastore, and key externals."
+scope: "API, core domain services, payment integration, fulfillment async path, and state stores."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "buyer"
+  - "seller"
+  - "marketplace-api"
+  - "order-service"
+  - "payment-service"
+  - "fulfillment-worker"
+  - "fulfillment-queue"
+  - "marketplace-db"
+  - "stripe"
+relationship_ids:
+  - "buyer-uses-api"
+  - "seller-uses-api"
+  - "api-calls-order"
+  - "order-calls-payment"
+  - "payment-calls-stripe"
+  - "stripe-webhook-payment"
+  - "order-publishes-fulfillment-job"
+  - "worker-consumes-fulfillment-job"
+  - "order-stores-db"
+  - "payment-stores-db"
+assumptions:
+  - text: "Fulfillment is decoupled asynchronously from checkout completion."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether fulfillment worker writes to same database or separate operational store"
+notes:
+  - "Queue boundary is explicit to support failure isolation and retry handling."

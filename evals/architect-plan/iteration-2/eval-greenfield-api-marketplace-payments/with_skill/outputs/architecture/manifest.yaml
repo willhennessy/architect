@@ -1,0 +1,46 @@
+version: 2
+system_name: "B2B Marketplace Platform"
+generated_by_skill: "architect-plan"
+mode: "initial"
+evidence_basis: "plan"
+architecture_state: "proposed"
+repo_archetype: "service_oriented_backend"
+modeling_style:
+  primary: "C4"
+  supplemental:
+    - "Sequence"
+scope:
+  in_scope:
+    - "Marketplace API v1: accounts, catalog, checkout, payments, fulfillment handoff, admin analytics"
+  out_of_scope:
+    - "Multi-region deployment"
+    - "Advanced fraud ML"
+audiences:
+  - "senior_architects"
+  - "pms"
+artifacts:
+  - id: "model"
+    path: "architecture/model.yaml"
+    type: "canonical_model"
+    status: "complete"
+  - id: "system-context"
+    path: "architecture/views/system-context.yaml"
+    type: "system_context"
+    status: "complete"
+  - id: "container"
+    path: "architecture/views/container.yaml"
+    type: "container"
+    status: "complete"
+  - id: "sequence-checkout"
+    path: "architecture/views/sequence-checkout-to-fulfillment.yaml"
+    type: "sequence"
+    status: "complete"
+assumptions:
+  - text: "Stripe is the payment processor for v1."
+    confidence: "strong_inference"
+  - text: "SOC2 controls will begin with logging, least privilege, and auditability foundations."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether refund orchestration is centralized or split by domain service in v1"
+  - "Whether analytics needs near-real-time freshness or daily batch"
+overall_summary: "The architecture separates buyer-facing API responsibilities from payment processing, order ownership, and async fulfillment handoff. Payment webhooks are handled idempotently and reconciled against order state."

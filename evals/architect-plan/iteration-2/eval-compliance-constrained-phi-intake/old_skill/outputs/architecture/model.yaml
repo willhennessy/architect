@@ -1,0 +1,199 @@
+version: 2
+system_name: "PHI Intake Platform"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "clinic-staff"
+    name: "Clinic Staff"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "Operational user managing patient intake."
+    responsibility: "Submit and review intake records."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://requirements/intake"]
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-intake"]
+  - id: "intake-api"
+    name: "Intake API"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Ingress API for form submission and retrieval."
+    responsibility: "Validate input and orchestrate authz, storage, and export." 
+    technology: "Go"
+    owned_data: ["intake-session"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://requirements/intake"]
+    tags: ["api"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-intake"]
+  - id: "authz-service"
+    name: "Authorization Service"
+    aliases: ["RBAC Service"]
+    kind: "container"
+    c4_level: "container"
+    description: "Role and policy decision point."
+    responsibility: "Authorize access decisions for PHI operations."
+    technology: "OPA"
+    owned_data: ["policy-definition"]
+    system_of_record: ["policy-definition"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://requirements/rbac"]
+    tags: ["security"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-rbac"]
+  - id: "phi-store"
+    name: "PHI Store"
+    aliases: []
+    kind: "database"
+    c4_level: "container"
+    description: "Encrypted patient data store."
+    responsibility: "Authoritative PHI persistence."
+    technology: "PostgreSQL"
+    owned_data: ["patient-intake-record"]
+    system_of_record: ["patient-intake-record"]
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://requirements/phi-storage"]
+    tags: ["phi", "state"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-phi"]
+  - id: "compliance-audit-log"
+    name: "Compliance Audit Log"
+    aliases: []
+    kind: "database"
+    c4_level: "container"
+    description: "Immutable audit trail for access and change events."
+    responsibility: "Store compliance-grade audit evidence."
+    technology: "Append-only log"
+    owned_data: ["audit-event"]
+    system_of_record: ["audit-event"]
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://requirements/audit"]
+    tags: ["audit"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-audit"]
+  - id: "ehr-system"
+    name: "EHR System"
+    aliases: []
+    kind: "external_system"
+    c4_level: "context"
+    description: "External clinical record system."
+    responsibility: "Receive export payloads from intake platform."
+    technology: "FHIR API"
+    owned_data: ["ehr-record"]
+    system_of_record: ["ehr-record"]
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://requirements/export"]
+    tags: ["external"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-export"]
+relationships:
+  - id: "staff-calls-intake-api"
+    source_id: "clinic-staff"
+    target_id: "intake-api"
+    label: "Submits intake forms"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["patient-intake-record"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-intake"]
+  - id: "intake-calls-authz"
+    source_id: "intake-api"
+    target_id: "authz-service"
+    label: "Checks role and policy"
+    interaction_type: "authenticates_with"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["access-decision"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-rbac"]
+  - id: "intake-writes-phi-store"
+    source_id: "intake-api"
+    target_id: "phi-store"
+    label: "Stores PHI record"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["patient-intake-record"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-phi"]
+  - id: "intake-writes-audit"
+    source_id: "intake-api"
+    target_id: "compliance-audit-log"
+    label: "Appends access/change audit event"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["audit-event"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-audit"]
+  - id: "intake-exports-ehr"
+    source_id: "intake-api"
+    target_id: "ehr-system"
+    label: "Exports approved intake data"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["patient-intake-record"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-export"]
+evidence:
+  - id: "ev-req-intake"
+    path: "plan://requirements/intake"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt requires e-sign forms and intake workflows."
+  - id: "ev-req-rbac"
+    path: "plan://requirements/rbac"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt requires role-based access control."
+  - id: "ev-req-phi"
+    path: "plan://requirements/phi-storage"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt requires PHI storage and encryption controls."
+  - id: "ev-req-audit"
+    path: "plan://requirements/audit"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt requires compliance audit trails."
+  - id: "ev-req-export"
+    path: "plan://requirements/export"
+    kind: "plan_requirement"
+    strength: "medium"
+    reason: "Prompt requires EHR export integration."
+unknowns:
+  - "Final KMS boundary and rotation process for v1"
+assumptions:
+  - text: "Audit log must be immutable and retained per compliance policy."
+    confidence: "strong_inference"

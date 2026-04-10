@@ -1,0 +1,360 @@
+version: 2
+system_name: "B2B Marketplace Platform"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "buyer"
+    name: "Buyer"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "Business buyer using marketplace."
+    responsibility: "Browse catalog and place orders."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-accounts-catalog-checkout"
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+
+  - id: "seller"
+    name: "Seller"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "Marketplace seller managing listings."
+    responsibility: "Maintain catalog and fulfill orders."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-accounts-catalog-checkout"
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+
+  - id: "marketplace-platform"
+    name: "Marketplace Platform"
+    aliases: ["System of Interest"]
+    kind: "software_system"
+    c4_level: "context"
+    description: "Marketplace backend handling commerce workflows."
+    responsibility: "Coordinate buyer/seller, ordering, payment, and analytics workflows."
+    technology: ""
+    owned_data: ["order", "catalog-item", "account"]
+    system_of_record: ["order", "catalog-item", "account"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-accounts-catalog-checkout"
+    tags: ["core"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core", "ev-con-team"]
+
+  - id: "stripe"
+    name: "Stripe"
+    aliases: []
+    kind: "external_system"
+    c4_level: "context"
+    description: "Payment processor for charge capture and webhooks."
+    responsibility: "Authorize/capture payments and emit settlement events."
+    technology: "Stripe API"
+    owned_data: ["processor-transaction"]
+    system_of_record: ["processor-transaction"]
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-stripe-webhooks"
+    tags: ["payments"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-payments"]
+
+  - id: "marketplace-api"
+    name: "Marketplace API"
+    aliases: ["API Gateway + App"]
+    kind: "container"
+    c4_level: "container"
+    description: "Public API for buyer/seller/admin operations."
+    responsibility: "Handle auth, catalog access, checkout initiation, and admin reads."
+    technology: "TypeScript/Node"
+    owned_data: ["session"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-accounts-catalog-checkout"
+    tags: ["api"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core", "ev-con-team"]
+
+  - id: "order-service"
+    name: "Order Service"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Owns order lifecycle and checkout orchestration."
+    responsibility: "Create/update orders and coordinate payment + fulfillment triggers."
+    technology: "TypeScript/Node"
+    owned_data: ["order", "order-line", "checkout-state"]
+    system_of_record: ["order", "order-line", "checkout-state"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-accounts-catalog-checkout"
+      - "plan://trd-async-fulfillment"
+    tags: ["core-domain"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core", "ev-tradeoff-async"]
+
+  - id: "payment-service"
+    name: "Payment Service"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Handles payment intents and webhook reconciliation."
+    responsibility: "Integrate Stripe, process webhooks idempotently, reconcile payment status with orders."
+    technology: "TypeScript/Node"
+    owned_data: ["payment-attempt", "webhook-dedup-key"]
+    system_of_record: ["payment-attempt"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-stripe-webhooks"
+    tags: ["payments"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-payments", "ev-asm-idempotency"]
+
+  - id: "fulfillment-worker"
+    name: "Fulfillment Worker"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Consumes queued fulfillment jobs."
+    responsibility: "Trigger downstream fulfillment and update order fulfillment state."
+    technology: "TypeScript/Node"
+    owned_data: ["fulfillment-job-state"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://trd-async-fulfillment"
+    tags: ["async"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-tradeoff-async"]
+
+  - id: "fulfillment-queue"
+    name: "Fulfillment Queue"
+    aliases: []
+    kind: "queue"
+    c4_level: "container"
+    description: "Buffer between checkout completion and fulfillment processing."
+    responsibility: "Decouple order completion from fulfillment latency/failure."
+    technology: "SQS/Kafka"
+    owned_data: ["fulfillment-job"]
+    system_of_record: []
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://trd-async-fulfillment"
+    tags: ["async", "resilience"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-tradeoff-async"]
+
+  - id: "marketplace-db"
+    name: "Marketplace Database"
+    aliases: ["Primary DB"]
+    kind: "database"
+    c4_level: "container"
+    description: "Primary transactional store."
+    responsibility: "Persist orders, account records, and catalog entities."
+    technology: "PostgreSQL"
+    owned_data: ["order", "account", "catalog-item", "payment-attempt"]
+    system_of_record: ["order", "account", "catalog-item", "payment-attempt"]
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-accounts-catalog-checkout"
+      - "plan://req-stripe-webhooks"
+    tags: ["state"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core", "ev-req-payments"]
+relationships:
+  - id: "buyer-uses-api"
+    source_id: "buyer"
+    target_id: "marketplace-api"
+    label: "Uses buyer-facing API"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["catalog-query", "checkout-request"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+
+  - id: "seller-uses-api"
+    source_id: "seller"
+    target_id: "marketplace-api"
+    label: "Uses seller/admin endpoints"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["catalog-item", "order-status"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-core"]
+
+  - id: "api-calls-order"
+    source_id: "marketplace-api"
+    target_id: "order-service"
+    label: "Creates and updates orders"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["order", "checkout-state"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core"]
+
+  - id: "order-calls-payment"
+    source_id: "order-service"
+    target_id: "payment-service"
+    label: "Initiates payment intent"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["payment-attempt", "order"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-payments"]
+
+  - id: "payment-calls-stripe"
+    source_id: "payment-service"
+    target_id: "stripe"
+    label: "Creates/updates payment intents"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["processor-transaction", "payment-attempt"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-payments"]
+
+  - id: "stripe-webhook-payment"
+    source_id: "stripe"
+    target_id: "payment-service"
+    label: "Sends payment webhooks"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "https"
+    data_objects: ["payment-event"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-payments"]
+
+  - id: "order-publishes-fulfillment-job"
+    source_id: "order-service"
+    target_id: "fulfillment-queue"
+    label: "Enqueues fulfillment job after payment success"
+    interaction_type: "publishes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["fulfillment-job", "order"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-tradeoff-async"]
+
+  - id: "worker-consumes-fulfillment-job"
+    source_id: "fulfillment-worker"
+    target_id: "fulfillment-queue"
+    label: "Consumes fulfillment jobs"
+    interaction_type: "subscribes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["fulfillment-job"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-tradeoff-async"]
+
+  - id: "order-stores-db"
+    source_id: "order-service"
+    target_id: "marketplace-db"
+    label: "Reads/writes order state"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["order", "checkout-state"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-core"]
+
+  - id: "payment-stores-db"
+    source_id: "payment-service"
+    target_id: "marketplace-db"
+    label: "Stores payment attempts and dedup keys"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["payment-attempt", "webhook-dedup-key"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-payments", "ev-asm-idempotency"]
+
+evidence:
+  - id: "ev-req-core"
+    path: "plan://requirements/core-marketplace"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt explicitly requires buyer/seller accounts, catalog, checkout, and admin analytics."
+  - id: "ev-req-payments"
+    path: "plan://requirements/stripe-webhooks"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt explicitly requires Stripe payments and order webhooks."
+  - id: "ev-con-team"
+    path: "plan://constraints/team-and-timeline"
+    kind: "plan_constraint"
+    strength: "medium"
+    reason: "Small team and 8-week launch favor clear service boundaries with limited complexity."
+  - id: "ev-tradeoff-async"
+    path: "plan://tradeoffs/async-fulfillment"
+    kind: "plan_tradeoff"
+    strength: "medium"
+    reason: "Async fulfillment reduces checkout latency and isolates downstream failures."
+  - id: "ev-asm-idempotency"
+    path: "plan://assumptions/webhook-idempotency"
+    kind: "plan_assumption"
+    strength: "medium"
+    reason: "Webhook retries require deduplication keys and idempotent processing."
+unknowns:
+  - "Final analytics freshness target for admin dashboards"
+  - "Refund and partial-capture policy for v1"
+assumptions:
+  - text: "Payment webhook events can arrive out of order and must be reconciled idempotently."
+    confidence: "strong_inference"
+  - text: "Single-region deployment is acceptable for v1 per constraints."
+    confidence: "confirmed"

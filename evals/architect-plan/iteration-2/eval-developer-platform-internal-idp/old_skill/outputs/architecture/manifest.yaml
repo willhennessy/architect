@@ -1,0 +1,30 @@
+version: 2
+system_name: "Internal Developer Platform"
+generated_by_skill: "architect-plan"
+mode: "initial"
+evidence_basis: "plan"
+architecture_state: "proposed"
+repo_archetype: "service_oriented_backend"
+modeling_style:
+  primary: "C4"
+  supplemental: ["Sequence"]
+scope:
+  in_scope:
+    - "Core planning scope from eval case"
+  out_of_scope:
+    - "Deferred implementation details"
+artifacts:
+  - id: "model"
+    path: "architecture/model.yaml"
+    type: "canonical_model"
+    status: "complete"
+  - id: "container"
+    path: "architecture/views/container.yaml"
+    type: "container"
+    status: "complete"
+assumptions:
+  - text: "Plan constraints require explicit boundaries and conservative confidence."
+    confidence: "strong_inference"
+unknowns:
+  - "Implementation-level operational details pending engineering decision"
+overall_summary: "Planning artifact with explicit boundaries, ownership, workflows, and uncertainty annotations."

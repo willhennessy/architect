@@ -1,0 +1,162 @@
+version: 2
+system_name: "Social App Platform"
+repo_archetype: "full_stack_product"
+elements:
+  - id: "end-user"
+    name: "End User"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "User posting and reading social content."
+    responsibility: "Create posts, comments, and consume feeds."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://user-intent/social-core"]
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-intent-core"]
+  - id: "social-api"
+    name: "Social API"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Handles post/comment write and read APIs."
+    responsibility: "Validate requests and orchestrate write/read workflows."
+    technology: "TypeScript/Node"
+    owned_data: ["session"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://user-intent/social-core"]
+    tags: ["api"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-intent-core"]
+  - id: "feed-service"
+    name: "Feed Service"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Computes and serves feed views."
+    responsibility: "Build feed ranking and read models."
+    technology: "TypeScript/Node"
+    owned_data: ["feed-read-model"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://assumptions/feed-generation"]
+    tags: ["feed"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-asm-feed"]
+  - id: "moderation-queue"
+    name: "Moderation Queue"
+    aliases: []
+    kind: "queue"
+    c4_level: "container"
+    description: "Queue for content moderation tasks."
+    responsibility: "Buffer moderation processing."
+    technology: "SQS/Kafka"
+    owned_data: ["moderation-task"]
+    system_of_record: []
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://unknowns/moderation-policy"]
+    tags: ["moderation"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-unk-moderation"]
+  - id: "social-db"
+    name: "Social Database"
+    aliases: []
+    kind: "database"
+    c4_level: "container"
+    description: "Primary store for posts and comments."
+    responsibility: "Persist canonical social content state."
+    technology: "PostgreSQL"
+    owned_data: ["post", "comment"]
+    system_of_record: ["post", "comment"]
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://user-intent/social-core"]
+    tags: ["state"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-intent-core"]
+relationships:
+  - id: "user-calls-social-api"
+    source_id: "end-user"
+    target_id: "social-api"
+    label: "Uses posting/comment/feed endpoints"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["post", "comment", "feed-query"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-intent-core"]
+  - id: "social-api-stores-content"
+    source_id: "social-api"
+    target_id: "social-db"
+    label: "Writes canonical social content"
+    interaction_type: "writes"
+    directionality: "unidirectional"
+    sync_async: "storage"
+    protocol: "sql"
+    data_objects: ["post", "comment"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-intent-core"]
+  - id: "social-api-calls-feed"
+    source_id: "social-api"
+    target_id: "feed-service"
+    label: "Reads ranked feed"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["feed-query", "feed-item"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-asm-feed"]
+  - id: "social-api-publishes-moderation"
+    source_id: "social-api"
+    target_id: "moderation-queue"
+    label: "Publishes moderation tasks"
+    interaction_type: "publishes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["moderation-task"]
+    confidence: "weak_inference"
+    evidence_ids: ["ev-unk-moderation"]
+evidence:
+  - id: "ev-intent-core"
+    path: "plan://user-intent/social-core"
+    kind: "user_intent"
+    strength: "high"
+    reason: "Prompt requires posting, comments, and feeds."
+  - id: "ev-asm-feed"
+    path: "plan://assumptions/feed-generation"
+    kind: "plan_assumption"
+    strength: "medium"
+    reason: "Feed ranking approach unspecified; proposing separable feed service."
+  - id: "ev-unk-moderation"
+    path: "plan://unknowns/moderation-policy"
+    kind: "plan_assumption"
+    strength: "low"
+    reason: "Moderation needs are likely but unspecified; modeled as tentative queue boundary."
+unknowns:
+  - "Expected DAU and latency SLO"
+  - "Final moderation policy and staffing model"
+  - "Regional data residency requirements"
+assumptions:
+  - text: "Initial moderation can be asynchronous with later human escalation support."
+    confidence: "weak_inference"

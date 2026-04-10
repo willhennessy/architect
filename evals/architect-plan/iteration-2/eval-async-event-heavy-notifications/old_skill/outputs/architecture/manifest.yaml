@@ -1,0 +1,27 @@
+version: 2
+system_name: "Notification Platform"
+generated_by_skill: "architect-plan"
+mode: "initial"
+evidence_basis: "plan"
+architecture_state: "proposed"
+repo_archetype: "service_oriented_backend"
+scope:
+  in_scope:
+    - "Event ingestion, templating, channel delivery, retries and DLQ"
+  out_of_scope:
+    - "Long-term campaign analytics"
+artifacts:
+  - id: "model"
+    path: "architecture/model.yaml"
+    type: "canonical_model"
+    status: "complete"
+  - id: "container"
+    path: "architecture/views/container.yaml"
+    type: "container"
+    status: "complete"
+assumptions:
+  - text: "Providers are swappable through a channel adapter boundary."
+    confidence: "strong_inference"
+unknowns:
+  - "Final event retention duration for replay"
+overall_summary: "Event-driven design with explicit queue boundaries and provider abstraction."

@@ -1,0 +1,23 @@
+version: 2
+id: "container"
+type: "container"
+title: "Notification Platform Containers"
+audience: ["senior_architects"]
+purpose: "Show async delivery boundaries and provider abstraction."
+scope: "Ingestion, queueing, worker delivery, external providers"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "product-app"
+  - "notification-api"
+  - "notification-bus"
+  - "delivery-worker"
+  - "provider-gateway"
+relationship_ids:
+  - "app-calls-api"
+  - "api-publishes-bus"
+  - "worker-consumes-bus"
+  - "worker-calls-provider"
+assumptions: []
+unknowns: []
+notes:
+  - "Provider adapters are intentionally separated from core event ownership."

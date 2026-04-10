@@ -1,0 +1,27 @@
+version: 2
+system_name: "PHI Intake Platform"
+generated_by_skill: "architect-plan"
+mode: "initial"
+evidence_basis: "plan"
+architecture_state: "proposed"
+repo_archetype: "service_oriented_backend"
+scope:
+  in_scope:
+    - "Intake forms, PHI storage, RBAC, audit trail, EHR export"
+  out_of_scope:
+    - "Advanced ML risk scoring"
+artifacts:
+  - id: "model"
+    path: "architecture/model.yaml"
+    type: "canonical_model"
+    status: "complete"
+  - id: "container"
+    path: "architecture/views/container.yaml"
+    type: "container"
+    status: "complete"
+assumptions:
+  - text: "Security controls prioritize least privilege and immutable audit logging."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether key management is internal or managed service in v1"
+overall_summary: "Architecture isolates PHI storage, authorization decisions, and compliance audit trails."

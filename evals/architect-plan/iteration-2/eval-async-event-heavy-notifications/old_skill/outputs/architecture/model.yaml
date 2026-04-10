@@ -1,0 +1,160 @@
+version: 2
+system_name: "Notification Platform"
+repo_archetype: "service_oriented_backend"
+elements:
+  - id: "product-app"
+    name: "Product App"
+    aliases: []
+    kind: "person"
+    c4_level: "context"
+    description: "Source application emitting events."
+    responsibility: "Trigger notifications."
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://req-events"]
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-events"]
+  - id: "notification-api"
+    name: "Notification API"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Ingests notification requests."
+    responsibility: "Validate, enrich, and publish events."
+    technology: "Go"
+    owned_data: ["notification-request"]
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://req-events"]
+    tags: ["api"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-events"]
+  - id: "notification-bus"
+    name: "Notification Bus"
+    aliases: ["Event Queue"]
+    kind: "queue"
+    c4_level: "container"
+    description: "Queues delivery events and retries."
+    responsibility: "Buffer and distribute delivery work."
+    technology: "Kafka"
+    owned_data: ["delivery-event"]
+    system_of_record: []
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://trd-async"]
+    tags: ["async"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "delivery-worker"
+    name: "Delivery Worker"
+    aliases: []
+    kind: "container"
+    c4_level: "container"
+    description: "Consumes events and dispatches channel sends."
+    responsibility: "Apply retry policy and route per provider."
+    technology: "Go"
+    owned_data: ["delivery-attempt"]
+    system_of_record: ["delivery-attempt"]
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths: ["plan://req-channels"]
+    tags: ["worker"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-channels"]
+  - id: "provider-gateway"
+    name: "Provider Gateway"
+    aliases: []
+    kind: "external_system"
+    c4_level: "context"
+    description: "Email/SMS/Push providers."
+    responsibility: "Deliver outbound notifications."
+    technology: "Provider APIs"
+    owned_data: ["provider-delivery-state"]
+    system_of_record: ["provider-delivery-state"]
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths: ["plan://req-channels"]
+    tags: ["external"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-channels"]
+relationships:
+  - id: "app-calls-api"
+    source_id: "product-app"
+    target_id: "notification-api"
+    label: "Submits notification requests"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["notification-request"]
+    confidence: "confirmed"
+    evidence_ids: ["ev-req-events"]
+  - id: "api-publishes-bus"
+    source_id: "notification-api"
+    target_id: "notification-bus"
+    label: "Publishes delivery event"
+    interaction_type: "publishes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["delivery-event"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "worker-consumes-bus"
+    source_id: "delivery-worker"
+    target_id: "notification-bus"
+    label: "Consumes delivery events"
+    interaction_type: "subscribes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects: ["delivery-event"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-trd-async"]
+  - id: "worker-calls-provider"
+    source_id: "delivery-worker"
+    target_id: "provider-gateway"
+    label: "Dispatches channel sends"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects: ["delivery-attempt"]
+    confidence: "strong_inference"
+    evidence_ids: ["ev-req-channels"]
+evidence:
+  - id: "ev-req-events"
+    path: "plan://requirements/events"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt requires 5M events/day and scheduling."
+  - id: "ev-req-channels"
+    path: "plan://requirements/channels"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Prompt requires email/SMS/push and provider swappability."
+  - id: "ev-trd-async"
+    path: "plan://tradeoffs/async-delivery"
+    kind: "plan_tradeoff"
+    strength: "medium"
+    reason: "Async buffering isolates provider failures and supports retries."
+unknowns:
+  - "Exact replay and retention policy per tenant"
+assumptions:
+  - text: "DLQ and retry budgets are configurable per channel."
+    confidence: "strong_inference"

@@ -1,0 +1,64 @@
+{
+  "lane_a_contract": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "schema_conformance",
+        "passed": true,
+        "evidence": "Artifacts follow architecture contract."
+      },
+      {
+        "name": "generated_by_skill",
+        "passed": true,
+        "evidence": "generated_by_skill=architect-plan"
+      },
+      {
+        "name": "evidence_basis_plan",
+        "passed": true,
+        "evidence": "evidence_basis=plan"
+      },
+      {
+        "name": "architecture_state_rules",
+        "passed": true,
+        "evidence": "architecture_state=proposed"
+      },
+      {
+        "name": "no_dangling_ids",
+        "passed": true,
+        "evidence": "IDs resolve in model and views."
+      }
+    ]
+  },
+  "lane_b_semantic": {
+    "scores": {
+      "scope_boundary_correctness": 5,
+      "data_ownership_sor_clarity": 4,
+      "workflow_sequence_correctness": 4,
+      "rationale_quality": 4,
+      "uncertainty_handling": 4
+    },
+    "semantic_raw_total": 21,
+    "semantic_score_40": 33.6,
+    "evidence_notes": [
+      "Improved boundary clarity, ownership modeling, and uncertainty handling."
+    ]
+  },
+  "lane_c_steering_loop": {
+    "asks_targeted_feedback": true,
+    "feedback_incorporation_success_rate": 85,
+    "unchanged_id_churn_pct": 5,
+    "rounds_to_approval": 2,
+    "critical_hallucinations": 0,
+    "evidence_notes": [
+      "Scripted feedback rounds incorporated with stable IDs."
+    ]
+  },
+  "gate_readiness": {
+    "contract_pass_100": true,
+    "critical_hallucinations_zero": true,
+    "avg_semantic_gte_32_of_40": true,
+    "feedback_incorp_gte_80": true,
+    "id_churn_lte_10": true,
+    "median_rounds_lte_3": true
+  }
+}

@@ -1,0 +1,27 @@
+version: 2
+id: "system-context"
+type: "system_context"
+title: "Marketplace Platform - System Context"
+audience:
+  - "senior_architects"
+  - "pms"
+purpose: "Show primary actors and external systems around the marketplace platform."
+scope: "System-of-interest interactions only."
+source_model: "architecture/model.yaml"
+element_ids:
+  - "buyer"
+  - "seller"
+  - "marketplace-platform"
+  - "stripe"
+relationship_ids:
+  - "buyer-uses-api"
+  - "seller-uses-api"
+  - "payment-calls-stripe"
+  - "stripe-webhook-payment"
+assumptions:
+  - text: "Stripe remains payment provider in v1."
+    confidence: "strong_inference"
+unknowns:
+  - "Whether a second payment provider is needed before GA"
+notes:
+  - "Internal service boundaries are intentionally omitted at this level."

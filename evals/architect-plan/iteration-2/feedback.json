@@ -1,0 +1,6 @@
+{
+  "notes": {
+    "iteration_observations": "Iteration-2 rerun against old_skill baseline completed for all 10 cases. Deltas are small, suggesting stable performance and limited regression risk.",
+    "next_actions": "Run repeat trials on 2-3 hardest cases to measure flakiness; tighten assertions that are consistently low-signal."
+  }
+}
