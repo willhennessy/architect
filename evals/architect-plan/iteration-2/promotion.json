@@ -1,0 +1,26 @@
+{
+  "iteration": 2,
+  "status": "promoted",
+  "promoted_at_utc": "2026-04-10T05:29:48Z",
+  "basis": {
+    "benchmark_path": "evals/architect-plan/iteration-2/benchmark.json",
+    "ready_to_promote": true,
+    "with_skill_case_count": 10,
+    "old_skill_case_count": 10,
+    "semantic_score_40_mean_with_skill": 33.760000000000005,
+    "semantic_score_40_mean_old_skill": 33.28,
+    "semantic_delta": 0.480000000000004,
+    "tokens_delta": -73.39999999999964,
+    "time_seconds_delta": -0.004400000000003956
+  },
+  "gates": {
+    "contract_pass_100": true,
+    "critical_hallucinations_zero": true,
+    "avg_semantic_gte_32_of_40": true,
+    "feedback_incorp_gte_80": true,
+    "id_churn_lte_10": true,
+    "median_rounds_lte_3": true,
+    "ready_to_promote": true
+  },
+  "notes": "Iteration-2 promoted per user instruction after all gates passed."
+}
