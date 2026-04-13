@@ -133,7 +133,7 @@ Before presenting for approval or finishing any iteration, verify:
 ## Handoffs
 
 - If the user needs architecture from an existing repo, hand off to `architect-discover`.
-- If the user needs a Claude Imagine upload bundle, hand off to `architect-diagram-prompt`.
+- If the user needs rendered diagrams from architecture artifacts, hand off to `architect-diagram` (primary HTML + secondary Claude Imagine prompt bundle).
 
 ## Completion Standard
 

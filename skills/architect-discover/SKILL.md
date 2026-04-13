@@ -381,14 +381,14 @@ If validation fails, fix the artifacts before completing the task.
 
 ### 13. Handoff to diagram skill (optional)
 
-If the user asks for a diagram upload bundle, hand off to `architect-diagram-prompt` **after** architecture artifacts are complete.
+If the user asks for rendered diagrams, hand off to `architect-diagram` **after** architecture artifacts are complete.
 
 Pass it:
 
 - the parent output folder containing `architecture/`
 - the generated `manifest.yaml`, `model.yaml`, and `views/*.yaml`
 
-Do not generate `diagram-prompt.md` in this skill.
+Do not generate `diagram.html` or `diagram-prompt.md` in this skill.
 
 ## Stable Naming and Deduplication
 

@@ -10,7 +10,8 @@ Use this skill to run a full eval loop against a real repository. The goal is co
 For each eval round, produce:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`: generated architecture artifacts
-- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`: bundled upload file for Claude Imagine interactive diagram generation
+- `evals/architect-discover/roundX_<repo>/diagram.html`: primary interactive HTML architecture diagram
+- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`: secondary Claude Imagine upload bundle
 - `evals/architect-discover/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
 - `evals/architect-discover/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
 - `evals/architect-discover/roundX_<repo>/reflections.md`: answers to the two reflection questions
@@ -144,17 +145,14 @@ Set the output path to:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`
 
-Then invoke `architect-diagram-prompt` using the parent round folder as output root so it reads `architecture/` and writes:
+Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs:
 
-- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`
+- `evals/architect-discover/roundX_<repo>/diagram.html` (primary)
+- `evals/architect-discover/roundX_<repo>/diagram-prompt.md` (secondary)
 
-**Do not skip diagram prompt generation.** During eval runs, invoke `architect-diagram-prompt` after `architect-discover` so every round includes `diagram-prompt.md` for visualization feedback.
+**Do not skip diagram generation.** During eval runs, invoke `architect-diagram` after `architect-discover` so every round includes both outputs for UX and Anthropic-facing evaluation.
 
-Required bundled output path:
-
-- `evals/architect-discover/roundX_<repo>/diagram-prompt.md`
-
-`diagram-prompt.md` must be upload-ready for zero-text user flows. The file must include a top section with this exact heading:
+`diagram-prompt.md` must remain upload-ready for zero-text user flows. The file must include a top section with this exact heading:
 
 - `## Agent Instruction: Execute the Prompt Below Exactly`
 
@@ -280,6 +278,7 @@ Before pausing for user input, verify:
 - the target repo exists under `evals/repos/<repo>/`
 - the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
+- `diagram.html` exists and is self-contained (no external dependencies)
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
   - explicit zero-text upload execution instruction
