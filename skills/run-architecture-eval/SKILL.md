@@ -15,7 +15,7 @@ For each eval round, produce:
 - `evals/architect-discover/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
 - `evals/architect-discover/roundX_<repo>/reflections.md`: answers to the two reflection questions
 
-The target repository under test must live separately under `evals/repos/<repo>/` or `evals/<repo>/` as a git submodule.
+The target repository under test must live under `evals/repos/<repo>/` as a git submodule.
 
 Do not write generated architecture files inside the repository under test.
 
@@ -120,7 +120,7 @@ ALWAYS create this directory as soon as you choose the repo name.
 
 Add the repository under:
 
-- `evals/<repo>/`
+- `evals/repos/<repo>/`
 
 Use a normal git submodule flow. If the repo already exists under `evals/`, prefer choosing a different repo for broader eval coverage unless the user explicitly wants a repeat.
 
@@ -128,7 +128,7 @@ Use a normal git submodule flow. If the repo already exists under `evals/`, pref
 
 After checkout, compare candidate size to `evals/repos/rundler` using the filtered source-file count:
 
-- `rg --files evals/<repo> -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/target/**' -g '!**/vendor/**' -g '!**/third_party/**' -g '!**/coverage/**' | wc -l`
+- `rg --files evals/repos/<repo> -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/target/**' -g '!**/vendor/**' -g '!**/third_party/**' -g '!**/coverage/**' | wc -l`
 
 Decision rule:
 
@@ -162,7 +162,7 @@ Immediately below the heading, include an explicit instruction that if the file 
 
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
-- the target repo under `evals/repos/<repo>/` or `evals/<repo>/`
+- the target repo under `evals/repos/<repo>/`
 - the round output directory under `evals/architect-discover/roundX_<repo>/`
 - the skill files being evaluated if and only if the user later approves improvements
 
@@ -277,7 +277,7 @@ Wait for further input.
 
 Before pausing for user input, verify:
 
-- the target repo exists under `evals/repos/<repo>/` or `evals/<repo>/`
+- the target repo exists under `evals/repos/<repo>/`
 - the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `diagram-prompt.md` exists and includes:
@@ -295,7 +295,7 @@ Before pausing for user input, verify:
 
 Do not:
 
-- store architecture outputs inside `evals/<repo>/`
+- store architecture outputs inside `evals/repos/<repo>/`
 - skip either the pre-filter or the post-checkout size check against Rundler
 - reuse stale subagent context
 - ask the subagent to rubber-stamp your conclusions
