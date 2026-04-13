@@ -6,3 +6,5 @@ learning/
 .claude/*
 !.claude/skills/
 !.claude/skills/**
+.vscode/
+ideas.md

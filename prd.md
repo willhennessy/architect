@@ -91,28 +91,57 @@ This lowers the immediate requirement for perfect architecture extraction accura
 
 ---
 
-## Hypotheses to test
+## User research
+
+### Hypotheses to test
 
 Goal: invalidate or validate these as quickly as possible.
 
-1. **Real need**: Engineers want more insight into the architecture than a coding agent proposes. This is key: is there a real pain point?
-   1. Research questions
-   2. Walk me through how you use plan mode for a major new feature?
-   3. When using plan mode today, how much depth do you try to understand about the architecture that the agent is proposing? (some people will not care and fully trust the agent to architect)
-   4. How do you get that information? Does the agent offer it proactively, or do you have to ask? Do you have to read the code?
-   5. Have you ever asked the agent to draw a system diagram? How was it?
-   6. Would you add an architecture review step to planning mode every week if it took <10 minutes?
+**Overall:** a visual architecture diagram will reduce time and increase quality of agent planning mode.
 
-   **Validation criteria (first 10 interviews):**
-   - ≥70% report missing key architecture context in current plan-mode output at least occasionally
-   - ≥60% say they would use architecture steering in planning at least weekly
-   - ≥50% prefer diagram-assisted review over text-only planning output for major features
+Phase 1:
 
-2. **Visual architecture diagrams with point-and-click feedback improve vibe coding quality.**
-   They help engineers identify otherwise invisible architecture decisions made by the agent and steer the agent more effectively.
-3. **This interaction improves engineer understanding of system evolution.**
-   Together, engineer + agent can design better and faster systems.
-4. **Faster, safer, more legible evolution**: A semantic architecture representation establishes useful guardrails for ongoing development. Or at minimum, it provides useful PR diffs to accelerate PR reviews with confidence.
+1. **Strong architecture is important**: Engineers value a rigorous architecture and will invest time to get it right. Thoughtful planning yields better results from implementation.
+   1. assumption: what is "better"? Low latency, lower maintenance, fewer errors in agent output because it has a stronger sense of how to reason?
+2. **The best architecture comes from human:agent collaboration**: both players add value. The engineer feels augmented by the agent, but does not fully trust the agent either.
+3. **Visual architecture diagrams are a faster medium to communicate key technical decisions**
+   They help engineers quickly assess if the agent understands goals, tradeoffs, boundaries correctly. identify otherwise invisible architecture decisions made by the agent and steer the agent more effectively.
+
+Phase 2: **Point-and-click feedback on the diagram is faster; or provides more contextual feedback to the agent; delivers better results.**
+
+Phase 3: **Faster, safer, more legible evolution**: A semantic architecture representation establishes useful guardrails for ongoing development. Or at minimum, it provides useful PR diffs to accelerate PR reviews with confidence.
+
+### Target personas
+
+- **architects**: Dan, Moldy
+- **vibe coders**: Flor, Justin, Matias
+
+### Validation criteria (first 10 interviews)
+
+- ≥70% report missing key architecture context in current plan-mode output at least occasionally
+- ≥60% say they would use architecture steering in planning at least weekly
+  60% say they would use architecture steering in planning at least weekly
+- ≥50% prefer diagram-assisted review over text-only planning output for major features### Questions
+
+### Interview questions
+
+1. When was the last time you used a coding agent to plan the technical design of a new feature or product?
+2. How much time do you invest in plan mode before beginning implementation?
+3. What was the first prompt you gave the agent? How much direction did you give?
+   1. Why?
+      1. if eng gave the agent lots of context: why? do you know better? not trust the agent?
+         1. how did you draft that context? wrote it yourself? did you WANT feedback from the agent or just "shut up and implement this"?
+      2. if eng gave minimal context: why? does the agent have a strong understanding of how to build?
+4. Tell me about the planning conversation.
+   1. How much additional feedback did you give the agent?
+   2. How many iterations did you go through? How much time did it take?
+5. When signals indicate that you are ready to exit plan mode and begin implementation?
+   1. example: do you look for the agent to have a deep understanding of the whole system design? what indicates that? I want to learn about TRUST: what are the key markers that engineers look for in a technical design plan. I can make those markers easier to find in the architecture diagrams and provide feedback on.
+6. Have you ever asked the agent to draw a system diagram?
+   1. What information did you get from the diagram?
+   2. Did you give feedback on the diagram?
+   3. Was it ASCII or some other format?
+7. Did your development process follow clean gates: plan -> implement? or did you revisit planning during implementation?
 
 ---
 
