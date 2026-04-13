@@ -113,37 +113,28 @@ Phase 3: **Faster, safer, more legible evolution**: A semantic architecture repr
 
 ### Target personas
 
-- **architects**: Dan, Moldy
-- **vibe coders**: Flor, Justin, Matias
+- **architects**: Dan, Moldy, etc
+- **vibe coders**: Flor, Justin, Ian, etc
 
 ### Validation criteria (first 10 interviews)
 
 - ≥70% report missing key architecture context in current plan-mode output at least occasionally
 - ≥60% say they would use architecture steering in planning at least weekly
-  60% say they would use architecture steering in planning at least weekly
 - ≥50% prefer diagram-assisted review over text-only planning output for major features### Questions
 
 ### Interview questions
 
-1. When was the last time you used a coding agent to plan the technical design of a new feature or product?
-2. How much time do you invest in plan mode before beginning implementation?
-3. What was the first prompt you gave the agent? How much direction did you give?
-   1. Why?
-      1. if eng gave the agent lots of context: why? do you know better? not trust the agent?
-         1. how did you draft that context? wrote it yourself? did you WANT feedback from the agent or just "shut up and implement this"?
-      2. if eng gave minimal context: why? does the agent have a strong understanding of how to build?
-4. Tell me about the planning conversation.
-   1. How much additional feedback did you give the agent?
-   2. How many iterations did you go through? How much time did it take?
-5. When signals indicate that you are ready to exit plan mode and begin implementation?
-   1. example: do you look for the agent to have a deep understanding of the whole system design? what indicates that? I want to learn about TRUST: what are the key markers that engineers look for in a technical design plan. I can make those markers easier to find in the architecture diagrams and provide feedback on.
-6. Have you ever asked the agent to draw a system diagram?
-   1. What information did you get from the diagram?
-   2. Did you give feedback on the diagram?
-   3. Was it ASCII or some other format?
-7. Did your development process follow clean gates: plan -> implement? or did you revisit planning during implementation?
-
----
+1. Tell me about the last feature where you used an agent for planning.
+2. What was your first prompt? What context did you give the agent?
+3. Why did you provide that level of context? why not more, or less?
+4. What did the agent get right/wrong in the first draft?
+5. How many planning iterations did you do, and how long did planning take?
+6. What signals told you “this is ready to implement”?
+7. Did you request any diagrams? If yes, what changed after seeing it?
+8. What architecture mistakes are hardest to catch when reading text-only plans?
+9. Where did trust with the agent break, if at all?
+10. If you had a clickable diagram of the architecture plan, what would you want to do first?
+11. How often would you use this workflow (never / monthly / weekly / daily)?
 
 ## Success metrics
 
