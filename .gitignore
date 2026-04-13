@@ -8,3 +8,7 @@ learning/
 !.claude/skills/**
 .vscode/
 ideas.md
+
+# Manual eval harness: keep scripts/docs, ignore per-run sandboxes
+evals/manual/runs/*
+!evals/manual/runs/.gitkeep
