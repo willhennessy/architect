@@ -18,6 +18,8 @@ Options:
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
   --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
+  --with-skill           Include skills in run-local HOME (default)
+  --without-skill        Do not include skills (baseline run)
   -h, --help             Show help
 
 Example:
@@ -29,6 +31,7 @@ REPO_URL=""
 REPO_PATH=""
 RUN_ROOT="$HOME/tmp/architect-manual-evals"
 SKILLS_CSV="architect-plan,architect-discover,architect-diagram"
+WITH_SKILL=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -40,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       RUN_ROOT="$2"; shift 2 ;;
     --skills)
       SKILLS_CSV="$2"; shift 2 ;;
+    --with-skill)
+      WITH_SKILL=1; shift ;;
+    --without-skill)
+      WITH_SKILL=0; shift ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -58,26 +65,32 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARCHITECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_ROOT="$ARCHITECT_ROOT/skills"
 
-timestamp="$(date +%Y%m%d-%H%M%S)"
+timestamp="$(date +%Y%m%d-%H%M%S)-$RANDOM"
 RUN_DIR="$RUN_ROOT/run-$timestamp"
+if [[ -e "$RUN_DIR" ]]; then
+  echo "Run dir already exists: $RUN_DIR" >&2
+  exit 1
+fi
 mkdir -p "$RUN_DIR"/{skills,repo,out,home/.claude/skills}
 
-# Copy shared references used by multiple skills (e.g., architecture-contract.md)
-if [[ -d "$SKILLS_ROOT/references" ]]; then
-  cp -R "$SKILLS_ROOT/references" "$RUN_DIR/skills/references"
-fi
-
-IFS=',' read -r -a SKILLS <<< "$SKILLS_CSV"
-for s in "${SKILLS[@]}"; do
-  src="$SKILLS_ROOT/$s"
-  dst="$RUN_DIR/skills/$s"
-  if [[ ! -d "$src" ]]; then
-    echo "Skill not found: $src" >&2
-    exit 1
+if (( WITH_SKILL )); then
+  # Copy shared references used by multiple skills (e.g., architecture-contract.md)
+  if [[ -d "$SKILLS_ROOT/references" ]]; then
+    cp -R "$SKILLS_ROOT/references" "$RUN_DIR/skills/references"
   fi
-  cp -R "$src" "$dst"
-  ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/home/.claude/skills/$s"
-done
+
+  IFS=',' read -r -a SKILLS <<< "$SKILLS_CSV"
+  for s in "${SKILLS[@]}"; do
+    src="$SKILLS_ROOT/$s"
+    dst="$RUN_DIR/skills/$s"
+    if [[ ! -d "$src" ]]; then
+      echo "Skill not found: $src" >&2
+      exit 1
+    fi
+    cp -R "$src" "$dst"
+    ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/home/.claude/skills/$s"
+  done
+fi
 
 if [[ -n "$REPO_URL" ]]; then
   git clone "$REPO_URL" "$RUN_DIR/repo"
@@ -95,9 +108,16 @@ This is intentional for plan-only/manual evals (e.g., testing architect-plan).
 EOF
 fi
 
+if (( WITH_SKILL )); then
+  MODE="with-skill"
+else
+  MODE="without-skill"
+fi
+
 cat <<EOF
 ✅ Isolated manual eval ready:
 
+Mode:      $MODE
 Run dir:   $RUN_DIR
 Repo dir:  $RUN_DIR/repo
 Skills:    $RUN_DIR/skills
