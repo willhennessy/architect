@@ -5,7 +5,7 @@ set -euo pipefail
 # Creates a per-run sandbox with:
 #   - copied skills snapshot
 #   - copied shared skill references (skills/references)
-#   - isolated HOME/.claude/skills
+#   - run-local .claude/skills
 #   - isolated repo checkout/copy
 
 usage() {
@@ -18,7 +18,7 @@ Options:
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
   --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
-  --with-skill           Include skills in run-local HOME (default)
+  --with-skill           Include skills in run-local .claude/skills (default)
   --without-skill        Do not include skills (baseline run)
   -h, --help             Show help
 
@@ -71,7 +71,7 @@ if [[ -e "$RUN_DIR" ]]; then
   echo "Run dir already exists: $RUN_DIR" >&2
   exit 1
 fi
-mkdir -p "$RUN_DIR"/{skills,repo,out,home/.claude/skills}
+mkdir -p "$RUN_DIR"/{skills,repo,out,.claude/skills}
 
 if (( WITH_SKILL )); then
   # Copy shared references used by multiple skills (e.g., architecture-contract.md)
@@ -88,7 +88,7 @@ if (( WITH_SKILL )); then
       exit 1
     fi
     cp -R "$src" "$dst"
-    ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/home/.claude/skills/$s"
+    ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/.claude/skills/$s"
   done
 fi
 
@@ -114,18 +114,37 @@ else
   MODE="without-skill"
 fi
 
-cat <<EOF
-✅ Isolated manual eval ready:
+RUN_NAME="$(basename "$RUN_DIR")"
 
-Mode:      $MODE
-Run dir:   $RUN_DIR
-Repo dir:  $RUN_DIR/repo
-Skills:    $RUN_DIR/skills
-HOME:      $RUN_DIR/home
+cat > "$RUN_DIR/notes.md" <<EOF
+# Manual Eval Run Notes
 
-Start Claude in isolation:
-  cd "$RUN_DIR/repo"
-  HOME="$RUN_DIR/home" claude
+- mode: $MODE
+- run_dir: $RUN_DIR
+- run_name: $RUN_NAME
+- repo_dir: $RUN_DIR/repo
+- skills_dir: $RUN_DIR/skills
+- created_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-(Everything is isolated to this run folder; no access to architect/ ancestor files.)
+## Claude launch
+
+This run auto-started Claude in this directory with:
+
+claude --name "$RUN_NAME" --permission-mode plan
+
+(Working directory: $RUN_DIR)
 EOF
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "Run ready: $RUN_DIR"
+  echo "Created: $RUN_DIR/notes.md"
+  echo "ERROR: 'claude' command not found in PATH." >&2
+  exit 127
+fi
+
+echo "Run ready: $RUN_DIR"
+echo "Created: $RUN_DIR/notes.md"
+echo "Launching Claude in plan mode..."
+
+cd "$RUN_DIR"
+exec claude --name "$RUN_NAME" --permission-mode plan
