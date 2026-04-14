@@ -26,13 +26,24 @@ Produce a self-contained interactive architecture diagram grounded in:
 7. **Comment Mode** for planning feedback:
    - global `Comment` toggle button (keyboard shortcut: `C`)
    - visual mode indicator when enabled
-   - while enabled, clicking the diagram opens a comment composer anchored to click position
+   - while enabled, clicking the diagram opens a comment composer
    - comment composer supports multiline text and explicit submit/cancel actions
-   - submitted comments are queued locally and visible in a lightweight queue list
+   - submitted comments are queued locally and visible in a queue list
 8. Global `Submit` action to finalize queued comments:
    - opens a modal containing copy-ready JSON for the coding agent
-   - JSON must include each comment with associated target id (or `null` for empty-space clicks)
+   - JSON must include each comment with associated target IDs (or `null` for empty-space clicks)
    - include a one-click copy control for the JSON payload
+
+## Deterministic rendering approach (default)
+
+Prefer deterministic rendering over freeform HTML code generation:
+
+- `python3 scripts/render-diagram-html.py --output-root <output-root> --mode <fast|rich>`
+
+Mode behavior:
+
+- `fast` (default): lower complexity, lower token/time cost, focuses on core views.
+- `rich`: denser labels and additional views (including sequence when present).
 
 ## Comment targeting rules
 
@@ -46,7 +57,7 @@ Produce a self-contained interactive architecture diagram grounded in:
 
 Thin connectors (lines/arrows) must remain easy to click:
 
-- provide an invisible interaction layer per edge (`pointer-events` target), or equivalent
+- provide an interaction layer per edge (`pointer-events` target), or equivalent
 - enforce a minimum clickable thickness of at least 12px around visual edge geometry
 - expose `data-relationship-id` on edge hit targets
 
@@ -69,15 +80,15 @@ Thin connectors (lines/arrows) must remain easy to click:
   - `data-view-id`
 - When relationships are rendered, include relationship metadata in DOM/JS state.
 
+## Robustness constraints
+
+- Generated inline JavaScript must be syntactically valid.
+- Avoid malformed nested template expressions (for example: `${x-${y}}`).
+- After generation, run `scripts/validate-diagram-html.sh <output-root>/diagram.html` and fix failures before completion.
+
 ## Style constraints
 
 - Engineering-first, legible over decorative.
 - Consistent color semantics by element kind.
 - Clear visual distinction between drillable and non-drillable nodes.
 - Comment mode should be visually obvious without obscuring core diagram readability.
-
-## Reference implementation
-
-For concrete interaction and payload behavior, see:
-
-- `references/comment-mode-reference.html`

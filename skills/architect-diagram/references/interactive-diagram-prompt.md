@@ -6,6 +6,9 @@ Purpose:
 - produce one interactive drill-down architecture diagram from the provided architecture artifacts
 - keep all rendered entities grounded in `model.yaml` + `views/*.yaml`
 
+Note: this prompt powers the **secondary** Claude Imagine bundle.
+The **primary** output path should use deterministic local rendering via `scripts/render-diagram-html.py`.
+
 ## Prompt Structure (required order)
 
 Use these sections in order when writing the prompt for Claude Imagine.
@@ -127,6 +130,13 @@ The prompt must enforce:
 - sequence views (if present) exposed in separate tab/panel, not mixed into drill-down hierarchy
 - fully self-contained HTML (inline CSS/JS, no external dependencies)
 
+### 7) Robustness constraints
+
+The prompt must enforce:
+- syntactically valid JavaScript in inline `<script>` blocks
+- no malformed nested template expressions (e.g., `${x-${y}}`)
+- include a final instruction to run `scripts/validate-diagram-html.sh <output-root>/diagram.html` and fix any failures
+
 ## Prompt Assembly Checklist
 
 Before finalizing the prompt section in `diagram-prompt.md`, verify:
@@ -140,3 +150,5 @@ Before finalizing the prompt section in `diagram-prompt.md`, verify:
 - comment mode and `C` shortcut are explicitly required
 - edge hitbox padding requirement is explicitly required
 - submission modal includes copy-ready JSON instruction for coding-agent handoff
+- prompt includes explicit syntax/robustness constraints for inline JavaScript
+- prompt includes instruction to run `scripts/validate-diagram-html.sh` before completion

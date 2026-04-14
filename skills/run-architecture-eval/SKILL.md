@@ -145,7 +145,7 @@ Set the output path to:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`
 
-Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs:
+Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs (default deterministic **fast** mode for lower latency):
 
 - `evals/architect-discover/roundX_<repo>/diagram.html` (primary, includes Comment Mode)
 - `evals/architect-discover/roundX_<repo>/diagram-prompt.md` (secondary)
@@ -279,6 +279,7 @@ Before pausing for user input, verify:
 - the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `diagram.html` exists and is self-contained (no external dependencies)
+- `scripts/validate-diagram-html.sh evals/architect-discover/roundX_<repo>/diagram.html` passes
 - `diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with JSON handoff)
 - relationship hit targets are selectable and carry `data-relationship-id` for edge comments
 - `diagram-prompt.md` exists and includes:

@@ -22,6 +22,10 @@ Required:
 - `<output-root>/diagram.html` (primary)
 - `<output-root>/diagram-prompt.md` (secondary)
 
+Optional debug output:
+
+- `<output-root>/diagram-data.json` (when `--write-data-json` is enabled)
+
 ## Hard Rules
 
 - Do not invent architecture facts.
@@ -32,6 +36,16 @@ Required:
 - `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal JSON handoff).
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
+- Prefer deterministic rendering via script over ad-hoc hand-authored HTML/JS.
+
+## Rendering modes (complexity control)
+
+Use deterministic mode selection to control latency/cost:
+
+- **fast (default):** render system-context + container views only; minimal labels; skip sequence tab unless explicitly requested.
+- **rich:** include additional views (component/sequence) and denser labeling.
+
+Rule: start in `fast` unless the user explicitly requests richer visualization detail.
 
 ## Workflow
 
@@ -46,23 +60,28 @@ Required:
    - Derive hierarchy and drill-down transitions from manifest/view files.
    - Keep sequence views separate from drill-down hierarchy.
 
-4. **Render primary HTML diagram**
+4. **Render primary HTML diagram deterministically (required)**
    - Read [references/html-diagram-spec.md](references/html-diagram-spec.md).
    - Read [references/comment-handoff-format.md](references/comment-handoff-format.md).
-   - Optionally reuse interaction patterns from [references/comment-mode-reference.html](references/comment-mode-reference.html).
-   - Generate `<output-root>/diagram.html` from architecture artifacts.
+   - Run:
+     - `python3 scripts/render-diagram-html.py --output-root <output-root> --mode fast`
+   - Use `--mode rich` only when requested or clearly needed.
 
-5. **Render secondary Claude Imagine prompt bundle**
+5. **Run deterministic diagram validation (required)**
+   - Run `scripts/validate-diagram-html.sh <output-root>/diagram.html`.
+   - If validation fails, fix and rerun until it passes.
+
+6. **Render secondary Claude Imagine prompt bundle**
    - Read [references/interactive-diagram-prompt.md](references/interactive-diagram-prompt.md).
    - Generate `<output-root>/diagram-prompt.md` per `diagram-output-contract.md`.
 
-6. **Run contract checks only when needed**
+7. **Run contract checks only when needed**
    - If artifact shape is ambiguous or inconsistent, read [../references/architecture-contract.md](../references/architecture-contract.md) to resolve schema expectations.
    - If unresolved issues remain, record them explicitly instead of guessing.
 
-7. **Run final validation checklist**
+8. **Run final validation checklist**
    - Execute the checklist in `diagram-output-contract.md` before completing.
 
 ## Completion Standard
 
-Complete only when `diagram.html` and `diagram-prompt.md` both exist, are grounded in the same architecture artifacts, and pass the validation checklist.
+Complete only when `diagram.html` and `diagram-prompt.md` both exist, are grounded in the same architecture artifacts, and pass the validation checklist (including deterministic HTML validation).

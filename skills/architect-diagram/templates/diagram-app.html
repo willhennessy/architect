@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture Diagram</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #101a2f;
+      --ink: #e6eeff;
+      --muted: #8fa4cb;
+      --line: #27406f;
+      --accent: #5fd4ff;
+      --accent-2: #8a6dff;
+      --warn: #ffbd59;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #132449 0%, var(--bg) 58%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    #app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #263f6f;
+      background: rgba(11, 18, 32, 0.88);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .mode-badge {
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #061629;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .breadcrumbs {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .crumb {
+      cursor: pointer;
+      color: #b9c9e8;
+    }
+
+    .crumb.current { color: #fff; cursor: default; }
+
+    .tabbar {
+      padding: 0 14px;
+      border-bottom: 1px solid #22385f;
+      background: rgba(11, 18, 32, 0.65);
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 11px;
+      font-size: 12px;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: #fff;
+      border-bottom-color: var(--accent);
+    }
+
+    .toolbar {
+      padding: 8px 14px;
+      border-bottom: 1px solid #22385f;
+      background: rgba(11, 18, 32, 0.55);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid #35558f;
+      background: #14264a;
+      color: var(--ink);
+      border-radius: 9px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .5; cursor: default; }
+
+    .comment-toggle.on {
+      color: #1f1200;
+      border-color: transparent;
+      background: linear-gradient(135deg, #ffd07b, #ffad42);
+      font-weight: 700;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 0;
+      border: 1px solid #2a446f;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #0f1a31 0%, #0b1428 100%);
+      overflow: hidden;
+    }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .hint {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      font-size: 11px;
+      color: #ffe2a6;
+      background: rgba(72, 48, 0, 0.6);
+      border: 1px solid #946300;
+      border-radius: 8px;
+      padding: 4px 8px;
+      display: none;
+    }
+
+    .hint.show { display: block; }
+
+    #details {
+      border: 1px solid #2a446f;
+      border-radius: 14px;
+      background: #101a2f;
+      overflow: auto;
+      padding: 12px;
+      font-size: 12px;
+    }
+
+    .empty-note { color: var(--muted); text-align: center; padding-top: 40px; }
+
+    .meta-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+
+    .chip {
+      display: inline-block;
+      border: 1px solid #35558f;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      margin-right: 4px;
+      margin-top: 3px;
+      color: #cbe0ff;
+      background: #14284f;
+    }
+
+    .queue {
+      border-top: 1px solid #2b456f;
+      background: #0f1a2f;
+      padding: 8px 14px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .queue.show { display: flex; }
+
+    .queue-items {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .queue-item {
+      border: 1px solid #5f4a15;
+      background: #312507;
+      color: #ffdca0;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 7, 14, .55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+
+    .overlay.show { display: flex; }
+
+    .dialog {
+      width: min(720px, 96vw);
+      max-height: 86vh;
+      overflow: auto;
+      border: 1px solid #395e9c;
+      border-radius: 12px;
+      background: #0d172a;
+      padding: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 92px;
+      border-radius: 8px;
+      border: 1px solid #3c5f9f;
+      background: #0a1324;
+      color: #ecf3ff;
+      padding: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+    }
+
+    pre {
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #35558f;
+      background: #081024;
+      color: #89ffb6;
+      font-size: 11px;
+      line-height: 1.45;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    svg text { user-select: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="title" id="systemName"></div>
+    <span class="mode-badge" id="modeBadge"></span>
+    <div class="breadcrumbs" id="breadcrumbs"></div>
+  </div>
+  <div class="tabbar" id="tabs"></div>
+  <div class="toolbar">
+    <button id="backBtn" disabled>Back</button>
+    <button id="commentToggle" class="comment-toggle">Comment (C)</button>
+    <button id="submitBtn" disabled>Submit comments</button>
+  </div>
+  <div class="workspace">
+    <div class="canvas-wrap">
+      <div class="hint" id="commentHint">Comment mode: click node, edge, or canvas</div>
+      <div id="canvas"></div>
+    </div>
+    <div id="details"><div class="empty-note">Click a node to inspect details</div></div>
+  </div>
+  <div class="queue" id="queueBar">
+    <strong style="font-size:11px;color:#ffdca0">Queued</strong>
+    <div class="queue-items" id="queueItems"></div>
+  </div>
+</div>
+
+<div class="overlay" id="commentDialogOverlay">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px;font-size:14px">Add comment</h3>
+    <div id="commentTarget" style="font-size:12px;color:#abc0e5;margin-bottom:8px"></div>
+    <textarea id="commentText" placeholder="Type feedback..."></textarea>
+    <div class="dialog-actions">
+      <button id="commentCancel">Cancel</button>
+      <button id="commentAdd">Add comment</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="payloadOverlay">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px;font-size:14px">Comment payload (JSON)</h3>
+    <p style="font-size:12px;color:#abc0e5;margin:0 0 8px">Copy this JSON and paste it into your coding agent.</p>
+    <pre id="payloadPre"></pre>
+    <div class="dialog-actions">
+      <button id="payloadCopy">Copy</button>
+      <button id="payloadClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = __DIAGRAM_DATA_JSON__;
+const MODE = "__DIAGRAM_MODE__";
+
+const state = {
+  viewId: DATA.initial_view_id,
+  history: [],
+  selectedId: null,
+  commentMode: false,
+  comments: [],
+  pendingTarget: null,
+};
+
+const nodesById = new Map((DATA.elements || []).map(function (e) { return [e.id, e]; }));
+const viewsById = new Map((DATA.views || []).map(function (v) { return [v.id, v]; }));
+
+const kindColor = {
+  person: '#3b82f6',
+  software_system: '#8b5cf6',
+  external_system: '#f97316',
+  container: '#16a34a',
+  component: '#0ea5e9',
+  database: '#334155',
+  queue: '#b45309',
+  cache: '#0f766e',
+};
+
+function $(id) { return document.getElementById(id); }
+
+function currentView() { return viewsById.get(state.viewId); }
+
+function updateHeader() {
+  $('systemName').textContent = DATA.system_name || 'Architecture Diagram';
+  $('modeBadge').textContent = MODE;
+
+  const crumbs = [];
+  state.history.forEach(function (viewId, idx) {
+    const v = viewsById.get(viewId);
+    if (!v) return;
+    crumbs.push({ label: v.title || viewId, viewId: viewId, idx: idx, current: false });
+  });
+  const cv = currentView();
+  crumbs.push({ label: (cv && cv.title) || state.viewId, viewId: state.viewId, current: true });
+
+  const bc = $('breadcrumbs');
+  bc.innerHTML = '';
+  crumbs.forEach(function (c, i) {
+    const span = document.createElement('span');
+    span.textContent = c.label;
+    span.className = c.current ? 'crumb current' : 'crumb';
+    if (!c.current) {
+      span.addEventListener('click', function () {
+        state.history = state.history.slice(0, c.idx);
+        state.viewId = c.viewId;
+        state.selectedId = null;
+        render();
+      });
+    }
+    bc.appendChild(span);
+    if (i < crumbs.length - 1) {
+      const sep = document.createElement('span');
+      sep.textContent = '›';
+      sep.style.color = '#6f86ad';
+      bc.appendChild(sep);
+    }
+  });
+
+  $('backBtn').disabled = state.history.length === 0;
+  $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
+  $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
+}
+
+function updateTabs() {
+  const tabs = $('tabs');
+  tabs.innerHTML = '';
+  (DATA.views || []).forEach(function (view) {
+    const b = document.createElement('button');
+    b.className = 'tab' + (view.id === state.viewId ? ' active' : '');
+    b.textContent = view.title || view.id;
+    b.addEventListener('click', function () {
+      state.history = [];
+      state.viewId = view.id;
+      state.selectedId = null;
+      render();
+    });
+    tabs.appendChild(b);
+  });
+}
+
+function drawDiagramView(view) {
+  const host = $('canvas');
+  host.innerHTML = '';
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const layout = layoutNodes(view.nodes || [], view.type || 'generic');
+  const width = layout.width;
+  const height = layout.height;
+  svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+  svg.setAttribute('width', String(width));
+  svg.setAttribute('height', String(height));
+  svg.style.display = 'block';
+  svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+
+  // edges
+  (view.edges || []).forEach(function (edge) {
+    const a = layout.byId.get(edge.source_id);
+    const b = layout.byId.get(edge.target_id);
+    if (!a || !b) return;
+
+    const x1 = a.x + a.w / 2;
+    const y1 = a.y + a.h / 2;
+    const x2 = b.x + b.w / 2;
+    const y2 = b.y + b.h / 2;
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(x1));
+    line.setAttribute('y1', String(y1));
+    line.setAttribute('x2', String(x2));
+    line.setAttribute('y2', String(y2));
+    line.setAttribute('stroke', '#8fa4cb');
+    line.setAttribute('stroke-width', state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId) ? '2.2' : '1.4');
+    line.setAttribute('opacity', '0.9');
+    svg.appendChild(line);
+
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    hit.setAttribute('x1', String(x1));
+    hit.setAttribute('y1', String(y1));
+    hit.setAttribute('x2', String(x2));
+    hit.setAttribute('y2', String(y2));
+    hit.setAttribute('stroke', state.commentMode ? 'transparent' : 'transparent');
+    hit.setAttribute('stroke-width', '14');
+    hit.setAttribute('fill', 'none');
+    hit.setAttribute('data-relationship-id', edge.id || '');
+    hit.setAttribute('data-view-id', view.id);
+    hit.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
+    svg.appendChild(hit);
+
+    if (MODE === 'rich' && edge.label) {
+      const tx = (x1 + x2) / 2;
+      const ty = (y1 + y2) / 2;
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(tx));
+      text.setAttribute('y', String(ty));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('font-size', '10');
+      text.setAttribute('fill', '#a8bcdf');
+      text.textContent = edge.label.length > 42 ? edge.label.slice(0, 42) + '…' : edge.label;
+      svg.appendChild(text);
+    }
+  });
+
+  // nodes
+  (view.nodes || []).forEach(function (node) {
+    const box = layout.byId.get(node.id);
+    if (!box) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('data-element-id', node.id);
+    g.setAttribute('data-view-id', view.id);
+    g.setAttribute('data-target-label', node.name || node.id);
+    g.style.cursor = state.commentMode ? 'crosshair' : 'pointer';
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(box.x));
+    rect.setAttribute('y', String(box.y));
+    rect.setAttribute('width', String(box.w));
+    rect.setAttribute('height', String(box.h));
+    rect.setAttribute('rx', '10');
+    rect.setAttribute('fill', state.selectedId === node.id ? '#132545' : (kindColor[node.kind] || '#1e40af'));
+    rect.setAttribute('stroke', state.selectedId === node.id ? '#ffbd59' : '#d0e1ff');
+    rect.setAttribute('stroke-width', state.selectedId === node.id ? '2.2' : '1.1');
+    g.appendChild(rect);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(box.x + box.w / 2));
+    text.setAttribute('y', String(box.y + box.h / 2 - 4));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('font-size', '12');
+    text.setAttribute('font-weight', '600');
+    text.setAttribute('fill', '#ffffff');
+    text.setAttribute('pointer-events', 'none');
+    text.textContent = truncate(node.name || node.id, MODE === 'fast' ? 24 : 34);
+    g.appendChild(text);
+
+    if (MODE === 'rich' && node.technology) {
+      const sub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      sub.setAttribute('x', String(box.x + box.w / 2));
+      sub.setAttribute('y', String(box.y + box.h / 2 + 11));
+      sub.setAttribute('text-anchor', 'middle');
+      sub.setAttribute('dominant-baseline', 'middle');
+      sub.setAttribute('font-size', '9');
+      sub.setAttribute('fill', '#d4e2ff');
+      sub.setAttribute('pointer-events', 'none');
+      sub.textContent = truncate(node.technology, 24);
+      g.appendChild(sub);
+    }
+
+    if ((DATA.drill_map || {})[node.id]) {
+      const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      badge.setAttribute('x', String(box.x + box.w - 10));
+      badge.setAttribute('y', String(box.y + 12));
+      badge.setAttribute('text-anchor', 'middle');
+      badge.setAttribute('font-size', '10');
+      badge.setAttribute('fill', '#ffe6a9');
+      badge.textContent = '↘';
+      g.appendChild(badge);
+    }
+
+    svg.appendChild(g);
+  });
+
+  svg.addEventListener('click', function (ev) {
+    const element = ev.target.closest('[data-element-id]');
+    const rel = ev.target.closest('[data-relationship-id]');
+
+    if (state.commentMode) {
+      ev.preventDefault();
+      const target = element
+        ? {
+            view_id: view.id,
+            element_id: element.dataset.elementId,
+            relationship_id: null,
+            target_label: element.dataset.targetLabel || element.dataset.elementId,
+          }
+        : rel
+        ? {
+            view_id: view.id,
+            element_id: null,
+            relationship_id: rel.dataset.relationshipId || null,
+            target_label: rel.dataset.targetLabel || rel.dataset.relationshipId || 'relationship',
+          }
+        : {
+            view_id: view.id,
+            element_id: null,
+            relationship_id: null,
+            target_label: 'canvas',
+          };
+      openCommentDialog(target);
+      return;
+    }
+
+    if (!element) {
+      state.selectedId = null;
+      updateDetails();
+      render();
+      return;
+    }
+
+    const id = element.dataset.elementId;
+    const nextView = (DATA.drill_map || {})[id];
+    if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
+      state.history.push(state.viewId);
+      state.viewId = nextView;
+      state.selectedId = null;
+      render();
+      return;
+    }
+
+    state.selectedId = id;
+    updateDetails();
+    render();
+  });
+
+  host.appendChild(svg);
+}
+
+function drawSequenceView(view) {
+  const host = $('canvas');
+  host.innerHTML = '';
+
+  const box = document.createElement('div');
+  box.style.padding = '8px';
+
+  const title = document.createElement('div');
+  title.textContent = view.title || 'Sequence';
+  title.style.fontWeight = '700';
+  title.style.marginBottom = '10px';
+  box.appendChild(title);
+
+  const list = document.createElement('div');
+  (view.steps || []).forEach(function (s) {
+    const row = document.createElement('div');
+    row.style.border = '1px solid #294474';
+    row.style.borderRadius = '8px';
+    row.style.padding = '8px';
+    row.style.marginBottom = '6px';
+    row.style.background = '#0d172b';
+    row.style.fontSize = '12px';
+
+    const step = document.createElement('div');
+    step.style.color = '#9fb8e4';
+    step.style.fontSize = '11px';
+    step.textContent = '#' + s.order + '  ' + (s.source_id || '?') + ' → ' + (s.target_id || '?');
+    row.appendChild(step);
+
+    const label = document.createElement('div');
+    label.style.marginTop = '3px';
+    label.textContent = s.label || '';
+    row.appendChild(label);
+
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+  host.appendChild(box);
+}
+
+function layoutNodes(nodes, viewType) {
+  const sorted = nodes.slice().sort(function (a, b) {
+    return (a.name || a.id).localeCompare(b.name || b.id);
+  });
+
+  const byId = new Map();
+  const n = sorted.length;
+  const cols = Math.max(2, Math.ceil(Math.sqrt(n)));
+  const gapX = MODE === 'fast' ? 28 : 36;
+  const gapY = MODE === 'fast' ? 34 : 44;
+  const cardW = MODE === 'fast' ? 190 : 220;
+  const cardH = MODE === 'fast' ? 70 : 82;
+
+  const width = Math.max(920, 30 + cols * (cardW + gapX));
+  const rows = Math.max(1, Math.ceil(n / cols));
+  const height = Math.max(540, 30 + rows * (cardH + gapY));
+
+  sorted.forEach(function (node, idx) {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    byId.set(node.id, {
+      x: 30 + col * (cardW + gapX),
+      y: 30 + row * (cardH + gapY),
+      w: cardW,
+      h: cardH,
+    });
+  });
+
+  return { byId: byId, width: width, height: height };
+}
+
+function updateDetails() {
+  const pane = $('details');
+  if (!state.selectedId) {
+    pane.innerHTML = '<div class="empty-note">Click a node to inspect details</div>';
+    return;
+  }
+  const node = nodesById.get(state.selectedId);
+  if (!node) {
+    pane.innerHTML = '<div class="empty-note">Selected node missing from model</div>';
+    return;
+  }
+
+  const rels = [];
+  (DATA.views || []).forEach(function (v) {
+    (v.edges || []).forEach(function (e) {
+      if (e.source_id === node.id || e.target_id === node.id) rels.push(e);
+    });
+  });
+
+  const html = [];
+  html.push('<div style="font-size:15px;font-weight:700">' + esc(node.name || node.id) + '</div>');
+  html.push('<div class="meta-label">Kind</div><div class="chip">' + esc(node.kind || 'unknown') + '</div>');
+
+  if (node.technology) html.push('<div class="meta-label">Technology</div><div>' + esc(node.technology) + '</div>');
+  if (node.description) html.push('<div class="meta-label">Description</div><div>' + esc(node.description) + '</div>');
+  if (node.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(node.confidence) + '</div>');
+
+  if ((node.tags || []).length) {
+    html.push('<div class="meta-label">Tags</div>');
+    node.tags.forEach(function (t) { html.push('<span class="chip">' + esc(t) + '</span>'); });
+  }
+
+  if (rels.length) {
+    html.push('<div class="meta-label">Relationships</div>');
+    rels.slice(0, 20).forEach(function (r) {
+      html.push('<div style="margin-bottom:6px;border:1px solid #294474;border-radius:8px;padding:6px">'
+        + '<div style="color:#9db7e2;font-size:11px">' + esc(r.source_id) + ' → ' + esc(r.target_id) + '</div>'
+        + '<div>' + esc(r.label || r.id || '') + '</div>'
+        + '</div>');
+    });
+  }
+
+  pane.innerHTML = html.join('');
+}
+
+function updateQueue() {
+  const bar = $('queueBar');
+  const items = $('queueItems');
+  items.innerHTML = '';
+
+  if (!state.comments.length) {
+    bar.className = 'queue';
+    $('submitBtn').disabled = true;
+    return;
+  }
+
+  state.comments.forEach(function (c) {
+    const div = document.createElement('div');
+    div.className = 'queue-item';
+    div.textContent = (c.target_label || 'target') + ': ' + c.comment;
+    items.appendChild(div);
+  });
+
+  $('submitBtn').disabled = false;
+  bar.className = 'queue show';
+}
+
+function openCommentDialog(target) {
+  state.pendingTarget = target;
+  $('commentTarget').innerHTML =
+    'view_id: <code>' + esc(String(target.view_id)) + '</code> · '
+    + 'element_id: <code>' + esc(String(target.element_id)) + '</code> · '
+    + 'relationship_id: <code>' + esc(String(target.relationship_id)) + '</code>';
+  $('commentText').value = '';
+  $('commentDialogOverlay').className = 'overlay show';
+  $('commentText').focus();
+}
+
+function closeCommentDialog() {
+  $('commentDialogOverlay').className = 'overlay';
+  state.pendingTarget = null;
+}
+
+function submitPayload() {
+  const payload = {
+    system_name: DATA.system_name,
+    mode: MODE,
+    comments: state.comments.map(function (c, i) {
+      return {
+        index: i + 1,
+        view_id: c.view_id,
+        element_id: c.element_id,
+        relationship_id: c.relationship_id,
+        target_label: c.target_label || null,
+        comment: c.comment,
+      };
+    }),
+  };
+  const text = JSON.stringify(payload, null, 2);
+  $('payloadPre').textContent = text;
+  $('payloadOverlay').className = 'overlay show';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;');
+}
+
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+function render() {
+  updateHeader();
+  updateTabs();
+  updateDetails();
+  updateQueue();
+
+  const view = currentView();
+  if (!view) return;
+
+  if (view.kind === 'sequence') drawSequenceView(view);
+  else drawDiagramView(view);
+}
+
+$('backBtn').addEventListener('click', function () {
+  if (!state.history.length) return;
+  state.viewId = state.history.pop();
+  state.selectedId = null;
+  render();
+});
+
+$('commentToggle').addEventListener('click', function () {
+  state.commentMode = !state.commentMode;
+  render();
+});
+
+$('submitBtn').addEventListener('click', submitPayload);
+
+$('commentCancel').addEventListener('click', closeCommentDialog);
+$('commentDialogOverlay').addEventListener('click', function (e) {
+  if (e.target === $('commentDialogOverlay')) closeCommentDialog();
+});
+
+$('commentAdd').addEventListener('click', function () {
+  const txt = $('commentText').value.trim();
+  if (!txt || !state.pendingTarget) return;
+  state.comments.push({
+    view_id: state.pendingTarget.view_id,
+    element_id: state.pendingTarget.element_id,
+    relationship_id: state.pendingTarget.relationship_id,
+    target_label: state.pendingTarget.target_label,
+    comment: txt,
+  });
+  closeCommentDialog();
+  updateQueue();
+});
+
+$('payloadClose').addEventListener('click', function () {
+  $('payloadOverlay').className = 'overlay';
+});
+
+$('payloadOverlay').addEventListener('click', function (e) {
+  if (e.target === $('payloadOverlay')) $('payloadOverlay').className = 'overlay';
+});
+
+$('payloadCopy').addEventListener('click', async function () {
+  try {
+    await navigator.clipboard.writeText($('payloadPre').textContent || '');
+  } catch (err) {
+    // ignore clipboard failures in restricted environments
+  }
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    e.preventDefault();
+    state.commentMode = !state.commentMode;
+    render();
+  }
+  if (e.key === 'Escape') {
+    closeCommentDialog();
+    $('payloadOverlay').className = 'overlay';
+  }
+});
+
+render();
+</script>
+</body>
+</html>
