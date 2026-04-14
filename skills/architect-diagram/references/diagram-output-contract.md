@@ -17,8 +17,24 @@ Where `<output-root>` is the parent folder that contains `architecture/`.
 - Must expose stable IDs in the DOM for major entities:
   - `data-element-id`
   - `data-view-id`
+  - `data-relationship-id` on relationship hit targets
   - relationship metadata when rendering edges
 - Sequence views (if present) must be separated from core drill-down hierarchy.
+
+### Comment Mode requirements (`diagram.html`)
+
+`diagram.html` must include Comment Mode with all of the following:
+
+1. A global `Comment` toggle control and keyboard shortcut `C`.
+2. While comment mode is active, clicking on the diagram opens a comment composer.
+3. Submitted comments are queued locally (not auto-submitted externally).
+4. Comment target binding:
+   - node click -> `element_id` populated
+   - edge/arrow click -> `relationship_id` populated
+   - empty space click -> both IDs are `null`
+5. Edge hitbox padding for reliable selection of thin lines/arrows.
+6. A global `Submit` action that opens a modal with copy-ready markdown output.
+7. Modal instruction telling user to paste markdown into coding agent.
 
 ## Secondary output requirements (`diagram-prompt.md`)
 
@@ -50,6 +66,18 @@ Required sections in order:
 - If a required file is missing, record it explicitly and proceed with available files.
 - Keep paths and IDs exactly as emitted in source artifacts.
 
+## Comment handoff payload requirements
+
+The comment export markdown in the modal must include, per queued comment:
+
+- comment index
+- `view_id`
+- `element_id` (nullable)
+- `relationship_id` (nullable)
+- user comment text
+
+It may include optional helper metadata (e.g., `target_label`, timestamp, click coordinates), but must not omit the required ID fields.
+
 ## Validation checklist
 
 Before finishing, verify:
@@ -57,6 +85,9 @@ Before finishing, verify:
 - `diagram.html` exists in the requested output root.
 - `diagram.html` is self-contained (no external dependencies).
 - `diagram.html` drill-down hierarchy only references real view files.
+- `diagram.html` includes comment mode (`Comment` toggle + `C` shortcut + submit modal).
+- edge hit targets are selectable and include `data-relationship-id`.
+- comment export includes required IDs (`view_id`, `element_id`, `relationship_id`).
 - `diagram-prompt.md` exists in the requested output root.
 - The required `diagram-prompt.md` heading is present verbatim.
 - The prompt references the actual system name from artifacts.

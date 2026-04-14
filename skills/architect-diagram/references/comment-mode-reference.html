@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture Diagram Comment Mode Reference</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111a2e;
+      --panel-2: #1a2742;
+      --ink: #dce7ff;
+      --muted: #8ea2c8;
+      --accent: #4fc3f7;
+      --accent-2: #7c4dff;
+      --danger: #ff6b6b;
+      --ok: #7bd88f;
+      --edge: #7c8fb7;
+      --hit: rgba(79, 195, 247, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #12203f 0%, var(--bg) 55%);
+      color: var(--ink);
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #253557;
+      background: rgba(9, 15, 28, 0.8);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .breadcrumbs {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid #314a7a;
+      background: #172643;
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    button:hover { border-color: #4b6eb3; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .comment-toggle.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+      color: #061229;
+      font-weight: 700;
+    }
+
+    .submit-button {
+      background: #143725;
+      border-color: #2b7e4f;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 14px;
+      padding: 14px;
+      min-height: 0;
+    }
+
+    .diagram-shell {
+      position: relative;
+      border: 1px solid #24395f;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #101a2f 0%, #0c1527 100%);
+      overflow: hidden;
+      min-height: 620px;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border: 2px solid transparent;
+      border-radius: 16px;
+      transition: border-color 120ms ease;
+    }
+
+    .comment-mode-on .canvas-overlay {
+      border-color: rgba(79, 195, 247, 0.45);
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .node {
+      fill: #1a2a49;
+      stroke: #3f5f99;
+      stroke-width: 1.2;
+      rx: 14;
+      cursor: pointer;
+      transition: 120ms ease;
+    }
+
+    .node:hover { stroke: var(--accent); }
+
+    .node-label {
+      fill: #e2ecff;
+      font-size: 14px;
+      font-weight: 600;
+      pointer-events: none;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .edge {
+      stroke: var(--edge);
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrow);
+      pointer-events: none;
+    }
+
+    .edge-hitbox {
+      stroke: transparent;
+      stroke-width: 14;
+      fill: none;
+      cursor: pointer;
+      pointer-events: stroke;
+    }
+
+    .comment-mode-on .edge-hitbox:hover {
+      stroke: var(--hit);
+    }
+
+    .legend {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(7, 12, 20, 0.72);
+      border: 1px solid #213356;
+    }
+
+    .queue {
+      border: 1px solid #24395f;
+      border-radius: 16px;
+      background: #101a2f;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .queue h3 {
+      margin: 0;
+      padding: 12px 14px;
+      border-bottom: 1px solid #22365a;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .queue-list {
+      margin: 0;
+      padding: 10px;
+      list-style: none;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+    }
+
+    .queue-item {
+      border: 1px solid #2a426d;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 12px;
+      background: #13203a;
+    }
+
+    .queue-meta {
+      color: var(--muted);
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .composer {
+      position: absolute;
+      width: min(320px, calc(100% - 24px));
+      background: #0f1a31;
+      border: 1px solid #30508a;
+      border-radius: 12px;
+      box-shadow: 0 14px 40px rgba(1, 7, 16, 0.55);
+      padding: 10px;
+      z-index: 5;
+    }
+
+    .composer p {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .composer textarea {
+      width: 100%;
+      min-height: 92px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid #3a578f;
+      background: #0a1325;
+      color: #e6eeff;
+      padding: 8px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .composer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .composer .danger {
+      border-color: #6a2e3a;
+      background: #29121a;
+      color: #ffc9d3;
+    }
+
+    dialog {
+      width: min(860px, 96vw);
+      border: 1px solid #2d4a80;
+      border-radius: 14px;
+      background: #0d172b;
+      color: var(--ink);
+      padding: 14px;
+    }
+
+    dialog::backdrop { background: rgba(2, 7, 16, 0.65); }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .copy-ok {
+      color: var(--ok);
+      font-size: 12px;
+      margin-right: auto;
+      align-self: center;
+      opacity: 0;
+      transition: opacity 150ms ease;
+    }
+
+    .copy-ok.visible { opacity: 1; }
+
+    pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      background: #081022;
+      border: 1px solid #263d69;
+      border-radius: 12px;
+      padding: 10px;
+      max-height: 56vh;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="breadcrumbs" data-view-id="container">Shoe Commerce System > Container View</div>
+    <div class="controls">
+      <button class="comment-toggle" id="commentToggle" aria-pressed="false">Comment (C)</button>
+      <button class="submit-button" id="submitComments" disabled>Submit</button>
+    </div>
+  </header>
+
+  <main class="workspace" id="workspace">
+    <section class="diagram-shell" id="diagram" data-view-id="container">
+      <svg viewBox="0 0 980 640" role="img" aria-label="Architecture diagram">
+        <defs>
+          <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+            <path d="M0,0 L12,6 L0,12 z" fill="#7c8fb7"></path>
+          </marker>
+        </defs>
+
+        <path class="edge" d="M285 220 L470 220"/>
+        <path
+          class="edge-hitbox"
+          d="M285 220 L470 220"
+          data-relationship-id="rel-send-via-rest-api"
+          data-view-id="container"
+          data-target-label="Send via REST API"
+        ></path>
+
+        <path class="edge" d="M690 220 L860 220"/>
+        <path
+          class="edge-hitbox"
+          d="M690 220 L860 220"
+          data-relationship-id="rel-write-orders"
+          data-view-id="container"
+          data-target-label="Write Order Records"
+        ></path>
+
+        <rect class="node" x="60" y="150" width="225" height="140" data-element-id="web-app" data-view-id="container" data-target-label="Web App"></rect>
+        <text class="node-label" x="172" y="220">Web App</text>
+
+        <rect class="node" x="470" y="150" width="220" height="140" data-element-id="order-service" data-view-id="container" data-target-label="Order Service"></rect>
+        <text class="node-label" x="580" y="220">Order Service</text>
+
+        <rect class="node" x="860" y="150" width="90" height="140" data-element-id="shoe-database" data-view-id="container" data-target-label="Shoe Database"></rect>
+        <text class="node-label" x="905" y="220">DB</text>
+      </svg>
+
+      <div class="canvas-overlay"></div>
+      <div class="legend">Reference implementation for Comment Mode target binding + export.</div>
+    </section>
+
+    <aside class="queue">
+      <h3>Queued comments</h3>
+      <ol class="queue-list" id="queueList"></ol>
+    </aside>
+  </main>
+
+  <dialog id="submitModal">
+    <h3 style="margin:0 0 6px;">Comment payload</h3>
+    <p style="margin:0; color:#91a8d4; font-size:13px;">Copy this and paste it into your coding agent.</p>
+    <pre id="payload"></pre>
+    <div class="modal-actions">
+      <span class="copy-ok" id="copyOk">Copied</span>
+      <button id="copyPayload">Copy</button>
+      <button id="closeModal">Close</button>
+    </div>
+  </dialog>
+
+  <script>
+    const diagram = document.getElementById('diagram');
+    const workspace = document.getElementById('workspace');
+    const commentToggle = document.getElementById('commentToggle');
+    const submitComments = document.getElementById('submitComments');
+    const queueList = document.getElementById('queueList');
+    const submitModal = document.getElementById('submitModal');
+    const payload = document.getElementById('payload');
+    const copyPayload = document.getElementById('copyPayload');
+    const closeModal = document.getElementById('closeModal');
+    const copyOk = document.getElementById('copyOk');
+
+    let commentMode = false;
+    let comments = [];
+    let composer = null;
+    let activeDraftTarget = null;
+
+    const SYSTEM_NAME = 'Shoe Commerce System';
+
+    function setCommentMode(next) {
+      commentMode = next;
+      commentToggle.classList.toggle('active', next);
+      commentToggle.setAttribute('aria-pressed', String(next));
+      document.body.classList.toggle('comment-mode-on', next);
+      if (!next) removeComposer();
+    }
+
+    function removeComposer() {
+      if (composer) composer.remove();
+      composer = null;
+      activeDraftTarget = null;
+    }
+
+    function getTargetMetadata(target) {
+      if (!target || !diagram.contains(target)) {
+        return {
+          view_id: diagram.dataset.viewId || null,
+          element_id: null,
+          relationship_id: null,
+          target_label: 'Canvas'
+        };
+      }
+
+      const elementTarget = target.closest('[data-element-id]');
+      if (elementTarget) {
+        return {
+          view_id: elementTarget.dataset.viewId || diagram.dataset.viewId || null,
+          element_id: elementTarget.dataset.elementId || null,
+          relationship_id: null,
+          target_label: elementTarget.dataset.targetLabel || elementTarget.dataset.elementId || null
+        };
+      }
+
+      const relationshipTarget = target.closest('[data-relationship-id]');
+      if (relationshipTarget) {
+        return {
+          view_id: relationshipTarget.dataset.viewId || diagram.dataset.viewId || null,
+          element_id: null,
+          relationship_id: relationshipTarget.dataset.relationshipId || null,
+          target_label: relationshipTarget.dataset.targetLabel || relationshipTarget.dataset.relationshipId || null
+        };
+      }
+
+      return {
+        view_id: diagram.dataset.viewId || null,
+        element_id: null,
+        relationship_id: null,
+        target_label: 'Canvas'
+      };
+    }
+
+    function renderQueue() {
+      queueList.innerHTML = '';
+      comments.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = 'queue-item';
+        li.innerHTML = `
+          <div class="queue-meta">#${idx + 1} • view_id: <code>${item.view_id ?? 'null'}</code></div>
+          <div class="queue-meta">element_id: <code>${item.element_id ?? 'null'}</code> • relationship_id: <code>${item.relationship_id ?? 'null'}</code></div>
+          <div><strong>${item.target_label ?? 'Target'}</strong> — ${item.comment}</div>
+        `;
+        queueList.appendChild(li);
+      });
+
+      if (!comments.length) {
+        const empty = document.createElement('li');
+        empty.className = 'queue-item';
+        empty.style.color = '#8ea2c8';
+        empty.textContent = 'No comments yet. Turn on Comment Mode and click the diagram.';
+        queueList.appendChild(empty);
+      }
+
+      submitComments.disabled = comments.length === 0;
+    }
+
+    function buildPayloadMarkdown(items) {
+      const lines = [];
+      lines.push('## Architecture Review Comments');
+      lines.push('');
+      lines.push(`System: \`${SYSTEM_NAME}\``);
+      lines.push(`View: \`${diagram.dataset.viewId || 'unknown'}\``);
+      lines.push('');
+      lines.push('### Queued Comments');
+
+      items.forEach((item, index) => {
+        lines.push(`${index + 1}. view_id: \`${item.view_id ?? 'null'}\``);
+        lines.push(`   element_id: \`${item.element_id ?? 'null'}\``);
+        lines.push(`   relationship_id: \`${item.relationship_id ?? 'null'}\``);
+        lines.push(`   comment: ${item.comment}`);
+        lines.push('');
+      });
+
+      lines.push('```json');
+      lines.push(JSON.stringify({ system_name: SYSTEM_NAME, comments: items }, null, 2));
+      lines.push('```');
+
+      return lines.join('\n');
+    }
+
+    function openComposer(clientX, clientY, targetMeta) {
+      removeComposer();
+      activeDraftTarget = targetMeta;
+
+      const containerRect = diagram.getBoundingClientRect();
+      const localX = Math.max(8, Math.min(clientX - containerRect.left, containerRect.width - 332));
+      const localY = Math.max(8, Math.min(clientY - containerRect.top, containerRect.height - 220));
+
+      composer = document.createElement('div');
+      composer.className = 'composer';
+      composer.style.left = `${localX}px`;
+      composer.style.top = `${localY}px`;
+      composer.innerHTML = `
+        <p>Target: <strong>${targetMeta.target_label || 'Canvas'}</strong><br>
+        view_id: <code>${targetMeta.view_id ?? 'null'}</code> · element_id: <code>${targetMeta.element_id ?? 'null'}</code> · relationship_id: <code>${targetMeta.relationship_id ?? 'null'}</code></p>
+        <textarea id="commentInput" placeholder="Type your architecture feedback..."></textarea>
+        <div class="composer-actions">
+          <button class="danger" id="cancelComment">Cancel</button>
+          <button id="saveComment">Submit comment</button>
+        </div>
+      `;
+
+      diagram.appendChild(composer);
+
+      const input = composer.querySelector('#commentInput');
+      const cancel = composer.querySelector('#cancelComment');
+      const save = composer.querySelector('#saveComment');
+
+      input.focus();
+
+      cancel.addEventListener('click', removeComposer);
+      save.addEventListener('click', () => {
+        const text = input.value.trim();
+        if (!text) return;
+
+        comments.push({
+          index: comments.length + 1,
+          view_id: activeDraftTarget.view_id ?? null,
+          element_id: activeDraftTarget.element_id ?? null,
+          relationship_id: activeDraftTarget.relationship_id ?? null,
+          target_label: activeDraftTarget.target_label ?? null,
+          comment: text
+        });
+
+        removeComposer();
+        renderQueue();
+      });
+    }
+
+    commentToggle.addEventListener('click', () => setCommentMode(!commentMode));
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key.toLowerCase() === 'c' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const active = document.activeElement;
+        if (active && ['INPUT', 'TEXTAREA'].includes(active.tagName)) return;
+        event.preventDefault();
+        setCommentMode(!commentMode);
+      }
+    });
+
+    diagram.addEventListener('click', (event) => {
+      if (!commentMode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const targetMeta = getTargetMetadata(event.target);
+      openComposer(event.clientX, event.clientY, targetMeta);
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!composer) return;
+      if (composer.contains(event.target)) return;
+      if (diagram.contains(event.target)) return;
+      removeComposer();
+    });
+
+    submitComments.addEventListener('click', () => {
+      const markdown = buildPayloadMarkdown(comments);
+      payload.textContent = markdown;
+      submitModal.showModal();
+    });
+
+    copyPayload.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(payload.textContent || '');
+        copyOk.classList.add('visible');
+        setTimeout(() => copyOk.classList.remove('visible'), 1200);
+      } catch {
+        // ignored for offline environments
+      }
+    });
+
+    closeModal.addEventListener('click', () => submitModal.close());
+
+    renderQueue();
+  </script>
+</body>
+</html>

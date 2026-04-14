@@ -1,6 +1,6 @@
 ---
 name: architect-diagram
-description: Generate an interactive HTML architecture diagram (`diagram.html`) as the primary output, plus a secondary Claude Imagine upload bundle (`diagram-prompt.md`), from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-discover has generated architecture artifacts.
+description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode as the primary output, plus a secondary Claude Imagine upload bundle (`diagram-prompt.md`), from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-discover has generated architecture artifacts.
 ---
 
 Use this skill only after architecture artifacts already exist.
@@ -29,6 +29,7 @@ Required:
 - Preserve exact IDs and paths from source artifacts.
 - `diagram.html` must be fully self-contained (inline CSS/JS; no external dependencies).
 - `diagram.html` must support drill-down navigation from available view hierarchy and breadcrumb/back navigation.
+- `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal markdown handoff).
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
 
@@ -47,6 +48,8 @@ Required:
 
 4. **Render primary HTML diagram**
    - Read [references/html-diagram-spec.md](references/html-diagram-spec.md).
+   - Read [references/comment-handoff-format.md](references/comment-handoff-format.md).
+   - Optionally reuse interaction patterns from [references/comment-mode-reference.html](references/comment-mode-reference.html).
    - Generate `<output-root>/diagram.html` from architecture artifacts.
 
 5. **Render secondary Claude Imagine prompt bundle**

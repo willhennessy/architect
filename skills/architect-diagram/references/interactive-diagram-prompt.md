@@ -82,15 +82,44 @@ The prompt must require element detail display containing:
 
 Inspection and drill-down interactions must be distinguishable.
 
-### 4) Data sourcing constraints
+### 4) Comment Mode behavior (required)
+
+The prompt must require:
+
+- global `Comment` toggle and keyboard shortcut `C` to enter/exit comment mode
+- while comment mode is active, click behavior prioritizes feedback capture (not drill-down)
+- on click, open a comment composer near pointer position with text area + submit/cancel
+- queue submitted comments in-page for later batch submission
+
+Target binding rules:
+
+- clicking an architecture node binds `element_id`
+- clicking an edge/arrow binds `relationship_id`
+- clicking empty diagram space binds `element_id: null` and `relationship_id: null`
+- every comment record includes at least: `view_id`, `element_id`, `relationship_id`, `target_label` (when known), `comment`
+
+Edge clickability requirement:
+
+- require expanded edge hitboxes so thin arrows/lines are reliably clickable
+- maintain `data-relationship-id` metadata on clickable edge targets
+
+Submission/handoff requirement:
+
+- include a global `Submit` action that opens a modal with copy-ready markdown
+- markdown output must list all queued comments and associated IDs
+- include a copy-to-clipboard affordance in the modal
+- include explicit instruction text: paste this markdown into your coding agent
+
+### 5) Data sourcing constraints
 
 The prompt must enforce:
 - source only from provided architecture artifacts
 - no invented elements, edges, metadata, or IDs
 - use `manifest.yaml` to determine available views and drill-down mapping
 - treat missing deeper views as leaf-node detail panels
+- comment target IDs must match artifact IDs exactly
 
-### 5) Layout and style constraints
+### 6) Layout and style constraints
 
 The prompt must enforce:
 - clean, professional engineering-oriented visual style
@@ -108,3 +137,6 @@ Before finalizing the prompt section in `diagram-prompt.md`, verify:
 - wording explicitly forbids invention
 - breadcrumb + back behavior is explicitly required
 - sequence handling is specified as separate panel/tab
+- comment mode and `C` shortcut are explicitly required
+- edge hitbox padding requirement is explicitly required
+- submission modal includes copy-ready markdown instruction for coding-agent handoff
