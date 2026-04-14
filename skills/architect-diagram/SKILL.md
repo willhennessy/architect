@@ -29,7 +29,7 @@ Required:
 - Preserve exact IDs and paths from source artifacts.
 - `diagram.html` must be fully self-contained (inline CSS/JS; no external dependencies).
 - `diagram.html` must support drill-down navigation from available view hierarchy and breadcrumb/back navigation.
-- `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal markdown handoff).
+- `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal JSON handoff).
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
 

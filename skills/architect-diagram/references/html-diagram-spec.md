@@ -30,9 +30,9 @@ Produce a self-contained interactive architecture diagram grounded in:
    - comment composer supports multiline text and explicit submit/cancel actions
    - submitted comments are queued locally and visible in a lightweight queue list
 8. Global `Submit` action to finalize queued comments:
-   - opens a modal containing copy-ready markdown for the coding agent
-   - markdown must include each comment with associated target id (or `null` for empty-space clicks)
-   - include a one-click copy control for the markdown payload
+   - opens a modal containing copy-ready JSON for the coding agent
+   - JSON must include each comment with associated target id (or `null` for empty-space clicks)
+   - include a one-click copy control for the JSON payload
 
 ## Comment targeting rules
 

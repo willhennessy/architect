@@ -105,10 +105,10 @@ Edge clickability requirement:
 
 Submission/handoff requirement:
 
-- include a global `Submit` action that opens a modal with copy-ready markdown
-- markdown output must list all queued comments and associated IDs
+- include a global `Submit` action that opens a modal with copy-ready JSON
+- JSON output must list all queued comments and associated IDs
 - include a copy-to-clipboard affordance in the modal
-- include explicit instruction text: paste this markdown into your coding agent
+- include explicit instruction text: paste this JSON into your coding agent
 
 ### 5) Data sourcing constraints
 
@@ -139,4 +139,4 @@ Before finalizing the prompt section in `diagram-prompt.md`, verify:
 - sequence handling is specified as separate panel/tab
 - comment mode and `C` shortcut are explicitly required
 - edge hitbox padding requirement is explicitly required
-- submission modal includes copy-ready markdown instruction for coding-agent handoff
+- submission modal includes copy-ready JSON instruction for coding-agent handoff

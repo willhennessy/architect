@@ -279,7 +279,7 @@ Before pausing for user input, verify:
 - the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `diagram.html` exists and is self-contained (no external dependencies)
-- `diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with markdown handoff)
+- `diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with JSON handoff)
 - relationship hit targets are selectable and carry `data-relationship-id` for edge comments
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`

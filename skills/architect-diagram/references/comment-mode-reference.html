@@ -353,8 +353,8 @@
   </main>
 
   <dialog id="submitModal">
-    <h3 style="margin:0 0 6px;">Comment payload</h3>
-    <p style="margin:0; color:#91a8d4; font-size:13px;">Copy this and paste it into your coding agent.</p>
+    <h3 style="margin:0 0 6px;">Comment payload (JSON)</h3>
+    <p style="margin:0; color:#91a8d4; font-size:13px;">Copy this JSON and paste it into your coding agent.</p>
     <pre id="payload"></pre>
     <div class="modal-actions">
       <span class="copy-ok" id="copyOk">Copied</span>
@@ -458,28 +458,22 @@
       submitComments.disabled = comments.length === 0;
     }
 
-    function buildPayloadMarkdown(items) {
-      const lines = [];
-      lines.push('## Architecture Review Comments');
-      lines.push('');
-      lines.push(`System: \`${SYSTEM_NAME}\``);
-      lines.push(`View: \`${diagram.dataset.viewId || 'unknown'}\``);
-      lines.push('');
-      lines.push('### Queued Comments');
-
-      items.forEach((item, index) => {
-        lines.push(`${index + 1}. view_id: \`${item.view_id ?? 'null'}\``);
-        lines.push(`   element_id: \`${item.element_id ?? 'null'}\``);
-        lines.push(`   relationship_id: \`${item.relationship_id ?? 'null'}\``);
-        lines.push(`   comment: ${item.comment}`);
-        lines.push('');
-      });
-
-      lines.push('```json');
-      lines.push(JSON.stringify({ system_name: SYSTEM_NAME, comments: items }, null, 2));
-      lines.push('```');
-
-      return lines.join('\n');
+    function buildPayloadJson(items) {
+      return JSON.stringify(
+        {
+          system_name: SYSTEM_NAME,
+          comments: items.map((item, index) => ({
+            index: index + 1,
+            view_id: item.view_id ?? null,
+            element_id: item.element_id ?? null,
+            relationship_id: item.relationship_id ?? null,
+            target_label: item.target_label ?? null,
+            comment: item.comment
+          }))
+        },
+        null,
+        2
+      );
     }
 
     function openComposer(clientX, clientY, targetMeta) {
@@ -558,8 +552,8 @@
     });
 
     submitComments.addEventListener('click', () => {
-      const markdown = buildPayloadMarkdown(comments);
-      payload.textContent = markdown;
+      const json = buildPayloadJson(comments);
+      payload.textContent = json;
       submitModal.showModal();
     });
 
