@@ -116,6 +116,26 @@ fi
 
 RUN_NAME="$(basename "$RUN_DIR")"
 
+CLAUDE_LAUNCH_BIN=""
+CLAUDE_LAUNCH_ARGS=()
+if command -v claude >/dev/null 2>&1; then
+  CLAUDE_LAUNCH_BIN="claude"
+elif command -v claude-code >/dev/null 2>&1; then
+  CLAUDE_LAUNCH_BIN="claude-code"
+elif command -v npx >/dev/null 2>&1; then
+  CLAUDE_LAUNCH_BIN="npx"
+  CLAUDE_LAUNCH_ARGS=(-y @anthropic-ai/claude-code)
+else
+  echo "Run ready: $RUN_DIR" >&2
+  echo "ERROR: could not find 'claude', 'claude-code', or 'npx' in PATH." >&2
+  exit 127
+fi
+
+LAUNCH_CMD_DISPLAY="$CLAUDE_LAUNCH_BIN"
+if [[ ${#CLAUDE_LAUNCH_ARGS[@]} -gt 0 ]]; then
+  LAUNCH_CMD_DISPLAY+=" ${CLAUDE_LAUNCH_ARGS[*]}"
+fi
+
 cat > "$RUN_DIR/notes.md" <<EOF
 # Manual Eval Run Notes
 
@@ -128,23 +148,16 @@ cat > "$RUN_DIR/notes.md" <<EOF
 
 ## Claude launch
 
-This run auto-started Claude in this directory with:
+This run auto-starts Claude in this directory with:
 
-claude --name "$RUN_NAME" --permission-mode plan
+$LAUNCH_CMD_DISPLAY --name "$RUN_NAME" --permission-mode plan
 
 (Working directory: $RUN_DIR)
 EOF
-
-if ! command -v claude >/dev/null 2>&1; then
-  echo "Run ready: $RUN_DIR"
-  echo "Created: $RUN_DIR/notes.md"
-  echo "ERROR: 'claude' command not found in PATH." >&2
-  exit 127
-fi
 
 echo "Run ready: $RUN_DIR"
 echo "Created: $RUN_DIR/notes.md"
 echo "Launching Claude in plan mode..."
 
 cd "$RUN_DIR"
-exec claude --name "$RUN_NAME" --permission-mode plan
+exec "$CLAUDE_LAUNCH_BIN" "${CLAUDE_LAUNCH_ARGS[@]}" --name "$RUN_NAME" --permission-mode plan
