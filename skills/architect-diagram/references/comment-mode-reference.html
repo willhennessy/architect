@@ -150,6 +150,10 @@
       stroke-width: 14;
       fill: none;
       cursor: pointer;
+      pointer-events: none;
+    }
+
+    .comment-mode-on .edge-hitbox {
       pointer-events: stroke;
     }
 
@@ -365,7 +369,6 @@
 
   <script>
     const diagram = document.getElementById('diagram');
-    const workspace = document.getElementById('workspace');
     const commentToggle = document.getElementById('commentToggle');
     const submitComments = document.getElementById('submitComments');
     const queueList = document.getElementById('queueList');
