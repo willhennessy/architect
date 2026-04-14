@@ -4,6 +4,7 @@ set -euo pipefail
 # One-shot isolated manual eval setup.
 # Creates a per-run sandbox with:
 #   - copied skills snapshot
+#   - copied shared skill references (skills/references)
 #   - isolated HOME/.claude/skills
 #   - isolated repo checkout/copy
 
@@ -60,6 +61,11 @@ SKILLS_ROOT="$ARCHITECT_ROOT/skills"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 RUN_DIR="$RUN_ROOT/run-$timestamp"
 mkdir -p "$RUN_DIR"/{skills,repo,out,home/.claude/skills}
+
+# Copy shared references used by multiple skills (e.g., architecture-contract.md)
+if [[ -d "$SKILLS_ROOT/references" ]]; then
+  cp -R "$SKILLS_ROOT/references" "$RUN_DIR/skills/references"
+fi
 
 IFS=',' read -r -a SKILLS <<< "$SKILLS_CSV"
 for s in "${SKILLS[@]}"; do
