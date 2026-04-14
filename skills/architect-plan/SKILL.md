@@ -1,6 +1,6 @@
 ---
 name: architect-plan
-description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts using the shared schema. Use when the user is designing a new system or major feature and wants architecture steering - especially use in Plan Mode.
+description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts and automatically render an HTML diagram via architect-diagram. Use when the user is designing a new system or major feature and wants architecture steering - especially use in Plan Mode.
 ---
 
 Use this skill for planning-mode architecture design.
@@ -35,7 +35,7 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 
 ## Hard Rules
 
-- Keep implementation out of scope. This skill stops at architecture artifacts.
+- Keep implementation out of scope. This skill stops at architecture artifacts + rendered diagram outputs.
 - Do not require a repository scan for normal plan-mode use.
 - Build one canonical model first, then derive views.
 - Use explicit confidence levels: `confirmed`, `strong_inference`, `weak_inference`.
@@ -49,6 +49,8 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 - Preserve stable IDs across revisions for unchanged architecture concepts.
 - Record unknowns; do not fabricate precision.
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
+- In Plan Mode, do **not** present ASCII architecture diagrams as the primary visualization.
+- After every draft/revision of architecture artifacts, automatically invoke `architect-diagram` so HTML diagram rendering is a fluid part of planning.
 
 ## Workflow
 
@@ -107,20 +109,32 @@ Write `summary.md` using the fixed shared structure.
 
 In update mode, write `diff.yaml`.
 
-### 7) Engineer feedback and revision loop
+### 7) Render diagram outputs (required)
+
+Immediately after writing/updating architecture artifacts, invoke `architect-diagram` using the same output root.
+
+Expected outputs in output root:
+
+- `diagram.html` (primary interactive diagram)
+- `diagram-prompt.md` (secondary upload bundle)
+
+Present the rendered diagram as part of the same planning response. The diagram step must feel automatic, not user-triggered.
+
+### 8) Engineer feedback and revision loop
 
 After producing a draft:
 
-- present the architecture artifacts, rationale, and unknowns to the engineer
+- present the architecture artifacts, rendered diagram, rationale, and unknowns to the engineer
 - ask for targeted feedback on boundaries, ownership, risks, and tradeoffs
 - apply feedback and regenerate artifacts
+- rerun Step 7 so diagram output stays in sync with latest architecture
 - keep `architecture_state: proposed` during iteration
 - preserve stable IDs for unchanged elements and relationships
-- run Step 8 validation after each revision
+- run Step 9 validation after each revision
 
 Repeat until the engineer explicitly approves.
 
-### 8) Validate
+### 9) Validate
 
 Before presenting for approval or finishing any iteration, verify:
 
@@ -129,11 +143,12 @@ Before presenting for approval or finishing any iteration, verify:
 - ownership + system-of-record fields are explicit for major entities
 - no cross-parent component mixing in component views
 - no duplicated system-of-record assignments without explicit justification
+- `diagram.html` and `diagram-prompt.md` exist and correspond to the current artifact set
 
 ## Handoffs
 
 - If the user needs architecture from an existing repo, hand off to `architect-discover`.
-- If the user needs rendered diagrams from architecture artifacts, hand off to `architect-diagram` (primary HTML + secondary Claude Imagine prompt bundle).
+- Use `architect-diagram` directly inside this skill for normal planning flow; only treat diagram generation as a separate handoff when the user explicitly requests diagram-only regeneration from existing artifacts.
 
 ## Completion Standard
 
@@ -144,3 +159,4 @@ Complete only when:
 3. planning evidence is explicit in `evidence` and confidence fields
 4. `architecture_state` is present and accurately reflects explicit user approval state
 5. engineer feedback has been incorporated through at least one explicit feedback/revision cycle when feedback is provided
+6. `diagram.html` and `diagram-prompt.md` have been generated for the current approved/proposed revision
