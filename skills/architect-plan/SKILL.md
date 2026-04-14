@@ -1,9 +1,9 @@
 ---
 name: architect-plan
-description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts using the shared schema. Use when the user is designing a new system or major feature and wants architecture steering without repo discovery.
+description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts using the shared schema. Use when the user is designing a new system or major feature and wants architecture steering - especially use in Plan Mode.
 ---
 
-Use this skill for planning-mode architecture work. It is for **pre-implementation** design, not codebase discovery.
+Use this skill for planning-mode architecture design.
 
 This skill must emit the same artifact schema as `architect-discover`.
 

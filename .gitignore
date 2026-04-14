@@ -1,4 +1,3 @@
-learning/
 .DS_STORE
 .agents/*
 !.agents/skills/
@@ -7,4 +6,4 @@ learning/
 !.claude/skills/
 !.claude/skills/**
 .vscode/
-ideas.md
+private/
