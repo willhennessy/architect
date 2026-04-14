@@ -44,3 +44,9 @@ Produce a self-contained interactive architecture diagram grounded in:
 - Engineering-first, legible over decorative.
 - Consistent color semantics by element kind.
 - Clear visual distinction between drillable and non-drillable nodes.
+
+## Robustness constraints
+
+- Generated inline JavaScript must be syntactically valid.
+- Avoid malformed nested template expressions (for example: `${x-${y}}`).
+- After generation, run `scripts/validate-diagram-html.sh <output-root>/diagram.html` and fix failures before completion.

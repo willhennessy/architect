@@ -98,6 +98,13 @@ The prompt must enforce:
 - sequence views (if present) exposed in separate tab/panel, not mixed into drill-down hierarchy
 - fully self-contained HTML (inline CSS/JS, no external dependencies)
 
+### 6) Robustness constraints
+
+The prompt must enforce:
+- syntactically valid JavaScript in inline `<script>` blocks
+- no malformed nested template expressions (e.g., `${x-${y}}`)
+- include a final instruction to run `scripts/validate-diagram-html.sh <output-root>/diagram.html` and fix any failures
+
 ## Prompt Assembly Checklist
 
 Before finalizing the prompt section in `diagram-prompt.md`, verify:
@@ -108,3 +115,5 @@ Before finalizing the prompt section in `diagram-prompt.md`, verify:
 - wording explicitly forbids invention
 - breadcrumb + back behavior is explicitly required
 - sequence handling is specified as separate panel/tab
+- prompt includes explicit syntax/robustness constraints for inline JavaScript
+- prompt includes instruction to run `scripts/validate-diagram-html.sh` before completion

@@ -1,7 +1,7 @@
 interface:
   display_name: "Architecture Diagram"
   short_description: "Generate primary interactive HTML diagram plus secondary Claude Imagine prompt bundle"
-  default_prompt: "Use $architect-diagram to generate diagram.html (primary) and diagram-prompt.md (secondary) from existing architecture artifacts."
+  default_prompt: "Use $architect-diagram to generate diagram.html (primary) and diagram-prompt.md (secondary) from existing architecture artifacts, and run validate-diagram-html before declaring completion."
 
 policy:
   allow_implicit_invocation: true

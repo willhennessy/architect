@@ -49,15 +49,19 @@ Required:
    - Read [references/html-diagram-spec.md](references/html-diagram-spec.md).
    - Generate `<output-root>/diagram.html` from architecture artifacts.
 
-5. **Render secondary Claude Imagine prompt bundle**
+5. **Run deterministic diagram validation (required)**
+   - Run `scripts/validate-diagram-html.sh <output-root>/diagram.html`.
+   - If validation fails, fix `diagram.html` and rerun until it passes.
+
+6. **Render secondary Claude Imagine prompt bundle**
    - Read [references/interactive-diagram-prompt.md](references/interactive-diagram-prompt.md).
    - Generate `<output-root>/diagram-prompt.md` per `diagram-output-contract.md`.
 
-6. **Run contract checks only when needed**
+7. **Run contract checks only when needed**
    - If artifact shape is ambiguous or inconsistent, read [../references/architecture-contract.md](../references/architecture-contract.md) to resolve schema expectations.
    - If unresolved issues remain, record them explicitly instead of guessing.
 
-7. **Run final validation checklist**
+8. **Run final validation checklist**
    - Execute the checklist in `diagram-output-contract.md` before completing.
 
 ## Completion Standard

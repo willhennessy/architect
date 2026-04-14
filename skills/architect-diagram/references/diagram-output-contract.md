@@ -20,6 +20,14 @@ Where `<output-root>` is the parent folder that contains `architecture/`.
   - relationship metadata when rendering edges
 - Sequence views (if present) must be separated from core drill-down hierarchy.
 
+### Required deterministic validation
+
+Before declaring completion, run:
+
+- `scripts/validate-diagram-html.sh <output-root>/diagram.html`
+
+If it fails, fix and rerun until it passes.
+
 ## Secondary output requirements (`diagram-prompt.md`)
 
 `diagram-prompt.md` must start with:
@@ -57,6 +65,9 @@ Before finishing, verify:
 - `diagram.html` exists in the requested output root.
 - `diagram.html` is self-contained (no external dependencies).
 - `diagram.html` drill-down hierarchy only references real view files.
+- `scripts/validate-diagram-html.sh <output-root>/diagram.html` passes.
+- inline JavaScript parses cleanly (`node --check` via validator when available).
+- no malformed template expressions like `${x-${y}}` remain in HTML/JS output.
 - `diagram-prompt.md` exists in the requested output root.
 - The required `diagram-prompt.md` heading is present verbatim.
 - The prompt references the actual system name from artifacts.
