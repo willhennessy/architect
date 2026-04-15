@@ -627,7 +627,8 @@ function applyDrillabilityAffordances(svg) {
     const by = Number.isFinite(box.y) ? box.y : 0;
     const bw = Number.isFinite(box.width) ? box.width : 0;
 
-    const badge = buildCornerBadge(bx + bw - 10, by + 10);
+    const badgeInset = 14;
+    const badge = buildCornerBadge(bx + bw - badgeInset, by + badgeInset);
     badge.setAttribute('data-drill-badge-for', elementId);
     svg.appendChild(badge);
   });
@@ -882,7 +883,8 @@ function drawDiagramView(view) {
       rect.setAttribute('stroke-width', String(Math.max(1.8, parseFloat(rect.getAttribute('stroke-width') || '1.2'))));
       g.setAttribute('data-drillable', 'true');
 
-      const badge = buildCornerBadge(box.x + box.w - 10, box.y + 10);
+      const badgeInset = 14;
+      const badge = buildCornerBadge(box.x + box.w - badgeInset, box.y + badgeInset);
       badge.setAttribute('data-drill-badge-for', node.id);
       g.appendChild(badge);
     }
