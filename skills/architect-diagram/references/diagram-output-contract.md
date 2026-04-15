@@ -44,6 +44,15 @@ Fallback strategy:
 
 - if fragments are absent, template fallback layout may be used (`fast`/`rich`)
 
+Demo-quality strategy (default):
+
+- default invocation should behave as demo-quality mode.
+- `--demo-mode` explicitly forces rich selected views and requires SVG fragments for selected non-sequence views (no fallback for those views).
+
+Quick/testing strategy (opt-in):
+
+- `--quick-mode` (or explicit `--mode`) allows fallback rendering.
+
 ## Comment Mode requirements (`diagram.html`)
 
 `diagram.html` must include Comment Mode with all of the following:
@@ -138,6 +147,7 @@ Before finishing, verify:
 - comment export is JSON and includes required fields (`view_id`, `element_id`, `relationship_id`, `comment`).
 - template-injection render path was used (`render-diagram-html.py`).
 - if `diagram-svg/` fragments are present, they are used in the injected output.
+- if demo mode was requested, `render-diagram-html.py --demo-mode` was used and selected non-sequence views have SVG fragments (no fallback).
 - `scripts/validate-diagram-html.sh <output-root>/diagram.html` passes.
 - inline JavaScript parses cleanly (`node --check` via validator when available).
 - no malformed template expressions like `${x-${y}}` remain in HTML/JS output.

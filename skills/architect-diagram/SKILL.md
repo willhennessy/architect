@@ -42,6 +42,8 @@ Optional debug output:
 - Relationship arrows should avoid node-interior intersections and keep labels close/parallel to edge direction.
 - Do not show confidence labels directly on diagram SVG nodes/edges; confidence belongs in the details sidebar only.
 - Details sidebar must be collapsed by default, auto-expand on node click, and provide an in-sidebar manual collapse control.
+- By default, use demo-quality rendering (strict SVG-fragment injection, no fallback for selected non-sequence views).
+- Use quick/testing mode only when explicitly requested (`--quick-mode` or explicit fallback `--mode`).
 - By default, do **not** generate `diagram-prompt.md` in this skill.
 - If user asks for Claude Imagine upload bundle generation, use `architect-diagram-prompt`.
 
@@ -56,12 +58,17 @@ Fallback path (when SVG fragments are missing):
 
 - deterministic built-in layout in the template app
 
-## Rendering modes (fallback complexity control)
+## Rendering modes
 
-`render-diagram-html.py` mode impacts fallback layout:
+`render-diagram-html.py` supports two operating styles:
 
-- **fast (default):** lane-based fallback layout, lower complexity
-- **rich:** layered graph fallback layout with denser labeling
+- **demo quality (default):** no flags needed; equivalent to `--demo-mode`
+  - forces rich selected views
+  - requires SVG fragments for selected non-sequence views
+  - no fallback rendering for selected non-sequence views
+- **quick/testing mode:** `--quick-mode` (or explicitly `--mode fast|rich`)
+  - fallback layout is allowed
+  - useful for rapid local iteration when strict demo quality is not required
 
 ## Workflow
 
@@ -79,11 +86,12 @@ Fallback path (when SVG fragments are missing):
 4. **Render primary HTML diagram (template injection)**
    - Read [references/html-diagram-spec.md](references/html-diagram-spec.md).
    - Read [references/comment-handoff-format.md](references/comment-handoff-format.md).
-   - Run:
-     - `python3 scripts/render-diagram-html.py --output-root <output-root> --mode fast`
-   - For strict demo quality, require fragments:
-     - `python3 scripts/render-diagram-html.py --output-root <output-root> --mode fast --require-svg-fragments`
-   - Use `--mode rich` when richer fallback layout is needed.
+   - Run (default demo quality):
+     - `python3 scripts/render-diagram-html.py --output-root <output-root>`
+   - Equivalent explicit demo invocation:
+     - `python3 scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
+   - For rapid local testing with fallback allowed:
+     - `python3 scripts/render-diagram-html.py --output-root <output-root> --quick-mode --mode fast`
 
 5. **Run deterministic diagram validation (required)**
    - Run `scripts/validate-diagram-html.sh <output-root>/diagram.html`.

@@ -47,10 +47,16 @@ If critical constraints are missing, record unknowns explicitly instead of inven
   - do not auto-transition to `implementing`; the end user decides when implementation starts
 - Run an explicit engineer feedback/revision loop until approval.
 - Preserve stable IDs across revisions for unchanged architecture concepts.
+- Do not collapse distinct responsibilities into one generic container when separation is a key decision (for example: keep webhook, notification, and audit processing distinct unless there is explicit rationale to merge).
+- `summary.md` must include a **Key Decisions** section, and each key decision should include explicit coverage hints using `covers: <id1,id2,...>` referencing element/relationship/view IDs when possible.
+- Run decision coverage and semantic drift checks before finalizing revisions:
+  - `scripts/decision-coverage-check.py`
+  - `scripts/semantic-diff-gate.py` (when a baseline model exists)
 - Record unknowns; do not fabricate precision.
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
 - In Plan Mode, do **not** present ASCII architecture diagrams as the primary visualization.
 - After every draft/revision of architecture artifacts, automatically invoke `architect-diagram` so HTML diagram rendering is a fluid part of planning.
+- Unless quick/testing mode is explicitly requested, run `architect-diagram` in default demo-quality behavior (strict SVG fragments, no fallback for selected non-sequence views).
 
 ## Workflow
 
@@ -107,6 +113,10 @@ Emit only views that improve understanding:
 
 Write `summary.md` using the fixed shared structure.
 
+In `summary.md`, ensure **Key Decisions** uses explicit coverage hints where possible, for example:
+
+- `- [DEC-001] Separate webhook service from notification service | covers: container-webhook-service,container-notification-service,view-container`
+
 In update mode, write `diff.yaml`.
 
 ### 7) Render diagram outputs (required)
@@ -146,6 +156,10 @@ Before presenting for approval or finishing any iteration, verify:
 - ownership + system-of-record fields are explicit for major entities
 - no cross-parent component mixing in component views
 - no duplicated system-of-record assignments without explicit justification
+- decision coverage check passes (strict mode):
+  - `python3 scripts/decision-coverage-check.py --summary <output-root>/architecture/summary.md --model <output-root>/architecture/model.yaml --views-dir <output-root>/architecture/views --strict`
+- semantic drift gate passes when a baseline model exists:
+  - `python3 scripts/semantic-diff-gate.py --baseline <previous>/architecture/model.yaml --current <output-root>/architecture/model.yaml`
 - `diagram.html` exists and corresponds to the current artifact set
 - if requested, `diagram-prompt.md` exists and corresponds to the current artifact set
 
@@ -167,3 +181,5 @@ Complete only when:
 5. engineer feedback has been incorporated through at least one explicit feedback/revision cycle when feedback is provided
 6. `diagram.html` has been generated for the current approved/proposed revision
 7. if requested, `diagram-prompt.md` has been generated for the current approved/proposed revision
+8. decision coverage check passes in strict mode for current artifacts
+9. semantic drift gate passes for revision runs when baseline model is available

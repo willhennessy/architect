@@ -273,6 +273,9 @@ Use this fixed structure:
 ## Critical Flows
 - <flow>: <why it matters>
 
+## Key Decisions
+- [DEC-001] <decision statement> | covers: <comma-separated element/relationship/view ids>
+
 ## Data Ownership Notes
 - <entity>: <owner or system of record>
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
@@ -215,8 +216,7 @@ def relationships_for_view(
 def build_payload(
     manifest: Dict[str, Any],
     model: Dict[str, Any],
-    views: List[Dict[str, Any]],
-    mode: str,
+    chosen_views: List[Dict[str, Any]],
     svg_fragments: Dict[str, str],
 ) -> Dict[str, Any]:
     all_elements = [normalize_element(e) for e in (model.get("elements") or []) if isinstance(e, dict)]
@@ -225,7 +225,6 @@ def build_payload(
     elements_by_id = {e["id"]: e for e in all_elements if e.get("id")}
     rels_by_id = {r["id"]: r for r in all_relationships if r.get("id")}
 
-    chosen_views = choose_views(views, mode)
     if not chosen_views:
         raise RenderError("No usable views found to render.")
 
@@ -370,10 +369,33 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Render diagram.html frame from architecture artifacts")
     ap.add_argument("--output-root", required=True, help="Folder containing architecture/")
     ap.add_argument("--mode", choices=["fast", "rich"], default="fast", help="Fallback rendering mode")
+    ap.add_argument("--demo-mode", action="store_true", help="Force demo quality mode: rich selected views + required SVG fragments (no fallback)")
+    ap.add_argument("--quick-mode", action="store_true", help="Enable quick/testing mode with fallback allowed")
     ap.add_argument("--svg-dir", default="diagram-svg", help="Folder under output-root containing per-view SVG fragments")
-    ap.add_argument("--require-svg-fragments", action="store_true", help="Fail if any non-sequence view is missing an SVG fragment")
+    ap.add_argument("--require-svg-fragments", action="store_true", help="Fail if any selected non-sequence view is missing an SVG fragment")
     ap.add_argument("--write-data-json", action="store_true", help="Also write diagram-data.json for debugging")
     args = ap.parse_args()
+
+    explicit_mode = "--mode" in sys.argv
+
+    if args.demo_mode and args.quick_mode:
+        raise RenderError("Cannot combine --demo-mode and --quick-mode")
+
+    # Default behavior is demo quality unless user explicitly opts into quick mode
+    # or explicitly selects fallback mode via --mode.
+    use_demo_mode = False
+    if args.demo_mode:
+        use_demo_mode = True
+    elif args.quick_mode:
+        use_demo_mode = False
+    elif explicit_mode:
+        use_demo_mode = False
+    else:
+        use_demo_mode = True
+
+    if use_demo_mode:
+        args.mode = "rich"
+        args.require_svg_fragments = True
 
     output_root = Path(args.output_root).expanduser().resolve()
     arch_dir = output_root / "architecture"
@@ -381,14 +403,15 @@ def main() -> int:
     manifest = read_yaml(arch_dir / "manifest.yaml")
     model = read_yaml(arch_dir / "model.yaml")
     views = load_views(arch_dir / "views")
-    svg_fragments = load_svg_fragments(output_root, views, args.svg_dir)
+    chosen_views = choose_views(views, args.mode)
+    svg_fragments = load_svg_fragments(output_root, chosen_views, args.svg_dir)
 
     if args.require_svg_fragments:
-        missing = [v.get("id") for v in views if v.get("type") != "sequence" and not svg_fragments.get(v.get("id", ""))]
+        missing = [v.get("id") for v in chosen_views if v.get("type") != "sequence" and not svg_fragments.get(v.get("id", ""))]
         if missing:
-            raise RenderError(f"Missing SVG fragments for views: {', '.join([m for m in missing if m])}")
+            raise RenderError(f"Missing SVG fragments for selected views: {', '.join([m for m in missing if m])}")
 
-    payload = build_payload(manifest, model, views, args.mode, svg_fragments)
+    payload = build_payload(manifest, model, chosen_views, svg_fragments)
 
     template_path = Path(__file__).resolve().parents[1] / "templates" / "diagram-app.html"
     if not template_path.exists():

@@ -145,7 +145,7 @@ Set the output path to:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`
 
-Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes the primary output (prefer hybrid template + LLM SVG fragments; fallback to deterministic layout if fragments are missing):
+Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes the primary output (default demo-quality mode: strict SVG fragments, no fallback for selected non-sequence views):
 
 - `evals/architect-discover/roundX_<repo>/diagram.html` (primary, includes Comment Mode)
 

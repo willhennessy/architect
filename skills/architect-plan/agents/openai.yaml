@@ -1,7 +1,7 @@
 interface:
   display_name: "Architecture Planning"
   short_description: "Generate planning-mode architecture artifacts before implementation"
-  default_prompt: "Use $architect-plan to turn planning intent and constraints into canonical architecture artifacts using the shared output schema, then automatically run architect-diagram so the planning output includes an interactive HTML diagram (not ASCII)."
+  default_prompt: "Use $architect-plan to turn planning intent and constraints into canonical architecture artifacts using the shared output schema, then automatically run architect-diagram so the planning output includes an interactive HTML diagram (not ASCII). Use architect-diagram default demo-quality mode (no fallback for selected non-sequence views) unless quick/testing mode is explicitly requested. Run decision coverage + semantic drift checks before finalizing."
 
 policy:
   allow_implicit_invocation: true
