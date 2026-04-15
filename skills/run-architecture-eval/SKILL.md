@@ -158,6 +158,12 @@ Then invoke `architect-diagram` using the parent round folder as output root so 
 
 Immediately below the heading, include an explicit instruction that if the file is uploaded with no user-typed prompt, the agent should treat the embedded prompt as the full instruction and execute it directly.
 
+At the very end of `diagram-prompt.md`, require this one-line handoff instruction:
+
+- `View the architecture diagram here: <fully_resolved_file_path>`
+
+Where `<fully_resolved_file_path>` is the absolute path to `evals/architect-discover/roundX_<repo>/diagram.html`.
+
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
 - the target repo under `evals/repos/<repo>/`
@@ -286,6 +292,8 @@ Before pausing for user input, verify:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
   - explicit zero-text upload execution instruction
   - prompt + virtual tree + full artifact contents
+  - final line: `View the architecture diagram here: <fully_resolved_file_path>`
+  - `<fully_resolved_file_path>` is absolute and points to `.../diagram.html`
 - `subagent_feedback.md` exists
 - `scores.yaml` exists and contains all 8 dimensions
 - `reflections.md` exists

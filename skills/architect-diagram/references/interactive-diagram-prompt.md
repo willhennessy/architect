@@ -137,6 +137,14 @@ The prompt must enforce:
 - no malformed nested template expressions (e.g., `${x-${y}}`)
 - include a final instruction to run `scripts/validate-diagram-html.sh <output-root>/diagram.html` and fix any failures
 
+### 8) Terminal/browser handoff instruction (required)
+
+At the very end of `diagram-prompt.md`, include this exact one-line instruction pattern:
+
+- `View the architecture diagram here: <fully_resolved_file_path>`
+
+Where `<fully_resolved_file_path>` is the absolute path to `<output-root>/diagram.html`.
+
 ## Prompt Assembly Checklist
 
 Before finalizing the prompt section in `diagram-prompt.md`, verify:
@@ -152,3 +160,5 @@ Before finalizing the prompt section in `diagram-prompt.md`, verify:
 - submission modal includes copy-ready JSON instruction for coding-agent handoff
 - prompt includes explicit syntax/robustness constraints for inline JavaScript
 - prompt includes instruction to run `scripts/validate-diagram-html.sh` before completion
+- `diagram-prompt.md` ends with `View the architecture diagram here: <fully_resolved_file_path>`
+- `<fully_resolved_file_path>` is absolute and points to `<output-root>/diagram.html`

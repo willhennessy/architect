@@ -36,6 +36,8 @@ Optional debug output:
 - `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal JSON handoff).
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
+- `diagram-prompt.md` must end with a one-line pointer to the rendered HTML path:
+  - `View the architecture diagram here: <fully_resolved_file_path>`
 - Prefer deterministic rendering via script over ad-hoc hand-authored HTML/JS.
 
 ## Rendering modes (complexity control)

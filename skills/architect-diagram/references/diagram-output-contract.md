@@ -69,6 +69,9 @@ Required sections in order:
    - `architecture/summary.md`
    - `architecture/views/*.yaml`
    - `architecture/diff.yaml` when present
+6. Final one-line terminal/browser instruction for the rendered HTML:
+   - `View the architecture diagram here: <fully_resolved_file_path>`
+   - `<fully_resolved_file_path>` must resolve to `<output-root>/diagram.html` as an absolute path.
 
 ## Data constraints
 
@@ -124,3 +127,5 @@ Before finishing, verify:
 - The prompt references the actual system name from artifacts.
 - The mapping table references real files only.
 - Every embedded file path exists in the virtual tree.
+- `diagram-prompt.md` ends with: `View the architecture diagram here: <fully_resolved_file_path>`.
+- the final `<fully_resolved_file_path>` is absolute and points to `<output-root>/diagram.html`.
