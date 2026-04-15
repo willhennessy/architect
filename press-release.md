@@ -5,6 +5,10 @@ Leave lines of code to the agent. Architect gives you control over higher level 
 
 Coding agents are writing code faster than ever. The bottleneck remains human review - but you don’t need to review every line. Architect is a new steering interface for coding agents that lets you operate with leverage at a higher layer of abstraction. Review architecture - not lines of code.
 
+Steer coding agents with higher leverage.
+Steer agents with higher level controls.
+Lock the architecture and let agents run.
+
 ## Press release
 
 1. 90-second demo script (voiceover)
