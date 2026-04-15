@@ -434,7 +434,7 @@ function drawDiagramView(view) {
   host.innerHTML = '';
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  const layout = layoutNodes(view.nodes || [], view.type || 'generic');
+  const layout = layoutNodes(view.nodes || [], view.edges || [], view.type || 'generic');
   const width = layout.width;
   const height = layout.height;
   svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
@@ -442,6 +442,35 @@ function drawDiagramView(view) {
   svg.setAttribute('height', String(height));
   svg.style.display = 'block';
   svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+
+  (layout.lanes || []).forEach(function (lane) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(lane.x));
+    rect.setAttribute('y', String(lane.y));
+    rect.setAttribute('width', String(lane.w));
+    rect.setAttribute('height', String(lane.h));
+    rect.setAttribute('rx', '12');
+    rect.setAttribute('fill', lane.fill || 'rgba(20,35,65,0.45)');
+    rect.setAttribute('stroke', lane.stroke || '#2c4a7a');
+    rect.setAttribute('stroke-width', '1');
+    rect.setAttribute('stroke-dasharray', lane.dash || '');
+    g.appendChild(rect);
+
+    if (lane.label) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(lane.x + 10));
+      text.setAttribute('y', String(lane.y + 14));
+      text.setAttribute('font-size', '10');
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('fill', lane.labelColor || '#91acd8');
+      text.textContent = lane.label;
+      g.appendChild(text);
+    }
+
+    svg.appendChild(g);
+  });
 
   // edges
   (view.edges || []).forEach(function (edge) {
@@ -648,35 +677,241 @@ function drawSequenceView(view) {
   host.appendChild(box);
 }
 
-function layoutNodes(nodes, viewType) {
-  const sorted = nodes.slice().sort(function (a, b) {
-    return (a.name || a.id).localeCompare(b.name || b.id);
-  });
+function nodeLane(node) {
+  const kind = String(node.kind || '').toLowerCase();
+  if (kind === 'person' || kind === 'external_system' || kind === 'external_actor' || kind === 'actor') return 'external';
+  if (kind === 'database' || kind === 'datastore' || kind === 'queue' || kind === 'cache') return 'storage';
+  if (kind === 'software_system' || kind === 'system' || kind === 'container' || kind === 'component') return 'internal';
+  return 'internal';
+}
 
+function sortByName(list) {
+  return list.slice().sort(function (a, b) {
+    return (a.name || a.id || '').localeCompare(b.name || b.id || '');
+  });
+}
+
+function layoutNodes(nodes, edges, viewType) {
+  const sorted = sortByName(nodes || []);
   const byId = new Map();
-  const n = sorted.length;
-  const cols = Math.max(2, Math.ceil(Math.sqrt(n)));
-  const gapX = MODE === 'fast' ? 28 : 36;
-  const gapY = MODE === 'fast' ? 34 : 44;
-  const cardW = MODE === 'fast' ? 190 : 220;
-  const cardH = MODE === 'fast' ? 70 : 82;
+  const lanes = [];
 
-  const width = Math.max(920, 30 + cols * (cardW + gapX));
-  const rows = Math.max(1, Math.ceil(n / cols));
-  const height = Math.max(540, 30 + rows * (cardH + gapY));
+  const cardW = MODE === 'fast' ? 186 : 214;
+  const cardH = MODE === 'fast' ? 68 : 80;
+  const pad = 28;
+  const gapX = MODE === 'fast' ? 24 : 34;
+  const gapY = MODE === 'fast' ? 26 : 36;
 
-  sorted.forEach(function (node, idx) {
-    const col = idx % cols;
-    const row = Math.floor(idx / cols);
-    byId.set(node.id, {
-      x: 30 + col * (cardW + gapX),
-      y: 30 + row * (cardH + gapY),
-      w: cardW,
-      h: cardH,
-    });
+  const external = [];
+  const storage = [];
+  const internal = [];
+
+  sorted.forEach(function (n) {
+    const lane = nodeLane(n);
+    if (lane === 'external') external.push(n);
+    else if (lane === 'storage') storage.push(n);
+    else internal.push(n);
   });
 
-  return { byId: byId, width: width, height: height };
+  // system-context gets a tailored shape: system center, actors/systems on sides.
+  if (viewType === 'system_context') {
+    const systems = internal.filter(function (n) {
+      const k = String(n.kind || '').toLowerCase();
+      return k === 'software_system' || k === 'system';
+    });
+    const others = internal.filter(function (n) {
+      const k = String(n.kind || '').toLowerCase();
+      return !(k === 'software_system' || k === 'system');
+    });
+
+    const people = external.filter(function (n) { return String(n.kind || '').toLowerCase() === 'person'; });
+    const extSystems = external.filter(function (n) { return String(n.kind || '').toLowerCase() !== 'person'; });
+
+    const centerNodes = systems.length ? systems : others;
+    const width = Math.max(980, 340 + (Math.max(people.length, extSystems.length, 1) * (cardH + 20)));
+    const height = Math.max(560, 210 + (Math.max(people.length, extSystems.length, centerNodes.length, 1) * (cardH + 18)));
+
+    const centerX = Math.floor(width / 2 - cardW / 2);
+    const centerStartY = Math.floor(height / 2 - ((centerNodes.length * (cardH + 18) - 18) / 2));
+    centerNodes.forEach(function (n, i) {
+      byId.set(n.id, { x: centerX, y: centerStartY + i * (cardH + 18), w: cardW + 26, h: cardH + 6 });
+    });
+
+    const leftStartY = Math.floor(height / 2 - ((people.length * (cardH + 18) - 18) / 2));
+    people.forEach(function (n, i) {
+      byId.set(n.id, { x: pad, y: leftStartY + i * (cardH + 18), w: cardW, h: cardH });
+    });
+
+    const rightStartY = Math.floor(height / 2 - ((extSystems.length * (cardH + 18) - 18) / 2));
+    extSystems.forEach(function (n, i) {
+      byId.set(n.id, { x: width - pad - cardW, y: rightStartY + i * (cardH + 18), w: cardW, h: cardH });
+    });
+
+    lanes.push(
+      { x: 14, y: 14, w: 250, h: height - 28, label: 'External actors', fill: 'rgba(20,52,105,0.22)', stroke: '#2c4a7a' },
+      { x: centerX - 20, y: 14, w: cardW + 66, h: height - 28, label: 'System', fill: 'rgba(45,20,89,0.20)', stroke: '#5f4aa0' },
+      { x: width - 264, y: 14, w: 250, h: height - 28, label: 'External systems', fill: 'rgba(120,45,8,0.16)', stroke: '#8a5f23' }
+    );
+
+    return { byId: byId, width: width, height: height, lanes: lanes };
+  }
+
+  if (MODE === 'fast') {
+    const width = Math.max(980, pad * 2 + Math.max(external.length, internal.length, storage.length, 2) * (cardW + gapX));
+
+    const placeRow = function (row, y, centered) {
+      if (!row.length) return;
+      const contentW = row.length * (cardW + gapX) - gapX;
+      const startX = centered ? Math.max(pad, Math.floor((width - contentW) / 2)) : pad;
+      row.forEach(function (n, i) {
+        byId.set(n.id, { x: startX + i * (cardW + gapX), y: y, w: cardW, h: cardH });
+      });
+    };
+
+    const extY = pad + 22;
+    placeRow(external, extY, true);
+
+    const internalRows = Math.max(1, Math.ceil(internal.length / Math.max(2, Math.ceil(Math.sqrt(internal.length || 1)))));
+    const cols = Math.max(2, Math.ceil((internal.length || 1) / internalRows));
+    const intStartY = extY + cardH + 62;
+    internal.forEach(function (n, idx) {
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      const rowWidth = Math.min(cols, internal.length - row * cols) * (cardW + gapX) - gapX;
+      const startX = Math.max(pad, Math.floor((width - rowWidth) / 2));
+      byId.set(n.id, { x: startX + col * (cardW + gapX), y: intStartY + row * (cardH + gapY), w: cardW, h: cardH });
+    });
+
+    const intHeight = Math.max(cardH + 24, internalRows * (cardH + gapY) - gapY + 24);
+    const storageY = intStartY + intHeight + 36;
+    placeRow(storage, storageY, true);
+
+    const height = Math.max(560, storageY + cardH + 44);
+
+    lanes.push(
+      { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: 'rgba(20,52,105,0.20)', stroke: '#2d4f83' },
+      { x: 14, y: intStartY - 16, w: width - 28, h: intHeight + 30, label: 'Application', fill: 'rgba(22,87,57,0.18)', stroke: '#2b6a4a' },
+      { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: 'rgba(62,74,102,0.20)', stroke: '#4f6186' }
+    );
+
+    return { byId: byId, width: width, height: height, lanes: lanes };
+  }
+
+  // rich mode: layered graph for internal nodes + explicit lanes.
+  const internalIds = new Set(internal.map(function (n) { return n.id; }));
+  const graphEdges = (edges || []).filter(function (e) {
+    return internalIds.has(e.source_id) && internalIds.has(e.target_id);
+  });
+
+  const rank = {};
+  internal.forEach(function (n) { rank[n.id] = 0; });
+
+  for (let i = 0; i < internal.length; i += 1) {
+    let changed = false;
+    graphEdges.forEach(function (e) {
+      const next = (rank[e.source_id] || 0) + 1;
+      if (next > (rank[e.target_id] || 0)) {
+        rank[e.target_id] = next;
+        changed = true;
+      }
+    });
+    if (!changed) break;
+  }
+
+  const ranks = new Map();
+  internal.forEach(function (n) {
+    const r = rank[n.id] || 0;
+    if (!ranks.has(r)) ranks.set(r, []);
+    ranks.get(r).push(n);
+  });
+
+  const maxRank = Math.max(0, ...Array.from(ranks.keys()));
+
+  const predecessors = {};
+  const successors = {};
+  internal.forEach(function (n) { predecessors[n.id] = []; successors[n.id] = []; });
+  graphEdges.forEach(function (e) {
+    predecessors[e.target_id].push(e.source_id);
+    successors[e.source_id].push(e.target_id);
+  });
+
+  const orderPos = {};
+  const setOrderPos = function () {
+    ranks.forEach(function (arr) {
+      arr.forEach(function (n, idx) { orderPos[n.id] = idx; });
+    });
+  };
+
+  setOrderPos();
+  for (let sweep = 0; sweep < 4; sweep += 1) {
+    for (let r = 1; r <= maxRank; r += 1) {
+      const arr = ranks.get(r) || [];
+      arr.sort(function (a, b) {
+        const pa = predecessors[a.id] || [];
+        const pb = predecessors[b.id] || [];
+        const ba = pa.length ? pa.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / pa.length : orderPos[a.id] || 0;
+        const bb = pb.length ? pb.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / pb.length : orderPos[b.id] || 0;
+        return ba - bb;
+      });
+      ranks.set(r, arr);
+      setOrderPos();
+    }
+    for (let r = maxRank - 1; r >= 0; r -= 1) {
+      const arr = ranks.get(r) || [];
+      arr.sort(function (a, b) {
+        const sa = successors[a.id] || [];
+        const sb = successors[b.id] || [];
+        const ba = sa.length ? sa.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / sa.length : orderPos[a.id] || 0;
+        const bb = sb.length ? sb.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / sb.length : orderPos[b.id] || 0;
+        return ba - bb;
+      });
+      ranks.set(r, arr);
+      setOrderPos();
+    }
+  }
+
+  const cols = maxRank + 1;
+  const internalContentW = cols * (cardW + gapX) - gapX;
+  const maxPerRank = Math.max(1, ...Array.from(ranks.values()).map(function (arr) { return arr.length; }));
+  const internalContentH = maxPerRank * (cardH + gapY) - gapY;
+
+  const width = Math.max(1040, pad * 2 + Math.max(internalContentW, external.length * (cardW + gapX), storage.length * (cardW + gapX)));
+
+  const extY = pad + 20;
+  const intY = extY + cardH + 58;
+  const storageY = intY + internalContentH + 56;
+  const height = Math.max(620, storageY + cardH + 50);
+
+  const placeCenteredRow = function (row, y) {
+    if (!row.length) return;
+    const contentW = row.length * (cardW + gapX) - gapX;
+    const startX = Math.max(pad, Math.floor((width - contentW) / 2));
+    row.forEach(function (n, i) {
+      byId.set(n.id, { x: startX + i * (cardW + gapX), y: y, w: cardW, h: cardH });
+    });
+  };
+
+  placeCenteredRow(external, extY);
+  placeCenteredRow(storage, storageY);
+
+  const startX = Math.max(pad, Math.floor((width - internalContentW) / 2));
+  for (let r = 0; r <= maxRank; r += 1) {
+    const arr = ranks.get(r) || [];
+    const colX = startX + r * (cardW + gapX);
+    const contentH = arr.length * (cardH + gapY) - gapY;
+    const startY = intY + Math.max(0, Math.floor((internalContentH - contentH) / 2));
+    arr.forEach(function (n, idx) {
+      byId.set(n.id, { x: colX, y: startY + idx * (cardH + gapY), w: cardW, h: cardH });
+    });
+  }
+
+  lanes.push(
+    { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: 'rgba(20,52,105,0.20)', stroke: '#2d4f83' },
+    { x: 14, y: intY - 16, w: width - 28, h: internalContentH + 34, label: 'Application graph (layered)', fill: 'rgba(18,66,51,0.18)', stroke: '#2f6e54' },
+    { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: 'rgba(62,74,102,0.20)', stroke: '#4f6186' }
+  );
+
+  return { byId: byId, width: width, height: height, lanes: lanes };
 }
 
 function updateDetails() {
