@@ -526,65 +526,40 @@ function isDrillable(elementId) {
   return Boolean((DATA.drill_map || {})[String(elementId || '')]);
 }
 
-function drillIconAnchor(box, label) {
-  const bw = Number.isFinite(box && box.w) ? box.w : (Number.isFinite(box && box.width) ? box.width : 0);
-  const bh = Number.isFinite(box && box.h) ? box.h : (Number.isFinite(box && box.height) ? box.height : 0);
-  const bx = Number.isFinite(box && box.x) ? box.x : 0;
-  const by = Number.isFinite(box && box.y) ? box.y : 0;
-
-  const text = String(label || '');
-  const textWidthEstimate = Math.max(44, Math.min(bw * 0.38, text.length * 3.2));
-  return {
-    // place icon just left of centered name text and align with name baseline row
-    x: bx + bw / 2 - textWidthEstimate / 2 - 13,
-    y: by + bh / 2 - 6,
-  };
-}
-
-function buildDrillIconGroup(x, y, color) {
+function buildCornerBadge(x, y) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('transform', 'translate(' + x + ' ' + y + ')');
   g.setAttribute('pointer-events', 'none');
-  g.setAttribute('data-drill-icon', 'true');
+  g.setAttribute('data-drill-badge', 'true');
 
-  const lens = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  lens.setAttribute('cx', '0');
-  lens.setAttribute('cy', '0');
-  lens.setAttribute('r', '4');
-  lens.setAttribute('fill', 'none');
-  lens.setAttribute('stroke', color || '#d7e6ff');
-  lens.setAttribute('stroke-width', '1.3');
-  g.appendChild(lens);
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  bg.setAttribute('cx', '0');
+  bg.setAttribute('cy', '0');
+  bg.setAttribute('r', '7');
+  bg.setAttribute('fill', '#1b2f51');
+  bg.setAttribute('stroke', '#9fc7ff');
+  bg.setAttribute('stroke-width', '1.2');
+  g.appendChild(bg);
 
   const plusH = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  plusH.setAttribute('x1', '-1.8');
+  plusH.setAttribute('x1', '-2.4');
   plusH.setAttribute('y1', '0');
-  plusH.setAttribute('x2', '1.8');
+  plusH.setAttribute('x2', '2.4');
   plusH.setAttribute('y2', '0');
-  plusH.setAttribute('stroke', color || '#d7e6ff');
-  plusH.setAttribute('stroke-width', '1.2');
+  plusH.setAttribute('stroke', '#dff0ff');
+  plusH.setAttribute('stroke-width', '1.4');
   plusH.setAttribute('stroke-linecap', 'round');
   g.appendChild(plusH);
 
   const plusV = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   plusV.setAttribute('x1', '0');
-  plusV.setAttribute('y1', '-1.8');
+  plusV.setAttribute('y1', '-2.4');
   plusV.setAttribute('x2', '0');
-  plusV.setAttribute('y2', '1.8');
-  plusV.setAttribute('stroke', color || '#d7e6ff');
-  plusV.setAttribute('stroke-width', '1.2');
+  plusV.setAttribute('y2', '2.4');
+  plusV.setAttribute('stroke', '#dff0ff');
+  plusV.setAttribute('stroke-width', '1.4');
   plusV.setAttribute('stroke-linecap', 'round');
   g.appendChild(plusV);
-
-  const handle = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  handle.setAttribute('x1', '3.2');
-  handle.setAttribute('y1', '3.2');
-  handle.setAttribute('x2', '6.2');
-  handle.setAttribute('y2', '6.2');
-  handle.setAttribute('stroke', color || '#d7e6ff');
-  handle.setAttribute('stroke-width', '1.3');
-  handle.setAttribute('stroke-linecap', 'round');
-  g.appendChild(handle);
 
   return g;
 }
@@ -614,27 +589,47 @@ function elementBBox(el) {
   return null;
 }
 
-function addDrillIconsToSvg(svg) {
+function applyDrillabilityAffordances(svg) {
   if (!svg) return;
 
-  svg.querySelectorAll('[data-drill-icon="true"]').forEach(function (el) {
+  svg.querySelectorAll('[data-drill-badge="true"]').forEach(function (el) {
     el.remove();
   });
 
   const seen = new Set();
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
     const elementId = el.getAttribute('data-element-id');
-    if (!elementId || seen.has(elementId) || !isDrillable(elementId)) return;
+    if (!elementId || seen.has(elementId)) return;
     seen.add(elementId);
 
+    const drillable = isDrillable(elementId);
+    el.setAttribute('data-drillable', drillable ? 'true' : 'false');
+    if (!drillable) return;
+
+    // Border affordance (option 2)
+    let shape = null;
+    const tag = String(el.tagName || '').toLowerCase();
+    if (tag === 'rect' || tag === 'path' || tag === 'polygon') {
+      shape = el;
+    } else {
+      shape = el.querySelector('rect, path, polygon');
+    }
+    if (shape) {
+      shape.setAttribute('stroke', '#9fc7ff');
+      const current = parseFloat(shape.getAttribute('stroke-width') || '1.2');
+      shape.setAttribute('stroke-width', String(Math.max(1.8, current)));
+    }
+
+    // Corner badge affordance (option 1)
     const box = elementBBox(el);
     if (!box || box.width < 8 || box.height < 8) return;
+    const bx = Number.isFinite(box.x) ? box.x : 0;
+    const by = Number.isFinite(box.y) ? box.y : 0;
+    const bw = Number.isFinite(box.width) ? box.width : 0;
 
-    const label = el.getAttribute('data-target-label') || elementId;
-    const p = drillIconAnchor(box, label);
-    const icon = buildDrillIconGroup(p.x, p.y, '#d7e6ff');
-    icon.setAttribute('data-drill-icon-for', elementId);
-    svg.appendChild(icon);
+    const badge = buildCornerBadge(bx + bw - 10, by + 10);
+    badge.setAttribute('data-drill-badge-for', elementId);
+    svg.appendChild(badge);
   });
 }
 
@@ -663,7 +658,7 @@ function wireSvgInteractions(svg, view) {
     }
   });
 
-  addDrillIconsToSvg(svg);
+  applyDrillabilityAffordances(svg);
 
   svg.addEventListener('click', function (ev) {
     const element = ev.target.closest('[data-element-id]');
@@ -883,10 +878,13 @@ function drawDiagramView(view) {
     }
 
     if (isDrillable(node.id)) {
-      const p = drillIconAnchor(box, node.name || node.id);
-      const icon = buildDrillIconGroup(p.x, p.y, '#e6f0ff');
-      icon.setAttribute('data-drill-icon-for', node.id);
-      g.appendChild(icon);
+      rect.setAttribute('stroke', '#9fc7ff');
+      rect.setAttribute('stroke-width', String(Math.max(1.8, parseFloat(rect.getAttribute('stroke-width') || '1.2'))));
+      g.setAttribute('data-drillable', 'true');
+
+      const badge = buildCornerBadge(box.x + box.w - 10, box.y + 10);
+      badge.setAttribute('data-drill-badge-for', node.id);
+      g.appendChild(badge);
     }
 
     svg.appendChild(g);
