@@ -49,8 +49,9 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 - Preserve stable IDs across revisions for unchanged architecture concepts.
 - Do not collapse distinct responsibilities into one generic container when separation is a key decision (for example: keep webhook, notification, and audit processing distinct unless there is explicit rationale to merge).
 - `summary.md` must include a **Key Decisions** section, and each key decision should include explicit coverage hints using `covers: <id1,id2,...>` referencing element/relationship/view IDs when possible.
-- Run decision coverage and semantic drift checks before finalizing revisions:
+- Run decision coverage, decomposition policy, and semantic drift checks before finalizing revisions:
   - `scripts/decision-coverage-check.py`
+  - `scripts/container-decomposition-check.py`
   - `scripts/semantic-diff-gate.py` (when a baseline model exists)
 - Record unknowns; do not fabricate precision.
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
@@ -158,8 +159,11 @@ Before presenting for approval or finishing any iteration, verify:
 - no duplicated system-of-record assignments without explicit justification
 - decision coverage check passes (strict mode):
   - `python3 scripts/decision-coverage-check.py --summary <output-root>/architecture/summary.md --model <output-root>/architecture/model.yaml --views-dir <output-root>/architecture/views --strict`
+- container decomposition policy check passes (strict mode):
+  - `python3 scripts/container-decomposition-check.py --model <output-root>/architecture/model.yaml --summary <output-root>/architecture/summary.md --strict --only-when-mentioned`
 - semantic drift gate passes when a baseline model exists:
   - `python3 scripts/semantic-diff-gate.py --baseline <previous>/architecture/model.yaml --current <output-root>/architecture/model.yaml`
+  - by default, do not allow name-stable ID shifts unless explicitly justified.
 - `diagram.html` exists and corresponds to the current artifact set
 - if requested, `diagram-prompt.md` exists and corresponds to the current artifact set
 
@@ -182,4 +186,5 @@ Complete only when:
 6. `diagram.html` has been generated for the current approved/proposed revision
 7. if requested, `diagram-prompt.md` has been generated for the current approved/proposed revision
 8. decision coverage check passes in strict mode for current artifacts
-9. semantic drift gate passes for revision runs when baseline model is available
+9. container decomposition policy check passes in strict mode for current artifacts
+10. semantic drift gate passes for revision runs when baseline model is available (including name-stable ID checks)
