@@ -527,12 +527,17 @@ function isDrillable(elementId) {
 }
 
 function drillIconAnchor(box, label) {
+  const bw = Number.isFinite(box && box.w) ? box.w : (Number.isFinite(box && box.width) ? box.width : 0);
+  const bh = Number.isFinite(box && box.h) ? box.h : (Number.isFinite(box && box.height) ? box.height : 0);
+  const bx = Number.isFinite(box && box.x) ? box.x : 0;
+  const by = Number.isFinite(box && box.y) ? box.y : 0;
+
   const text = String(label || '');
-  const textWidthEstimate = Math.max(44, Math.min(box.w * 0.38, text.length * 3.2));
+  const textWidthEstimate = Math.max(44, Math.min(bw * 0.38, text.length * 3.2));
   return {
-    // place icon just left of the centered label block
-    x: box.x + box.w / 2 - textWidthEstimate / 2 - 12,
-    y: box.y + box.h / 2,
+    // place icon just left of centered name text and align with name baseline row
+    x: bx + bw / 2 - textWidthEstimate / 2 - 13,
+    y: by + bh / 2 - 6,
   };
 }
 
