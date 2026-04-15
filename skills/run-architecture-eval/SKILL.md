@@ -145,12 +145,15 @@ Set the output path to:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`
 
-Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs (prefer hybrid template + LLM SVG fragments; fallback to deterministic layout if fragments are missing):
+Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes the primary output (prefer hybrid template + LLM SVG fragments; fallback to deterministic layout if fragments are missing):
 
 - `evals/architect-discover/roundX_<repo>/diagram.html` (primary, includes Comment Mode)
+
+Then invoke `architect-diagram-prompt` on the same output root to generate:
+
 - `evals/architect-discover/roundX_<repo>/diagram-prompt.md` (secondary)
 
-**Do not skip diagram generation.** During eval runs, invoke `architect-diagram` after `architect-discover` so every round includes both outputs for UX and Anthropic-facing evaluation.
+**Do not skip diagram generation.** During eval runs, invoke `architect-diagram` after `architect-discover`, then invoke `architect-diagram-prompt` so every round includes both outputs for UX and Anthropic-facing evaluation.
 
 `diagram-prompt.md` must remain upload-ready for zero-text user flows. The file must include a top section with this exact heading:
 

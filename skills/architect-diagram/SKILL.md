@@ -1,6 +1,6 @@
 ---
 name: architect-diagram
-description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode as the primary output, plus a secondary Claude Imagine upload bundle (`diagram-prompt.md`), from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-discover has generated architecture artifacts.
+description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-discover has generated architecture artifacts.
 ---
 
 Use this skill only after architecture artifacts already exist.
@@ -20,7 +20,6 @@ Use this skill only after architecture artifacts already exist.
 Required:
 
 - `<output-root>/diagram.html` (primary)
-- `<output-root>/diagram-prompt.md` (secondary)
 
 Recommended intermediate output (for high-quality primary rendering):
 
@@ -43,9 +42,8 @@ Optional debug output:
 - Relationship arrows should avoid node-interior intersections and keep labels close/parallel to edge direction.
 - Do not show confidence labels directly on diagram SVG nodes/edges; confidence belongs in the details sidebar only.
 - Details sidebar must be collapsed by default, auto-expand on node click, and provide an in-sidebar manual collapse control.
-- `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
-- `diagram-prompt.md` must end with a one-line pointer to the rendered HTML path:
-  - `View the architecture diagram here: <fully_resolved_file_path>`
+- By default, do **not** generate `diagram-prompt.md` in this skill.
+- If user asks for Claude Imagine upload bundle generation, use `architect-diagram-prompt`.
 
 ## Rendering approach (hybrid)
 
@@ -91,17 +89,13 @@ Fallback path (when SVG fragments are missing):
    - Run `scripts/validate-diagram-html.sh <output-root>/diagram.html`.
    - If validation fails, fix and rerun until it passes.
 
-6. **Render secondary Claude Imagine prompt bundle**
-   - Read [references/interactive-diagram-prompt.md](references/interactive-diagram-prompt.md).
-   - Generate `<output-root>/diagram-prompt.md` per `diagram-output-contract.md`.
-
-7. **Run contract checks only when needed**
+6. **Run contract checks only when needed**
    - If artifact shape is ambiguous or inconsistent, read [../references/architecture-contract.md](../references/architecture-contract.md) to resolve schema expectations.
    - If unresolved issues remain, record them explicitly instead of guessing.
 
-8. **Run final validation checklist**
+7. **Run final validation checklist**
    - Execute the checklist in `diagram-output-contract.md` before completing.
 
 ## Completion Standard
 
-Complete only when `diagram.html` and `diagram-prompt.md` both exist, are grounded in the same architecture artifacts, and pass the validation checklist (including deterministic HTML validation).
+Complete only when `diagram.html` exists, is grounded in the architecture artifacts, and passes the validation checklist (including deterministic HTML validation).

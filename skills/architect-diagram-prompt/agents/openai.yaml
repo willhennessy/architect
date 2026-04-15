@@ -1,0 +1,7 @@
+interface:
+  display_name: "Architecture Diagram Prompt"
+  short_description: "Generate diagram-prompt.md upload bundle"
+  default_prompt: "Use $architect-diagram-prompt to generate diagram-prompt.md only. Ensure the required heading/zero-text instruction and final absolute `View the architecture diagram here: <fully_resolved_file_path>` line are present."
+
+policy:
+  allow_implicit_invocation: true

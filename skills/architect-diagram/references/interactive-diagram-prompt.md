@@ -1,6 +1,7 @@
 # Interactive Diagram Prompt Specification
 
 Use this specification when constructing the interactive prompt inside `diagram-prompt.md`.
+This is primarily used by the `architect-diagram-prompt` skill.
 
 Purpose:
 - produce one interactive drill-down architecture diagram from the provided architecture artifacts

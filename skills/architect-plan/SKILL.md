@@ -113,10 +113,13 @@ In update mode, write `diff.yaml`.
 
 Immediately after writing/updating architecture artifacts, invoke `architect-diagram` using the same output root.
 
-Expected outputs in output root:
+Expected default output in output root:
 
 - `diagram.html` (primary interactive diagram)
-- `diagram-prompt.md` (secondary upload bundle)
+
+Optional (only if explicitly requested by user):
+
+- `diagram-prompt.md` via `architect-diagram-prompt`
 
 Present the rendered diagram as part of the same planning response. The diagram step must feel automatic, not user-triggered.
 
@@ -143,12 +146,15 @@ Before presenting for approval or finishing any iteration, verify:
 - ownership + system-of-record fields are explicit for major entities
 - no cross-parent component mixing in component views
 - no duplicated system-of-record assignments without explicit justification
-- `diagram.html` and `diagram-prompt.md` exist and correspond to the current artifact set
+- `diagram.html` exists and corresponds to the current artifact set
+- if requested, `diagram-prompt.md` exists and corresponds to the current artifact set
 
 ## Handoffs
 
 - If the user needs architecture from an existing repo, hand off to `architect-discover`.
-- Use `architect-diagram` directly inside this skill for normal planning flow; only treat diagram generation as a separate handoff when the user explicitly requests diagram-only regeneration from existing artifacts.
+- Use `architect-diagram` directly inside this skill for normal planning flow.
+- Use `architect-diagram-prompt` only when user explicitly requests `diagram-prompt.md` generation.
+- Treat diagram generation as a separate handoff only when the user explicitly requests diagram-only regeneration from existing artifacts.
 
 ## Completion Standard
 
@@ -159,4 +165,5 @@ Complete only when:
 3. planning evidence is explicit in `evidence` and confidence fields
 4. `architecture_state` is present and accurately reflects explicit user approval state
 5. engineer feedback has been incorporated through at least one explicit feedback/revision cycle when feedback is provided
-6. `diagram.html` and `diagram-prompt.md` have been generated for the current approved/proposed revision
+6. `diagram.html` has been generated for the current approved/proposed revision
+7. if requested, `diagram-prompt.md` has been generated for the current approved/proposed revision
