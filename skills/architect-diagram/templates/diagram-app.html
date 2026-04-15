@@ -522,6 +522,93 @@ function stripConfidenceLabelsFromSvg(svg) {
   });
 }
 
+function isDrillable(elementId) {
+  return Boolean((DATA.drill_map || {})[String(elementId || '')]);
+}
+
+function drillIconAnchor(box) {
+  return {
+    x: box.x + Math.max(14, box.w * 0.28),
+    y: box.y + box.h / 2,
+  };
+}
+
+function buildDrillIconGroup(x, y, color) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('transform', 'translate(' + x + ' ' + y + ')');
+  g.setAttribute('pointer-events', 'none');
+  g.setAttribute('data-drill-icon', 'true');
+
+  const lens = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  lens.setAttribute('cx', '0');
+  lens.setAttribute('cy', '0');
+  lens.setAttribute('r', '4');
+  lens.setAttribute('fill', 'none');
+  lens.setAttribute('stroke', color || '#d7e6ff');
+  lens.setAttribute('stroke-width', '1.3');
+  g.appendChild(lens);
+
+  const plusH = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  plusH.setAttribute('x1', '-1.8');
+  plusH.setAttribute('y1', '0');
+  plusH.setAttribute('x2', '1.8');
+  plusH.setAttribute('y2', '0');
+  plusH.setAttribute('stroke', color || '#d7e6ff');
+  plusH.setAttribute('stroke-width', '1.2');
+  plusH.setAttribute('stroke-linecap', 'round');
+  g.appendChild(plusH);
+
+  const plusV = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  plusV.setAttribute('x1', '0');
+  plusV.setAttribute('y1', '-1.8');
+  plusV.setAttribute('x2', '0');
+  plusV.setAttribute('y2', '1.8');
+  plusV.setAttribute('stroke', color || '#d7e6ff');
+  plusV.setAttribute('stroke-width', '1.2');
+  plusV.setAttribute('stroke-linecap', 'round');
+  g.appendChild(plusV);
+
+  const handle = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  handle.setAttribute('x1', '3.2');
+  handle.setAttribute('y1', '3.2');
+  handle.setAttribute('x2', '6.2');
+  handle.setAttribute('y2', '6.2');
+  handle.setAttribute('stroke', color || '#d7e6ff');
+  handle.setAttribute('stroke-width', '1.3');
+  handle.setAttribute('stroke-linecap', 'round');
+  g.appendChild(handle);
+
+  return g;
+}
+
+function addDrillIconsToSvg(svg) {
+  if (!svg) return;
+
+  svg.querySelectorAll('[data-drill-icon="true"]').forEach(function (el) {
+    el.remove();
+  });
+
+  const seen = new Set();
+  svg.querySelectorAll('[data-element-id]').forEach(function (el) {
+    const elementId = el.getAttribute('data-element-id');
+    if (!elementId || seen.has(elementId) || !isDrillable(elementId)) return;
+    seen.add(elementId);
+
+    let box;
+    try {
+      box = el.getBBox();
+    } catch (_err) {
+      return;
+    }
+    if (!box || !isFinite(box.x) || !isFinite(box.y)) return;
+
+    const p = drillIconAnchor(box);
+    const icon = buildDrillIconGroup(p.x, p.y, '#d7e6ff');
+    icon.setAttribute('data-drill-icon-for', elementId);
+    svg.appendChild(icon);
+  });
+}
+
 function wireSvgInteractions(svg, view) {
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
     if (el.getAttribute('data-element-id') === state.selectedId) {
@@ -546,6 +633,8 @@ function wireSvgInteractions(svg, view) {
       el.setAttribute('data-target-label', el.getAttribute('data-relationship-id') || 'relationship');
     }
   });
+
+  addDrillIconsToSvg(svg);
 
   svg.addEventListener('click', function (ev) {
     const element = ev.target.closest('[data-element-id]');
@@ -764,15 +853,11 @@ function drawDiagramView(view) {
       g.appendChild(sub);
     }
 
-    if ((DATA.drill_map || {})[node.id]) {
-      const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      badge.setAttribute('x', String(box.x + box.w - 10));
-      badge.setAttribute('y', String(box.y + 12));
-      badge.setAttribute('text-anchor', 'middle');
-      badge.setAttribute('font-size', '10');
-      badge.setAttribute('fill', '#ffe6a9');
-      badge.textContent = '↘';
-      g.appendChild(badge);
+    if (isDrillable(node.id)) {
+      const p = drillIconAnchor(box);
+      const icon = buildDrillIconGroup(p.x, p.y, '#e6f0ff');
+      icon.setAttribute('data-drill-icon-for', node.id);
+      g.appendChild(icon);
     }
 
     svg.appendChild(g);
