@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
@@ -369,31 +368,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Render diagram.html frame from architecture artifacts")
     ap.add_argument("--output-root", required=True, help="Folder containing architecture/")
     ap.add_argument("--mode", choices=["fast", "rich"], default="fast", help="Fallback rendering mode")
-    ap.add_argument("--demo-mode", action="store_true", help="Force demo quality mode: rich selected views + required SVG fragments (no fallback)")
-    ap.add_argument("--quick-mode", action="store_true", help="Enable quick/testing mode with fallback allowed")
+    ap.add_argument("--demo-mode", action="store_true", help="Demo quality mode: force rich view set and require SVG fragments (no fallback)")
     ap.add_argument("--svg-dir", default="diagram-svg", help="Folder under output-root containing per-view SVG fragments")
     ap.add_argument("--require-svg-fragments", action="store_true", help="Fail if any selected non-sequence view is missing an SVG fragment")
     ap.add_argument("--write-data-json", action="store_true", help="Also write diagram-data.json for debugging")
     args = ap.parse_args()
 
-    explicit_mode = "--mode" in sys.argv
-
-    if args.demo_mode and args.quick_mode:
-        raise RenderError("Cannot combine --demo-mode and --quick-mode")
-
-    # Default behavior is demo quality unless user explicitly opts into quick mode
-    # or explicitly selects fallback mode via --mode.
-    use_demo_mode = False
     if args.demo_mode:
-        use_demo_mode = True
-    elif args.quick_mode:
-        use_demo_mode = False
-    elif explicit_mode:
-        use_demo_mode = False
-    else:
-        use_demo_mode = True
-
-    if use_demo_mode:
         args.mode = "rich"
         args.require_svg_fragments = True
 

@@ -1,7 +1,7 @@
 interface:
   display_name: "Architecture Diagram"
   short_description: "Generate primary interactive HTML architecture diagram"
-  default_prompt: "Use $architect-diagram to generate diagram.html with Comment Mode by injecting LLM-generated per-view SVG fragments into the template app. Default to demo-quality mode (no fallback for selected non-sequence views). Use quick/testing mode only if explicitly requested. Do not generate diagram-prompt.md by default. Run validate-diagram-html before completion."
+  default_prompt: "Use $architect-diagram to generate diagram.html with Comment Mode by injecting LLM-generated per-view SVG fragments into the template app (fallback to deterministic layout if needed). Do not generate diagram-prompt.md by default. If the user asks for demo quality, run in --demo-mode (no fallback for selected non-sequence views). Run validate-diagram-html before completion."
 
 policy:
   allow_implicit_invocation: true

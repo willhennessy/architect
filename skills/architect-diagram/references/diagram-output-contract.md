@@ -44,14 +44,9 @@ Fallback strategy:
 
 - if fragments are absent, template fallback layout may be used (`fast`/`rich`)
 
-Demo-quality strategy (default):
+Demo-quality strategy:
 
-- default invocation should behave as demo-quality mode.
-- `--demo-mode` explicitly forces rich selected views and requires SVG fragments for selected non-sequence views (no fallback for those views).
-
-Quick/testing strategy (opt-in):
-
-- `--quick-mode` (or explicit `--mode`) allows fallback rendering.
+- `--demo-mode` forces rich selected views and requires SVG fragments for selected non-sequence views (no fallback for those views).
 
 ## Comment Mode requirements (`diagram.html`)
 

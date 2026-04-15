@@ -51,16 +51,10 @@ Fallback behavior:
 
 - if SVG fragment missing for a view, template fallback layout may render the view.
 
-Demo-quality mode (default):
+Demo-quality mode:
 
-- `python3 scripts/render-diagram-html.py --output-root <output-root>`
-- explicit equivalent: `python3 scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
+- `python3 scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
 - demo mode requires SVG fragments for selected non-sequence views and disables fallback for those views.
-
-Quick/testing mode (opt-in):
-
-- `python3 scripts/render-diagram-html.py --output-root <output-root> --quick-mode --mode fast`
-- allows fallback rendering for speed/iteration.
 
 ## Comment targeting rules
 

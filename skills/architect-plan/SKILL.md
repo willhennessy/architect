@@ -56,7 +56,7 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
 - In Plan Mode, do **not** present ASCII architecture diagrams as the primary visualization.
 - After every draft/revision of architecture artifacts, automatically invoke `architect-diagram` so HTML diagram rendering is a fluid part of planning.
-- Unless quick/testing mode is explicitly requested, run `architect-diagram` in default demo-quality behavior (strict SVG fragments, no fallback for selected non-sequence views).
+- Use demo mode in `architect-diagram` when explicit demo-quality output is requested; otherwise keep default fallback-friendly rendering behavior for iterative runs.
 
 ## Workflow
 
