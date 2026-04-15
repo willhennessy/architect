@@ -58,20 +58,27 @@ def draw_edge(
     x2, y2 = anchor_point(dst_box, src_box)
 
     angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+    # Keep labels upright; avoid upside-down text.
+    text_angle = angle
+    if text_angle > 90:
+        text_angle -= 180
+    elif text_angle < -90:
+        text_angle += 180
+
     mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
     # small perpendicular offset
     length = math.hypot(x2 - x1, y2 - y1)
     nx, ny = (-(y2 - y1) / length, (x2 - x1) / length) if length > 0 else (0.0, 0.0)
     lx, ly = mx + nx * 8.0, my + ny * 8.0
 
-    short = label if len(label) <= 48 else label[:47] + "…"
+    short = label if len(label) <= 36 else label[:35] + "…"
 
     return f"""
   <line x1=\"{x1:.1f}\" y1=\"{y1:.1f}\" x2=\"{x2:.1f}\" y2=\"{y2:.1f}\" stroke=\"{color}\" stroke-width=\"1.8\" marker-end=\"url(#arrow)\" />
   <line x1=\"{x1:.1f}\" y1=\"{y1:.1f}\" x2=\"{x2:.1f}\" y2=\"{y2:.1f}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"
         data-relationship-id=\"{esc(rel_id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(label or rel_id)}\" />
-  <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
-        font-size=\"10\" fill=\"#9eb3d8\">{esc(short)}</text>
+  <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({text_angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
+        font-size=\"9\" fill=\"#9eb3d8\">{esc(short)}</text>
 """.rstrip()
 
 
@@ -136,26 +143,26 @@ def render_view_fragment(
         boundary = '<rect x="330" y="290" width="550" height="280" rx="14" fill="rgba(32,44,74,0.22)" stroke="#5d7198" stroke-dasharray="5 4" />\n  <text x="344" y="312" font-size="11" fill="#9cb4dd" font-weight="700">DocSign Platform</text>'
     elif vid == "container":
         boxes = {
-            find(model_elements, "person-doc-sender"): {"x": 60, "y": 80, "w": 220, "h": 80},
-            find(model_elements, "person-document-signer"): {"x": 320, "y": 80, "w": 220, "h": 80},
-            find(model_elements, "person-platform-admin"): {"x": 580, "y": 80, "w": 220, "h": 80},
-            find(model_elements, "container-web-application"): {"x": 120, "y": 250, "w": 300, "h": 110},
-            find(model_elements, "container-platform-api"): {"x": 460, "y": 250, "w": 300, "h": 110},
-            find(model_elements, "container-signing-service"): {"x": 120, "y": 390, "w": 220, "h": 100},
-            find(model_elements, "container-notification-service"): {"x": 360, "y": 390, "w": 220, "h": 100},
-            find(model_elements, "container-webhook-service"): {"x": 600, "y": 390, "w": 220, "h": 100},
-            find(model_elements, "container-audit-service"): {"x": 840, "y": 390, "w": 220, "h": 100},
-            find(model_elements, "database-postgres-primary"): {"x": 120, "y": 560, "w": 250, "h": 100},
-            find(model_elements, "queue-message-queue"): {"x": 400, "y": 560, "w": 250, "h": 100},
-            find(model_elements, "database-audit-log"): {"x": 680, "y": 560, "w": 250, "h": 100},
-            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1140, "y": 320, "w": 260, "h": 90},
-            find(model_elements, "ext-email-provider"): {"x": 1140, "y": 440, "w": 260, "h": 90},
-            find(model_elements, "ext-object-storage"): {"x": 1140, "y": 560, "w": 260, "h": 90},
+            find(model_elements, "person-doc-sender"): {"x": 70, "y": 80, "w": 220, "h": 80},
+            find(model_elements, "person-document-signer"): {"x": 350, "y": 80, "w": 220, "h": 80},
+            find(model_elements, "person-platform-admin"): {"x": 630, "y": 80, "w": 220, "h": 80},
+            find(model_elements, "container-web-application"): {"x": 140, "y": 260, "w": 300, "h": 110},
+            find(model_elements, "container-platform-api"): {"x": 560, "y": 260, "w": 300, "h": 110},
+            find(model_elements, "container-signing-service"): {"x": 120, "y": 460, "w": 220, "h": 100},
+            find(model_elements, "container-notification-service"): {"x": 410, "y": 460, "w": 220, "h": 100},
+            find(model_elements, "container-webhook-service"): {"x": 700, "y": 460, "w": 220, "h": 100},
+            find(model_elements, "container-audit-service"): {"x": 990, "y": 460, "w": 220, "h": 100},
+            find(model_elements, "database-postgres-primary"): {"x": 150, "y": 680, "w": 250, "h": 100},
+            find(model_elements, "queue-message-queue"): {"x": 470, "y": 680, "w": 250, "h": 100},
+            find(model_elements, "database-audit-log"): {"x": 790, "y": 680, "w": 250, "h": 100},
+            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1300, "y": 360, "w": 280, "h": 90},
+            find(model_elements, "ext-email-provider"): {"x": 1300, "y": 500, "w": 280, "h": 90},
+            find(model_elements, "ext-object-storage"): {"x": 1300, "y": 640, "w": 280, "h": 90},
         }
-        width, height = 1460, 760
+        width, height = 1660, 920
         boundary = (
-            '<rect x="90" y="220" width="1010" height="470" rx="14" fill="rgba(28,40,72,0.20)" stroke="#60749c" stroke-dasharray="5 4" />\n'
-            '  <text x="106" y="242" font-size="11" fill="#9cb4dd" font-weight="700">DocSign Platform [System Boundary]</text>'
+            '<rect x="100" y="230" width="1140" height="580" rx="14" fill="rgba(28,40,72,0.20)" stroke="#60749c" stroke-dasharray="5 4" />\n'
+            '  <text x="116" y="252" font-size="11" fill="#9cb4dd" font-weight="700">DocSign Platform [System Boundary]</text>'
         )
     else:
         return
