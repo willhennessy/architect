@@ -17,6 +17,7 @@ Options:
   --repo-url <url>       Clone target repo into isolated run folder (optional)
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
+  --name <suffix>        Optional folder name suffix appended after timestamp
   --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
   --with-skill           Include skills in run-local HOME (default)
   --without-skill        Do not include skills (baseline run)
@@ -30,6 +31,7 @@ EOF
 REPO_URL=""
 REPO_PATH=""
 RUN_ROOT="$HOME/tmp/architect-manual-evals"
+RUN_NAME_SUFFIX=""
 SKILLS_CSV="architect-plan,architect-discover,architect-diagram"
 WITH_SKILL=1
 
@@ -41,6 +43,8 @@ while [[ $# -gt 0 ]]; do
       REPO_PATH="$2"; shift 2 ;;
     --run-root)
       RUN_ROOT="$2"; shift 2 ;;
+    --name|--run-name)
+      RUN_NAME_SUFFIX="$2"; shift 2 ;;
     --skills)
       SKILLS_CSV="$2"; shift 2 ;;
     --with-skill)
@@ -66,7 +70,19 @@ ARCHITECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_ROOT="$ARCHITECT_ROOT/skills"
 
 timestamp="$(date +%Y%m%d-%H%M%S)-$RANDOM"
-RUN_DIR="$RUN_ROOT/run-$timestamp"
+if [[ -n "$RUN_NAME_SUFFIX" ]]; then
+  SAFE_SUFFIX="$(printf '%s' "$RUN_NAME_SUFFIX" | tr '[:space:]' '-' | tr -cd '[:alnum:]_.-')"
+  SAFE_SUFFIX="${SAFE_SUFFIX#-}"
+  SAFE_SUFFIX="${SAFE_SUFFIX%-}"
+  if [[ -z "$SAFE_SUFFIX" ]]; then
+    echo "Invalid --name value: '$RUN_NAME_SUFFIX'" >&2
+    echo "Use letters, numbers, dot, underscore, or dash." >&2
+    exit 1
+  fi
+  RUN_DIR="$RUN_ROOT/run-$timestamp-$SAFE_SUFFIX"
+else
+  RUN_DIR="$RUN_ROOT/run-$timestamp"
+fi
 if [[ -e "$RUN_DIR" ]]; then
   echo "Run dir already exists: $RUN_DIR" >&2
   exit 1
