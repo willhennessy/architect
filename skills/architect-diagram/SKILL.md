@@ -42,6 +42,7 @@ Optional debug output:
 - If a legend is included, it must be outside the architecture/system boundary region.
 - Relationship arrows should avoid node-interior intersections and keep labels close/parallel to edge direction.
 - Do not show confidence labels directly on diagram SVG nodes/edges; confidence belongs in the details sidebar only.
+- Details sidebar must be collapsed by default, auto-expand on node click, and provide an in-sidebar manual collapse control.
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
 - `diagram-prompt.md` must end with a one-line pointer to the rendered HTML path:
   - `View the architecture diagram here: <fully_resolved_file_path>`

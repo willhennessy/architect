@@ -132,9 +132,14 @@
     .workspace {
       min-height: 0;
       display: grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 1fr;
       gap: 10px;
       padding: 10px;
+      transition: grid-template-columns 140ms ease;
+    }
+
+    .workspace.details-open {
+      grid-template-columns: 1fr 320px;
     }
 
     .canvas-wrap {
@@ -172,9 +177,46 @@
       border: 1px solid #2a446f;
       border-radius: 14px;
       background: #101a2f;
+      overflow: hidden;
+      font-size: 12px;
+      display: none;
+      min-width: 0;
+    }
+
+    .workspace.details-open #details {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .details-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #2a446f;
+      background: #0f1a30;
+    }
+
+    .details-title {
+      font-size: 11px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: #9fb7e2;
+      font-weight: 700;
+    }
+
+    #detailsBody {
       overflow: auto;
       padding: 12px;
-      font-size: 12px;
+      min-height: 0;
+    }
+
+    .details-collapse-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 8px;
     }
 
     .empty-note { color: var(--muted); text-align: center; padding-top: 40px; }
@@ -309,12 +351,18 @@
     <button id="commentToggle" class="comment-toggle">Comment (C)</button>
     <button id="submitBtn" disabled>Submit comments</button>
   </div>
-  <div class="workspace">
+  <div class="workspace" id="workspace">
     <div class="canvas-wrap">
       <div class="hint" id="commentHint">Comment mode: click node, edge, or canvas</div>
       <div id="canvas"></div>
     </div>
-    <div id="details"><div class="empty-note">Click a node to inspect details</div></div>
+    <aside id="details" aria-label="Details sidebar">
+      <div class="details-header">
+        <div class="details-title">Details</div>
+        <button id="detailsCollapseBtn" class="details-collapse-btn" title="Collapse details sidebar">Collapse</button>
+      </div>
+      <div id="detailsBody"><div class="empty-note">Click a node to inspect details</div></div>
+    </aside>
   </div>
   <div class="queue" id="queueBar">
     <strong style="font-size:11px;color:#ffdca0">Queued</strong>
@@ -354,6 +402,7 @@ const state = {
   viewId: DATA.initial_view_id,
   history: [],
   selectedId: null,
+  detailsOpen: false,
   commentMode: false,
   comments: [],
   pendingTarget: null,
@@ -548,6 +597,7 @@ function wireSvgInteractions(svg, view) {
     }
 
     state.selectedId = id;
+    state.detailsOpen = true;
     updateDetails();
     render();
   });
@@ -1026,7 +1076,7 @@ function layoutNodes(nodes, edges, viewType) {
 }
 
 function updateDetails() {
-  const pane = $('details');
+  const pane = $('detailsBody');
   if (!state.selectedId) {
     pane.innerHTML = '<div class="empty-note">Click a node to inspect details</div>';
     return;
@@ -1147,6 +1197,11 @@ function render() {
   updateDetails();
   updateQueue();
 
+  const ws = $('workspace');
+  if (ws) {
+    ws.className = state.detailsOpen ? 'workspace details-open' : 'workspace';
+  }
+
   const view = currentView();
   if (!view) return;
 
@@ -1163,6 +1218,12 @@ $('backBtn').addEventListener('click', function () {
 
 $('commentToggle').addEventListener('click', function () {
   state.commentMode = !state.commentMode;
+  render();
+});
+
+$('detailsCollapseBtn').addEventListener('click', function () {
+  state.detailsOpen = false;
+  state.selectedId = null;
   render();
 });
 

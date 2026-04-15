@@ -89,6 +89,11 @@ The prompt must require element detail display containing:
 - owned data (if any)
 - confidence level (`confirmed|strong_inference|weak_inference`)
 
+Behavior requirements:
+- details sidebar is collapsed by default
+- clicking a node auto-expands the sidebar and shows node details
+- sidebar includes a manual collapse button for users to close it when done
+
 Inspection and drill-down interactions must be distinguishable.
 
 #### Confidence display rule

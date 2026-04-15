@@ -291,6 +291,7 @@ Before pausing for user input, verify:
 - any legend appears outside the architecture/system boundary region
 - arrows avoid passing through node interiors; edge labels stay close and roughly parallel to edge direction
 - confidence labels are not rendered on the diagram canvas (shown in details sidebar only)
+- details sidebar is collapsed by default, auto-expands on node click, and includes manual collapse control
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
   - explicit zero-text upload execution instruction

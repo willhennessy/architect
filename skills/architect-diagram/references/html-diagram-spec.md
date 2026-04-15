@@ -22,6 +22,10 @@ Produce a self-contained interactive architecture diagram grounded in:
    - description/responsibilities
    - technology/language when present
    - confidence level when present
+   - collapsible behavior:
+     - default state is collapsed to maximize diagram canvas space
+     - auto-expand when the user clicks a diagram node
+     - include an in-sidebar collapse control so users can close it manually
 6. Sequence views (if available) exposed in a separate panel/tab.
 7. **Comment Mode** for planning feedback:
    - global `Comment` toggle button (keyboard shortcut: `C`)
