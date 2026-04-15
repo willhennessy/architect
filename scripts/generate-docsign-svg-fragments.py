@@ -120,6 +120,49 @@ def find(elements: Dict[str, Dict[str, Any]], key: str) -> str:
     raise KeyError(f"Missing element for key: {key}")
 
 
+def is_external_element(e: Dict[str, Any]) -> bool:
+    if bool(e.get("external")):
+        return True
+    kind = str(e.get("kind", "")).lower()
+    return kind in {"person", "external_system", "external_actor"}
+
+
+def context_label(rel_id: str, source_id: str, target_id: str, raw_label: str) -> str:
+    rid = rel_id.lower()
+    sid = source_id.lower()
+    tid = target_id.lower()
+
+    if "doc-sender" in sid:
+        return "creates & sends documents"
+    if "document-signer" in sid:
+        return "signs via magic link"
+    if "platform-admin" in sid:
+        return "views admin analytics dashboard"
+    if "webhook" in tid:
+        return "delivers webhooks (async)"
+    if "email" in tid:
+        return "sends emails via provider"
+    if "storage" in tid or "s3" in tid:
+        return "stores/retrieves PDFs"
+
+    if "magic-link" in raw_label.lower():
+        return "signs via magic link"
+
+    return raw_label
+
+
+def map_context_endpoint(eid: str, boxes: Dict[str, Dict[str, float]], model_elements: Dict[str, Dict[str, Any]], system_id: str) -> str:
+    if eid in boxes:
+        return eid
+    e = model_elements.get(eid)
+    if not e:
+        return eid
+    # For context rendering, collapse internal endpoints to system box.
+    if not is_external_element(e):
+        return system_id
+    return eid
+
+
 def render_view_fragment(
     view: Dict[str, Any],
     model_elements: Dict[str, Dict[str, Any]],
@@ -171,14 +214,36 @@ def render_view_fragment(
     relationship_ids = [rid for rid in (view.get("relationship_ids") or []) if isinstance(rid, str)]
 
     lines: List[str] = []
+    seen_edges: set[tuple[str, str, str]] = set()
     for rid in relationship_ids:
         rel = rels.get(rid)
         if not rel:
             continue
         sid, tid = rel.get("source_id"), rel.get("target_id")
+        if not isinstance(sid, str) or not isinstance(tid, str):
+            continue
+
+        if vid == "system-context":
+            system_id = find(model_elements, "sys-docsign-platform")
+            sid = map_context_endpoint(sid, boxes, model_elements, system_id)
+            tid = map_context_endpoint(tid, boxes, model_elements, system_id)
+
         if sid not in boxes or tid not in boxes:
             continue
-        lines.append(draw_edge(rid, str(rel.get("label", "")), boxes[sid], boxes[tid], vid))
+        if sid == tid:
+            # collapsed internal->internal context relationships; skip self-loop clutter
+            continue
+
+        label = str(rel.get("label", ""))
+        if vid == "system-context":
+            label = context_label(rid, sid, tid, label)
+
+        key = (sid, tid, label)
+        if key in seen_edges:
+            continue
+        seen_edges.add(key)
+
+        lines.append(draw_edge(rid, label, boxes[sid], boxes[tid], vid))
 
     nodes: List[str] = []
     for eid in element_ids:
