@@ -137,14 +137,14 @@ fi
 RUN_NAME="$(basename "$RUN_DIR")"
 
 CLAUDE_LAUNCH_BIN=""
-CLAUDE_LAUNCH_ARGS=()
+CLAUDE_LAUNCH_VIA_NPX=0
 if command -v claude >/dev/null 2>&1; then
   CLAUDE_LAUNCH_BIN="claude"
 elif command -v claude-code >/dev/null 2>&1; then
   CLAUDE_LAUNCH_BIN="claude-code"
 elif command -v npx >/dev/null 2>&1; then
   CLAUDE_LAUNCH_BIN="npx"
-  CLAUDE_LAUNCH_ARGS=(-y @anthropic-ai/claude-code)
+  CLAUDE_LAUNCH_VIA_NPX=1
 else
   echo "Run ready: $RUN_DIR" >&2
   echo "ERROR: could not find 'claude', 'claude-code', or 'npx' in PATH." >&2
@@ -152,8 +152,8 @@ else
 fi
 
 LAUNCH_CMD_DISPLAY="$CLAUDE_LAUNCH_BIN"
-if [[ ${#CLAUDE_LAUNCH_ARGS[@]} -gt 0 ]]; then
-  LAUNCH_CMD_DISPLAY+=" ${CLAUDE_LAUNCH_ARGS[*]}"
+if (( CLAUDE_LAUNCH_VIA_NPX )); then
+  LAUNCH_CMD_DISPLAY+=" -y @anthropic-ai/claude-code"
 fi
 
 cat > "$RUN_DIR/notes.md" <<EOF
@@ -181,4 +181,8 @@ echo "Created: $RUN_DIR/notes.md"
 echo "Launching Claude in plan mode..."
 
 cd "$RUN_DIR"
-exec "$CLAUDE_LAUNCH_BIN" "${CLAUDE_LAUNCH_ARGS[@]}" --name "$SESSION_NAME" --permission-mode plan
+if (( CLAUDE_LAUNCH_VIA_NPX )); then
+  exec "$CLAUDE_LAUNCH_BIN" -y @anthropic-ai/claude-code --name "$SESSION_NAME" --permission-mode plan
+else
+  exec "$CLAUDE_LAUNCH_BIN" --name "$SESSION_NAME" --permission-mode plan
+fi
