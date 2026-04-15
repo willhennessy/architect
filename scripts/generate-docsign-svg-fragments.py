@@ -108,11 +108,11 @@ def draw_node(node_id: str, name: str, subtitle: str, box: Dict[str, float], vie
         f"data-element-id=\"{esc(node_id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(name)}\" />"
     )
     lines.append(
-        f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 - 2:.1f}\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
+        f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 - 6:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
     )
     if subtitle:
         lines.append(
-            f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 14:.1f}\" text-anchor=\"middle\" font-size=\"10\" fill=\"#c5d3e8\">{esc(subtitle)}</text>"
+            f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 16:.1f}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">{esc(subtitle)}</text>"
         )
     return "\n  ".join(lines)
 
@@ -193,21 +193,21 @@ def render_view_fragment(
     if vid == "system-context":
         # Left -> center -> right flow: persons, platform, external services.
         boxes = {
-            find(model_elements, "person-doc-sender"): {"x": 90, "y": 95, "w": 240, "h": 84},
-            find(model_elements, "person-document-signer"): {"x": 90, "y": 280, "w": 240, "h": 84},
-            find(model_elements, "person-platform-admin"): {"x": 90, "y": 465, "w": 240, "h": 84},
-            find(model_elements, "sys-docsign-platform"): {"x": 540, "y": 230, "w": 500, "h": 190},
-            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1230, "y": 130, "w": 300, "h": 86},
-            find(model_elements, "ext-email-provider"): {"x": 1230, "y": 300, "w": 300, "h": 86},
-            find(model_elements, "ext-object-storage"): {"x": 1230, "y": 470, "w": 300, "h": 86},
+            find(model_elements, "person-doc-sender"): {"x": 80, "y": 70, "w": 220, "h": 80},
+            find(model_elements, "person-document-signer"): {"x": 80, "y": 220, "w": 220, "h": 80},
+            find(model_elements, "person-platform-admin"): {"x": 80, "y": 370, "w": 220, "h": 80},
+            find(model_elements, "sys-docsign-platform"): {"x": 480, "y": 170, "w": 440, "h": 170},
+            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1080, "y": 90, "w": 270, "h": 82},
+            find(model_elements, "ext-email-provider"): {"x": 1080, "y": 230, "w": 270, "h": 82},
+            find(model_elements, "ext-object-storage"): {"x": 1080, "y": 370, "w": 270, "h": 82},
         }
-        width, height = 1640, 640
-        boundary = '<rect x="510" y="200" width="560" height="250" rx="14" fill="rgba(24,34,58,0.25)" stroke="#4f617f" stroke-dasharray="5 4" />\n  <text x="526" y="222" font-size="11" fill="#9bb0ce" font-weight="700">DocSign Platform</text>'
+        width, height = 1440, 520
+        boundary = '<rect x="450" y="145" width="500" height="220" rx="14" fill="rgba(24,34,58,0.25)" stroke="#4f617f" stroke-dasharray="5 4" />\n  <text x="466" y="167" font-size="11" fill="#9bb0ce" font-weight="700">DocSign Platform</text>'
     elif vid == "container":
         boxes = {
-            find(model_elements, "person-doc-sender"): {"x": 60, "y": 120, "w": 220, "h": 76},
-            find(model_elements, "person-document-signer"): {"x": 60, "y": 260, "w": 220, "h": 76},
-            find(model_elements, "person-platform-admin"): {"x": 60, "y": 400, "w": 220, "h": 76},
+            find(model_elements, "person-doc-sender"): {"x": 60, "y": 120, "w": 200, "h": 76},
+            find(model_elements, "person-document-signer"): {"x": 60, "y": 260, "w": 200, "h": 76},
+            find(model_elements, "person-platform-admin"): {"x": 60, "y": 400, "w": 200, "h": 76},
             find(model_elements, "container-web-application"): {"x": 340, "y": 180, "w": 290, "h": 100},
             find(model_elements, "container-platform-api"): {"x": 730, "y": 180, "w": 290, "h": 100},
             find(model_elements, "container-signing-service"): {"x": 320, "y": 360, "w": 220, "h": 92},
@@ -217,11 +217,11 @@ def render_view_fragment(
             find(model_elements, "database-postgres-primary"): {"x": 390, "y": 560, "w": 240, "h": 92},
             find(model_elements, "queue-message-queue"): {"x": 690, "y": 560, "w": 240, "h": 92},
             find(model_elements, "database-audit-log"): {"x": 990, "y": 560, "w": 240, "h": 92},
-            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1410, "y": 250, "w": 280, "h": 84},
-            find(model_elements, "ext-email-provider"): {"x": 1410, "y": 390, "w": 280, "h": 84},
-            find(model_elements, "ext-object-storage"): {"x": 1410, "y": 530, "w": 280, "h": 84},
+            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1410, "y": 250, "w": 250, "h": 84},
+            find(model_elements, "ext-email-provider"): {"x": 1410, "y": 390, "w": 250, "h": 84},
+            find(model_elements, "ext-object-storage"): {"x": 1410, "y": 530, "w": 250, "h": 84},
         }
-        width, height = 1760, 760
+        width, height = 1720, 760
         boundary = (
             '<rect x="300" y="150" width="1090" height="540" rx="14" fill="rgba(20,31,54,0.26)" stroke="#506385" stroke-dasharray="5 4" />\n'
             '  <text x="316" y="172" font-size="11" fill="#99aecb" font-weight="700">DocSign Platform [System Boundary]</text>'
