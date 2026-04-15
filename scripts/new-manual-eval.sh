@@ -17,7 +17,7 @@ Options:
   --repo-url <url>       Clone target repo into isolated run folder (optional)
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
-  --name <suffix>        Optional folder name suffix appended after timestamp
+  --name <suffix>        Optional folder name suffix appended after timestamp; also used as Claude session name
   --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
   --with-skill           Include skills in run-local HOME (default)
   --without-skill        Do not include skills (baseline run)
@@ -87,6 +87,11 @@ if [[ -e "$RUN_DIR" ]]; then
   echo "Run dir already exists: $RUN_DIR" >&2
   exit 1
 fi
+if [[ -n "$RUN_NAME_SUFFIX" ]]; then
+  SESSION_NAME="$SAFE_SUFFIX"
+else
+  SESSION_NAME="$(basename "$RUN_DIR")"
+fi
 mkdir -p "$RUN_DIR"/{skills,repo,out,home/.claude/skills}
 
 if (( WITH_SKILL )); then
@@ -138,10 +143,11 @@ Run dir:   $RUN_DIR
 Repo dir:  $RUN_DIR/repo
 Skills:    $RUN_DIR/skills
 HOME:      $RUN_DIR/home
+Session:   $SESSION_NAME
 
 Start Claude in isolation:
   cd "$RUN_DIR/repo"
-  HOME="$RUN_DIR/home" claude
+  HOME="$RUN_DIR/home" claude --name "$SESSION_NAME"
 
 (Everything is isolated to this run folder; no access to architect/ ancestor files.)
 EOF
