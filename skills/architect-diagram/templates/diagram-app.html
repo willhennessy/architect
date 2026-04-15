@@ -347,7 +347,6 @@
   </div>
   <div class="tabbar" id="tabs"></div>
   <div class="toolbar">
-    <button id="backBtn" disabled>Back</button>
     <button id="commentToggle" class="comment-toggle">Comment (C)</button>
     <button id="submitBtn" disabled>Submit comments</button>
   </div>
@@ -462,7 +461,6 @@ function updateHeader() {
     }
   });
 
-  $('backBtn').disabled = state.history.length === 0;
   $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
   $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
   document.body.classList.toggle('comment-mode-on', state.commentMode);
@@ -1208,13 +1206,6 @@ function render() {
   if (view.kind === 'sequence') drawSequenceView(view);
   else drawDiagramView(view);
 }
-
-$('backBtn').addEventListener('click', function () {
-  if (!state.history.length) return;
-  state.viewId = state.history.pop();
-  state.selectedId = null;
-  render();
-});
 
 $('commentToggle').addEventListener('click', function () {
   state.commentMode = !state.commentMode;

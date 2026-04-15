@@ -57,7 +57,7 @@ The prompt must require:
 - persistent breadcrumb at top
 - format like `System > Container > Component` for current depth
 - clickable breadcrumb segments for upward navigation
-- explicit Back control
+- no separate Back button is required when breadcrumb navigation is present
 
 #### Visual affordances
 

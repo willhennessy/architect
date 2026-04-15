@@ -15,8 +15,7 @@ Produce a self-contained interactive architecture diagram grounded in:
 1. Entry at system-context view when available.
 2. Drill-down from system -> container -> component where supporting views exist.
 3. Breadcrumb navigation with clickable ancestors.
-4. Explicit back navigation control.
-5. Detail panel for selected entity with:
+4. Detail panel for selected entity with:
    - name
    - kind/type
    - description/responsibilities
@@ -26,14 +25,14 @@ Produce a self-contained interactive architecture diagram grounded in:
      - default state is collapsed to maximize diagram canvas space
      - auto-expand when the user clicks a diagram node
      - include an in-sidebar collapse control so users can close it manually
-6. Sequence views (if available) exposed in a separate panel/tab.
-7. **Comment Mode** for planning feedback:
+5. Sequence views (if available) exposed in a separate panel/tab.
+6. **Comment Mode** for planning feedback:
    - global `Comment` toggle button (keyboard shortcut: `C`)
    - visual mode indicator when enabled
    - while enabled, clicking the diagram opens a comment composer
    - comment composer supports multiline text and explicit submit/cancel actions
    - submitted comments are queued locally and visible in a queue list
-8. Global `Submit` action to finalize queued comments:
+7. Global `Submit` action to finalize queued comments:
    - opens a modal containing copy-ready JSON for the coding agent
    - JSON must include each comment with associated target IDs (or `null` for empty-space clicks)
    - include a one-click copy control for the JSON payload

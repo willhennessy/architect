@@ -36,7 +36,7 @@ Optional debug output:
 - Source all content from the provided artifacts.
 - Preserve exact IDs and paths from source artifacts.
 - `diagram.html` must be fully self-contained (inline CSS/JS; no external dependencies).
-- `diagram.html` must support drill-down navigation from available view hierarchy and breadcrumb/back navigation.
+- `diagram.html` must support drill-down navigation from available view hierarchy and breadcrumb navigation.
 - `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal JSON handoff).
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
 - If a legend is included, it must be outside the architecture/system boundary region.

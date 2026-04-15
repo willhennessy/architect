@@ -13,7 +13,7 @@ Where `<output-root>` is the parent folder that contains `architecture/`.
 
 - Must be fully self-contained HTML with inline CSS/JS (no external CDN or script/style imports).
 - Must render an interactive drill-down architecture diagram based only on provided artifacts.
-- Must include breadcrumb + back navigation.
+- Must include breadcrumb navigation.
 - Details sidebar behavior:
   - collapsed by default
   - auto-expands on node selection
