@@ -52,33 +52,51 @@ def draw_edge(
     src_box: Dict[str, float],
     dst_box: Dict[str, float],
     view_id: str,
-    color: str = "#8ea2c8",
+    color: str = "#8098bf",
 ) -> str:
     x1, y1 = anchor_point(src_box, dst_box)
     x2, y2 = anchor_point(dst_box, src_box)
 
-    angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
-    # Keep labels upright; avoid upside-down text.
-    text_angle = angle
-    if text_angle > 90:
-        text_angle -= 180
-    elif text_angle < -90:
-        text_angle += 180
+    dx, dy = x2 - x1, y2 - y1
+    length = math.hypot(dx, dy)
+    if length == 0:
+        length = 1.0
 
-    mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-    # small perpendicular offset
-    length = math.hypot(x2 - x1, y2 - y1)
-    nx, ny = (-(y2 - y1) / length, (x2 - x1) / length) if length > 0 else (0.0, 0.0)
-    lx, ly = mx + nx * 8.0, my + ny * 8.0
+    # Graceful curved edge with deterministic side selection (low complexity, cheap compute).
+    nx, ny = (-(dy) / length, dx / length)
+    side = -1 if (sum(ord(c) for c in rel_id) % 2) else 1
+    curve = min(110.0, max(28.0, length * 0.16)) * side
+    cx, cy = (x1 + x2) / 2.0 + nx * curve, (y1 + y2) / 2.0 + ny * curve
 
-    short = label if len(label) <= 36 else label[:35] + "…"
+    # Label position/tangent on bezier near midpoint.
+    t = 0.56
+    omt = 1.0 - t
+    lx = omt * omt * x1 + 2 * omt * t * cx + t * t * x2
+    ly = omt * omt * y1 + 2 * omt * t * cy + t * t * y2
+
+    tx = 2 * omt * (cx - x1) + 2 * t * (x2 - cx)
+    ty = 2 * omt * (cy - y1) + 2 * t * (y2 - cy)
+    tlen = math.hypot(tx, ty) or 1.0
+    tnx, tny = -ty / tlen, tx / tlen
+
+    # Small padding from line so label hugs path but stays readable.
+    lx += tnx * 7.0
+    ly += tny * 7.0
+
+    angle = math.degrees(math.atan2(ty, tx))
+    if angle > 90:
+        angle -= 180
+    elif angle < -90:
+        angle += 180
+
+    short = label if len(label) <= 34 else label[:33] + "…"
 
     return f"""
-  <line x1=\"{x1:.1f}\" y1=\"{y1:.1f}\" x2=\"{x2:.1f}\" y2=\"{y2:.1f}\" stroke=\"{color}\" stroke-width=\"1.8\" marker-end=\"url(#arrow)\" />
-  <line x1=\"{x1:.1f}\" y1=\"{y1:.1f}\" x2=\"{x2:.1f}\" y2=\"{y2:.1f}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"
+  <path d=\"M {x1:.1f} {y1:.1f} Q {cx:.1f} {cy:.1f} {x2:.1f} {y2:.1f}\" stroke=\"{color}\" stroke-width=\"1.8\" fill=\"none\" marker-end=\"url(#arrow)\" />
+  <path d=\"M {x1:.1f} {y1:.1f} Q {cx:.1f} {cy:.1f} {x2:.1f} {y2:.1f}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"
         data-relationship-id=\"{esc(rel_id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(label or rel_id)}\" />
-  <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({text_angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
-        font-size=\"9\" fill=\"#9eb3d8\">{esc(short)}</text>
+  <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
+        font-size=\"9\" fill=\"#95a9c9\">{esc(short)}</text>
 """.rstrip()
 
 
@@ -173,39 +191,40 @@ def render_view_fragment(
 
     # Manual placements tuned for DocSign prompt artifacts
     if vid == "system-context":
+        # Left -> center -> right flow: persons, platform, external services.
         boxes = {
-            find(model_elements, "person-doc-sender"): {"x": 80, "y": 120, "w": 240, "h": 90},
-            find(model_elements, "person-document-signer"): {"x": 360, "y": 120, "w": 240, "h": 90},
-            find(model_elements, "person-platform-admin"): {"x": 640, "y": 120, "w": 240, "h": 90},
-            find(model_elements, "sys-docsign-platform"): {"x": 360, "y": 320, "w": 460, "h": 220},
-            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1020, "y": 250, "w": 300, "h": 90},
-            find(model_elements, "ext-email-provider"): {"x": 1020, "y": 360, "w": 300, "h": 90},
-            find(model_elements, "ext-object-storage"): {"x": 1020, "y": 470, "w": 300, "h": 90},
+            find(model_elements, "person-doc-sender"): {"x": 90, "y": 170, "w": 260, "h": 96},
+            find(model_elements, "person-document-signer"): {"x": 90, "y": 390, "w": 260, "h": 96},
+            find(model_elements, "person-platform-admin"): {"x": 90, "y": 610, "w": 260, "h": 96},
+            find(model_elements, "sys-docsign-platform"): {"x": 560, "y": 320, "w": 520, "h": 240},
+            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1290, "y": 220, "w": 320, "h": 96},
+            find(model_elements, "ext-email-provider"): {"x": 1290, "y": 440, "w": 320, "h": 96},
+            find(model_elements, "ext-object-storage"): {"x": 1290, "y": 660, "w": 320, "h": 96},
         }
-        width, height = 1380, 700
-        boundary = '<rect x="330" y="290" width="550" height="280" rx="14" fill="rgba(32,44,74,0.22)" stroke="#5d7198" stroke-dasharray="5 4" />\n  <text x="344" y="312" font-size="11" fill="#9cb4dd" font-weight="700">DocSign Platform</text>'
+        width, height = 1740, 900
+        boundary = '<rect x="530" y="290" width="580" height="300" rx="14" fill="rgba(24,34,58,0.25)" stroke="#4f617f" stroke-dasharray="5 4" />\n  <text x="546" y="312" font-size="11" fill="#9bb0ce" font-weight="700">DocSign Platform</text>'
     elif vid == "container":
         boxes = {
-            find(model_elements, "person-doc-sender"): {"x": 70, "y": 80, "w": 220, "h": 80},
-            find(model_elements, "person-document-signer"): {"x": 350, "y": 80, "w": 220, "h": 80},
-            find(model_elements, "person-platform-admin"): {"x": 630, "y": 80, "w": 220, "h": 80},
-            find(model_elements, "container-web-application"): {"x": 140, "y": 260, "w": 300, "h": 110},
-            find(model_elements, "container-platform-api"): {"x": 560, "y": 260, "w": 300, "h": 110},
-            find(model_elements, "container-signing-service"): {"x": 120, "y": 460, "w": 220, "h": 100},
-            find(model_elements, "container-notification-service"): {"x": 410, "y": 460, "w": 220, "h": 100},
-            find(model_elements, "container-webhook-service"): {"x": 700, "y": 460, "w": 220, "h": 100},
-            find(model_elements, "container-audit-service"): {"x": 990, "y": 460, "w": 220, "h": 100},
-            find(model_elements, "database-postgres-primary"): {"x": 150, "y": 680, "w": 250, "h": 100},
-            find(model_elements, "queue-message-queue"): {"x": 470, "y": 680, "w": 250, "h": 100},
-            find(model_elements, "database-audit-log"): {"x": 790, "y": 680, "w": 250, "h": 100},
-            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1300, "y": 360, "w": 280, "h": 90},
-            find(model_elements, "ext-email-provider"): {"x": 1300, "y": 500, "w": 280, "h": 90},
-            find(model_elements, "ext-object-storage"): {"x": 1300, "y": 640, "w": 280, "h": 90},
+            find(model_elements, "person-doc-sender"): {"x": 70, "y": 170, "w": 240, "h": 84},
+            find(model_elements, "person-document-signer"): {"x": 70, "y": 330, "w": 240, "h": 84},
+            find(model_elements, "person-platform-admin"): {"x": 70, "y": 490, "w": 240, "h": 84},
+            find(model_elements, "container-web-application"): {"x": 380, "y": 230, "w": 320, "h": 114},
+            find(model_elements, "container-platform-api"): {"x": 820, "y": 230, "w": 320, "h": 114},
+            find(model_elements, "container-signing-service"): {"x": 360, "y": 450, "w": 240, "h": 106},
+            find(model_elements, "container-notification-service"): {"x": 670, "y": 450, "w": 240, "h": 106},
+            find(model_elements, "container-webhook-service"): {"x": 980, "y": 450, "w": 240, "h": 106},
+            find(model_elements, "container-audit-service"): {"x": 1290, "y": 450, "w": 240, "h": 106},
+            find(model_elements, "database-postgres-primary"): {"x": 430, "y": 720, "w": 260, "h": 106},
+            find(model_elements, "queue-message-queue"): {"x": 780, "y": 720, "w": 260, "h": 106},
+            find(model_elements, "database-audit-log"): {"x": 1130, "y": 720, "w": 260, "h": 106},
+            find(model_elements, "ext-customer-webhook-endpoint"): {"x": 1580, "y": 300, "w": 300, "h": 94},
+            find(model_elements, "ext-email-provider"): {"x": 1580, "y": 470, "w": 300, "h": 94},
+            find(model_elements, "ext-object-storage"): {"x": 1580, "y": 640, "w": 300, "h": 94},
         }
-        width, height = 1660, 920
+        width, height = 1940, 980
         boundary = (
-            '<rect x="100" y="230" width="1140" height="580" rx="14" fill="rgba(28,40,72,0.20)" stroke="#60749c" stroke-dasharray="5 4" />\n'
-            '  <text x="116" y="252" font-size="11" fill="#9cb4dd" font-weight="700">DocSign Platform [System Boundary]</text>'
+            '<rect x="340" y="190" width="1230" height="680" rx="14" fill="rgba(20,31,54,0.26)" stroke="#506385" stroke-dasharray="5 4" />\n'
+            '  <text x="356" y="212" font-size="11" fill="#99aecb" font-weight="700">DocSign Platform [System Boundary]</text>'
         )
     else:
         return
@@ -253,24 +272,35 @@ def render_view_fragment(
         if not e:
             continue
         name, subtitle = element_label(e)
-        kind = str(e.get("kind", ""))
+        kind = str(e.get("kind", "")).lower()
+        stroke = "#7085a8"
         if kind == "person":
-            fill = "#3b82f6"
+            fill = "#31466b"
+            stroke = "#7d98c2"
         elif kind == "external_system":
-            fill = "#f97316"
+            fill = "#3d4556"
+            stroke = "#8b98ae"
         elif kind in {"database", "queue", "cache"}:
-            fill = "#334155"
+            fill = "#2d3445"
+            stroke = "#73839e"
+            if kind == "queue":
+                fill = "#363345"
+                stroke = "#8b7ca8"
+        elif kind in {"software_system", "system"}:
+            fill = "#2c4c78"
+            stroke = "#73a0d8"
         else:
-            fill = "#16a34a"
-        nodes.append(draw_node(eid, name, subtitle, boxes[eid], vid, fill))
+            fill = "#295164"
+            stroke = "#6ea2bb"
+        nodes.append(draw_node(eid, name, subtitle, boxes[eid], vid, fill, stroke))
 
     svg = f"""<svg viewBox=\"0 0 {width} {height}\" width=\"{width}\" height=\"{height}\" xmlns=\"http://www.w3.org/2000/svg\">
   <defs>
     <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">
-      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#8ea2c8\" />
+      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />
     </marker>
   </defs>
-  <rect x=\"0\" y=\"0\" width=\"{width}\" height=\"{height}\" fill=\"#0f1a30\" />
+  <rect x=\"0\" y=\"0\" width=\"{width}\" height=\"{height}\" fill=\"#0b1020\" />
   {boundary}
   {'\n  '.join(lines)}
   {'\n  '.join(nodes)}
