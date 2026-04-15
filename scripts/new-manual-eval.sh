@@ -5,7 +5,7 @@ set -euo pipefail
 # Creates a per-run sandbox with:
 #   - copied skills snapshot
 #   - copied shared skill references (skills/references)
-#   - isolated HOME/.claude/skills
+#   - run-local .claude/skills
 #   - isolated repo checkout/copy
 
 usage() {
@@ -19,12 +19,12 @@ Options:
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
   --name <suffix>        Optional folder name suffix appended after timestamp; also used as Claude session name
   --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
-  --with-skill           Include skills in run-local HOME (default)
+  --with-skill           Include skills in run-local .claude/skills (default)
   --without-skill        Do not include skills (baseline run)
   -h, --help             Show help
 
 Example:
-  ./scripts/new-manual-eval.sh --repo-url https://github.com/openfga/openfga.git
+  ./scripts/new-manual-eval.sh --repo-url https://github.com/openfga/openfga.git --name openfga-baseline
 EOF
 }
 
@@ -80,19 +80,18 @@ if [[ -n "$RUN_NAME_SUFFIX" ]]; then
     exit 1
   fi
   RUN_DIR="$RUN_ROOT/run-$timestamp-$SAFE_SUFFIX"
+  SESSION_NAME="$SAFE_SUFFIX"
 else
   RUN_DIR="$RUN_ROOT/run-$timestamp"
+  SESSION_NAME="$(basename "$RUN_DIR")"
 fi
+
 if [[ -e "$RUN_DIR" ]]; then
   echo "Run dir already exists: $RUN_DIR" >&2
   exit 1
 fi
-if [[ -n "$RUN_NAME_SUFFIX" ]]; then
-  SESSION_NAME="$SAFE_SUFFIX"
-else
-  SESSION_NAME="$(basename "$RUN_DIR")"
-fi
-mkdir -p "$RUN_DIR"/{skills,repo,out,home/.claude/skills}
+
+mkdir -p "$RUN_DIR"/{skills,repo,out,.claude/skills}
 
 if (( WITH_SKILL )); then
   # Copy shared references used by multiple skills (e.g., architecture-contract.md)
@@ -109,7 +108,7 @@ if (( WITH_SKILL )); then
       exit 1
     fi
     cp -R "$src" "$dst"
-    ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/home/.claude/skills/$s"
+    ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/.claude/skills/$s"
   done
 fi
 
@@ -135,19 +134,51 @@ else
   MODE="without-skill"
 fi
 
-cat <<EOF
-✅ Isolated manual eval ready:
+RUN_NAME="$(basename "$RUN_DIR")"
 
-Mode:      $MODE
-Run dir:   $RUN_DIR
-Repo dir:  $RUN_DIR/repo
-Skills:    $RUN_DIR/skills
-HOME:      $RUN_DIR/home
-Session:   $SESSION_NAME
+CLAUDE_LAUNCH_BIN=""
+CLAUDE_LAUNCH_ARGS=()
+if command -v claude >/dev/null 2>&1; then
+  CLAUDE_LAUNCH_BIN="claude"
+elif command -v claude-code >/dev/null 2>&1; then
+  CLAUDE_LAUNCH_BIN="claude-code"
+elif command -v npx >/dev/null 2>&1; then
+  CLAUDE_LAUNCH_BIN="npx"
+  CLAUDE_LAUNCH_ARGS=(-y @anthropic-ai/claude-code)
+else
+  echo "Run ready: $RUN_DIR" >&2
+  echo "ERROR: could not find 'claude', 'claude-code', or 'npx' in PATH." >&2
+  exit 127
+fi
 
-Start Claude in isolation:
-  cd "$RUN_DIR/repo"
-  HOME="$RUN_DIR/home" claude --name "$SESSION_NAME"
+LAUNCH_CMD_DISPLAY="$CLAUDE_LAUNCH_BIN"
+if [[ ${#CLAUDE_LAUNCH_ARGS[@]} -gt 0 ]]; then
+  LAUNCH_CMD_DISPLAY+=" ${CLAUDE_LAUNCH_ARGS[*]}"
+fi
 
-(Everything is isolated to this run folder; no access to architect/ ancestor files.)
+cat > "$RUN_DIR/notes.md" <<EOF
+# Manual Eval Run Notes
+
+- mode: $MODE
+- run_dir: $RUN_DIR
+- run_name: $RUN_NAME
+- session_name: $SESSION_NAME
+- repo_dir: $RUN_DIR/repo
+- skills_dir: $RUN_DIR/skills
+- created_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+## Claude launch
+
+This run auto-starts Claude in this directory with:
+
+$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME" --permission-mode plan
+
+(Working directory: $RUN_DIR)
 EOF
+
+echo "Run ready: $RUN_DIR"
+echo "Created: $RUN_DIR/notes.md"
+echo "Launching Claude in plan mode..."
+
+cd "$RUN_DIR"
+exec "$CLAUDE_LAUNCH_BIN" "${CLAUDE_LAUNCH_ARGS[@]}" --name "$SESSION_NAME" --permission-mode plan

@@ -174,9 +174,9 @@ Phase 3: **Faster, safer, more legible evolution**: A semantic architecture repr
 
 Treat diagram generation as an independent task from architecture generation so that we can swap out different diagram visualization tools later.
 
-For MVP, only output the semantic architecture. We will use Claude Chat to visualize it.
+For MVP, output the semantic architecture and automatically generate `diagram.html` in the same planning flow.
 
-Later, we will generate an HTML diagram. This will enable more interactivity, but it’s out of scope for MVP.
+Keep diagram generation decoupled from architecture generation at the implementation level, but seamless at the UX level (no separate manual step for the engineer).
 
 ---
 
@@ -193,10 +193,10 @@ Later, we will generate an HTML diagram. This will enable more interactivity, bu
 1. Engineer provides intent (text, rough diagram, or whiteboard photo)
 2. Architect auto-triggers in planning mode (or user invokes `/architect`)
 3. Agent runs planning mode and generates architecture diagram + WHY.
-4. Agent writes the final output to a single file per the skill definition. (later, generate HTML diagram to support point and click comments)
-5. **Prototype workflow (temporary):** Engineer uploads the output file to Claude Chat.
-6. Claude Chat generates an interactive diagram using Claude Imagine.
-7. Engineer reviews and gives feedback (MVP via chat with the coding agent; later point-and-click comments)
+4. Agent writes canonical architecture artifacts (`manifest/model/views/summary`) and automatically runs diagram rendering.
+5. Agent presents `diagram.html` as part of the same planning response (no manual upload/handoff step).
+6. Engineer reviews the interactive diagram and gives feedback (chat + comment mode).
+7. Agent keeps artifacts and diagram synchronized on every revision.
 8. Agent iterates on plan + architecture
 9. Engineer approves architecture
 10. Agent implements
