@@ -288,6 +288,8 @@ Before pausing for user input, verify:
 - `scripts/validate-diagram-html.sh evals/architect-discover/roundX_<repo>/diagram.html` passes
 - `diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with JSON handoff)
 - relationship hit targets are selectable and carry `data-relationship-id` for edge comments
+- any legend appears outside the architecture/system boundary region
+- arrows avoid passing through node interiors; edge labels stay close and roughly parallel to edge direction
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
   - explicit zero-text upload execution instruction

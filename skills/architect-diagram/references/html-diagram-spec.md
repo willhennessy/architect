@@ -64,6 +64,12 @@ Thin connectors (lines/arrows) must remain easy to click:
 - enforce a minimum clickable thickness of at least 12px around visual edge geometry
 - expose `data-relationship-id` on edge hit targets
 
+## Diagram legibility constraints
+
+- If a legend is present, place it outside the architecture drawing/system boundary region.
+- Arrows must not intersect node interiors; route from perimeter-to-perimeter with collision avoidance.
+- Arrow labels should stay near their line with small padding and be angled parallel to edge direction when feasible.
+
 ## Data and grounding constraints
 
 - Render only entities and relationships present in architecture artifacts.

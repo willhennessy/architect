@@ -73,6 +73,12 @@ The prompt must require:
 - render relationships relevant to current view
 - label relationships with description and protocol/technology when available
 - represent out-of-scope endpoints as simplified edge/reference nodes (not full expansion)
+- route edges so arrow paths do not pass through node interiors
+- place labels close to their edge with small padding and angle labels parallel to the line when feasible
+
+#### Legend placement
+
+If a legend is included, require it to be outside the architecture/system boundary region (never inside architectural layers).
 
 #### Detail panels
 

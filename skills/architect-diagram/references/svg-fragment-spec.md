@@ -41,6 +41,22 @@ Aim for architecture-readable layout, not uniform grid:
 - minimize edge crossings
 - keep labels readable
 
+### Additional legibility constraints (required)
+
+1. **Legend placement**
+   - If you include a legend, place it **outside** the architecture drawing region/system boundary.
+   - Never place the legend inside architectural layers or inside the system boundary panel.
+
+2. **Edge geometry**
+   - Route arrows from node perimeter to node perimeter.
+   - Edge paths must not pass through the interior of any node box.
+   - Prefer orthogonal/curved routing that avoids node overlap over direct crossing lines.
+
+3. **Edge labels**
+   - Keep relationship labels close to their edge (small offset, ~4–10px).
+   - Rotate labels to align roughly parallel with edge direction where possible.
+   - Avoid floating labels far away from their associated line.
+
 ## Sequence views
 
 Sequence views are optional as SVG fragments; the app has a built-in fallback renderer.

@@ -125,6 +125,9 @@ Before finishing, verify:
 - `diagram.html` drill-down hierarchy only references real view files.
 - `diagram.html` includes comment mode (`Comment` toggle + `C` shortcut + submit modal).
 - edge hit targets are selectable and include `data-relationship-id`.
+- if legend exists, it is outside the architecture/system boundary region.
+- arrow paths avoid node interiors (no line-through-box artifacts).
+- edge labels are near their associated edge and angled parallel to edge direction where feasible.
 - comment export is JSON and includes required fields (`view_id`, `element_id`, `relationship_id`, `comment`).
 - template-injection render path was used (`render-diagram-html.py`).
 - if `diagram-svg/` fragments are present, they are used in the injected output.

@@ -39,6 +39,8 @@ Optional debug output:
 - `diagram.html` must support drill-down navigation from available view hierarchy and breadcrumb/back navigation.
 - `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + comment queue + submit modal JSON handoff).
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
+- If a legend is included, it must be outside the architecture/system boundary region.
+- Relationship arrows should avoid node-interior intersections and keep labels close/parallel to edge direction.
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
 - `diagram-prompt.md` must end with a one-line pointer to the rendered HTML path:
   - `View the architecture diagram here: <fully_resolved_file_path>`
