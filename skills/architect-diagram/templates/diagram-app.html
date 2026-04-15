@@ -1094,10 +1094,10 @@ function updateDetails() {
 
   const html = [];
   html.push('<div style="font-size:15px;font-weight:700">' + esc(node.name || node.id) + '</div>');
-  html.push('<div class="meta-label">Kind</div><div class="chip">' + esc(node.kind || 'unknown') + '</div>');
 
-  if (node.technology) html.push('<div class="meta-label">Technology</div><div>' + esc(node.technology) + '</div>');
   if (node.description) html.push('<div class="meta-label">Description</div><div>' + esc(node.description) + '</div>');
+  html.push('<div class="meta-label">Kind</div><div class="chip">' + esc(node.kind || 'unknown') + '</div>');
+  if (node.technology) html.push('<div class="meta-label">Technology</div><div>' + esc(node.technology) + '</div>');
   if (node.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(node.confidence) + '</div>');
 
   if ((node.tags || []).length) {
