@@ -69,6 +69,7 @@ Thin connectors (lines/arrows) must remain easy to click:
 - If a legend is present, place it outside the architecture drawing/system boundary region.
 - Arrows must not intersect node interiors; route from perimeter-to-perimeter with collision avoidance.
 - Arrow labels should stay near their line with small padding and be angled parallel to edge direction when feasible.
+- Do not display confidence labels in the SVG diagram canvas; show confidence only in the details sidebar.
 
 ## Data and grounding constraints
 

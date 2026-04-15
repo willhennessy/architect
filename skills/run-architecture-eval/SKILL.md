@@ -290,6 +290,7 @@ Before pausing for user input, verify:
 - relationship hit targets are selectable and carry `data-relationship-id` for edge comments
 - any legend appears outside the architecture/system boundary region
 - arrows avoid passing through node interiors; edge labels stay close and roughly parallel to edge direction
+- confidence labels are not rendered on the diagram canvas (shown in details sidebar only)
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
   - explicit zero-text upload execution instruction

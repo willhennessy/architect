@@ -41,6 +41,7 @@ Optional debug output:
 - Use stable element metadata in HTML (`data-element-id`, `data-view-id`, and relationship metadata where applicable).
 - If a legend is included, it must be outside the architecture/system boundary region.
 - Relationship arrows should avoid node-interior intersections and keep labels close/parallel to edge direction.
+- Do not show confidence labels directly on diagram SVG nodes/edges; confidence belongs in the details sidebar only.
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
 - `diagram-prompt.md` must end with a one-line pointer to the rendered HTML path:
   - `View the architecture diagram here: <fully_resolved_file_path>`

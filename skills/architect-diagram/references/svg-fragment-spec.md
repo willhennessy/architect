@@ -57,6 +57,10 @@ Aim for architecture-readable layout, not uniform grid:
    - Rotate labels to align roughly parallel with edge direction where possible.
    - Avoid floating labels far away from their associated line.
 
+4. **Confidence display**
+   - Do not render confidence tokens (e.g., `confirmed`, `strong_inference`, `weak_inference`) as visible labels inside the SVG diagram.
+   - Confidence must be shown in the details sidebar only.
+
 ## Sequence views
 
 Sequence views are optional as SVG fragments; the app has a built-in fallback renderer.

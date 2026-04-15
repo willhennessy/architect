@@ -128,6 +128,7 @@ Before finishing, verify:
 - if legend exists, it is outside the architecture/system boundary region.
 - arrow paths avoid node interiors (no line-through-box artifacts).
 - edge labels are near their associated edge and angled parallel to edge direction where feasible.
+- confidence labels are not shown directly on diagram SVG (confidence appears in details sidebar only).
 - comment export is JSON and includes required fields (`view_id`, `element_id`, `relationship_id`, `comment`).
 - template-injection render path was used (`render-diagram-html.py`).
 - if `diagram-svg/` fragments are present, they are used in the injected output.

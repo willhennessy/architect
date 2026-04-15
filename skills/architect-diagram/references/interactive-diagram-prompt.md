@@ -91,6 +91,11 @@ The prompt must require element detail display containing:
 
 Inspection and drill-down interactions must be distinguishable.
 
+#### Confidence display rule
+
+- do **not** show confidence labels directly on diagram SVG nodes/edges.
+- show confidence only inside the details sidebar/panel.
+
 ### 4) Comment Mode behavior (required)
 
 The prompt must require:

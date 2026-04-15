@@ -451,6 +451,30 @@ function normalizeSvgFragment(fragment) {
   return t;
 }
 
+function isConfidenceTokenText(text) {
+  const t = String(text || '').toLowerCase().trim();
+  if (!t) return false;
+  const cleaned = t
+    .replace(/[\[\]()]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/-+/g, '_');
+  return cleaned === 'confirmed' || cleaned === 'strong_inference' || cleaned === 'weak_inference';
+}
+
+function stripConfidenceLabelsFromSvg(svg) {
+  if (!svg) return;
+
+  svg.querySelectorAll('[data-confidence-label], .confidence-label').forEach(function (el) {
+    el.remove();
+  });
+
+  svg.querySelectorAll('text').forEach(function (textEl) {
+    if (isConfidenceTokenText(textEl.textContent)) {
+      textEl.remove();
+    }
+  });
+}
+
 function wireSvgInteractions(svg, view) {
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
     if (el.getAttribute('data-element-id') === state.selectedId) {
@@ -545,6 +569,7 @@ function drawDiagramView(view) {
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
       }
+      stripConfidenceLabelsFromSvg(svg);
       wireSvgInteractions(svg, view);
       host.appendChild(svg);
       return;
@@ -720,6 +745,7 @@ function drawSequenceView(view) {
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
       }
+      stripConfidenceLabelsFromSvg(svg);
       wireSvgInteractions(svg, view);
       host.appendChild(svg);
       return;
