@@ -211,10 +211,12 @@ Keep diagram generation decoupled from architecture generation at the implementa
 
 Upgrade feedback from chat-only to direct, pointed diagram interaction.
 
-1. Engineer clicks node/edge to annotate architectural concern
-2. Agent maps annotation to plan changes
-3. Agent regenerates architecture + WHY
-4. Engineer iterates until approval
+1. Engineer enters **Comment Mode** (button or `C`) and clicks node/edge/canvas to annotate architectural concern
+2. Comment is queued with associated `element_id`/`relationship_id` (or `null` for canvas clicks)
+3. Engineer batch-submits comments; UI provides copy-ready JSON payload for the coding agent
+4. Agent maps annotation to plan changes
+5. Agent regenerates architecture + WHY
+6. Engineer iterates until approval
 
 **Prerequisite:** stable node/edge IDs across regenerations so comments remain attached to intended elements.
 

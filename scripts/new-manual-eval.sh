@@ -17,19 +17,21 @@ Options:
   --repo-url <url>       Clone target repo into isolated run folder (optional)
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
+  --name <suffix>        Optional folder name suffix appended after timestamp; also used as Claude session name
   --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
   --with-skill           Include skills in run-local .claude/skills (default)
   --without-skill        Do not include skills (baseline run)
   -h, --help             Show help
 
 Example:
-  ./scripts/new-manual-eval.sh --repo-url https://github.com/openfga/openfga.git
+  ./scripts/new-manual-eval.sh --repo-url https://github.com/openfga/openfga.git --name openfga-baseline
 EOF
 }
 
 REPO_URL=""
 REPO_PATH=""
 RUN_ROOT="$HOME/tmp/architect-manual-evals"
+RUN_NAME_SUFFIX=""
 SKILLS_CSV="architect-plan,architect-discover,architect-diagram"
 WITH_SKILL=1
 
@@ -41,6 +43,8 @@ while [[ $# -gt 0 ]]; do
       REPO_PATH="$2"; shift 2 ;;
     --run-root)
       RUN_ROOT="$2"; shift 2 ;;
+    --name|--run-name)
+      RUN_NAME_SUFFIX="$2"; shift 2 ;;
     --skills)
       SKILLS_CSV="$2"; shift 2 ;;
     --with-skill)
@@ -66,11 +70,27 @@ ARCHITECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_ROOT="$ARCHITECT_ROOT/skills"
 
 timestamp="$(date +%Y%m%d-%H%M%S)-$RANDOM"
-RUN_DIR="$RUN_ROOT/run-$timestamp"
+if [[ -n "$RUN_NAME_SUFFIX" ]]; then
+  SAFE_SUFFIX="$(printf '%s' "$RUN_NAME_SUFFIX" | tr '[:space:]' '-' | tr -cd '[:alnum:]_.-')"
+  SAFE_SUFFIX="${SAFE_SUFFIX#-}"
+  SAFE_SUFFIX="${SAFE_SUFFIX%-}"
+  if [[ -z "$SAFE_SUFFIX" ]]; then
+    echo "Invalid --name value: '$RUN_NAME_SUFFIX'" >&2
+    echo "Use letters, numbers, dot, underscore, or dash." >&2
+    exit 1
+  fi
+  RUN_DIR="$RUN_ROOT/run-$timestamp-$SAFE_SUFFIX"
+  SESSION_NAME="$SAFE_SUFFIX"
+else
+  RUN_DIR="$RUN_ROOT/run-$timestamp"
+  SESSION_NAME="$(basename "$RUN_DIR")"
+fi
+
 if [[ -e "$RUN_DIR" ]]; then
   echo "Run dir already exists: $RUN_DIR" >&2
   exit 1
 fi
+
 mkdir -p "$RUN_DIR"/{skills,repo,out,.claude/skills}
 
 if (( WITH_SKILL )); then
@@ -142,6 +162,7 @@ cat > "$RUN_DIR/notes.md" <<EOF
 - mode: $MODE
 - run_dir: $RUN_DIR
 - run_name: $RUN_NAME
+- session_name: $SESSION_NAME
 - repo_dir: $RUN_DIR/repo
 - skills_dir: $RUN_DIR/skills
 - created_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -150,7 +171,7 @@ cat > "$RUN_DIR/notes.md" <<EOF
 
 This run auto-starts Claude in this directory with:
 
-$LAUNCH_CMD_DISPLAY --name "$RUN_NAME" --permission-mode plan
+$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME" --permission-mode plan
 
 (Working directory: $RUN_DIR)
 EOF
@@ -160,4 +181,4 @@ echo "Created: $RUN_DIR/notes.md"
 echo "Launching Claude in plan mode..."
 
 cd "$RUN_DIR"
-exec "$CLAUDE_LAUNCH_BIN" "${CLAUDE_LAUNCH_ARGS[@]}" --name "$RUN_NAME" --permission-mode plan
+exec "$CLAUDE_LAUNCH_BIN" "${CLAUDE_LAUNCH_ARGS[@]}" --name "$SESSION_NAME" --permission-mode plan

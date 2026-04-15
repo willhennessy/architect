@@ -1,7 +1,7 @@
 interface:
   display_name: "Architecture Diagram"
   short_description: "Generate primary interactive HTML diagram plus secondary Claude Imagine prompt bundle"
-  default_prompt: "Use $architect-diagram to generate diagram.html (primary) and diagram-prompt.md (secondary) from existing architecture artifacts, and run validate-diagram-html before declaring completion."
+  default_prompt: "Use $architect-diagram to generate diagram.html with Comment Mode by injecting LLM-generated per-view SVG fragments into the template app (fallback to deterministic layout if needed), plus diagram-prompt.md (secondary). Ensure diagram-prompt.md ends with `View the architecture diagram here: <fully_resolved_file_path>`. Then run validate-diagram-html before completion."
 
 policy:
   allow_implicit_invocation: true

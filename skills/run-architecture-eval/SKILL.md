@@ -10,7 +10,7 @@ Use this skill to run a full eval loop against a real repository. The goal is co
 For each eval round, produce:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`: generated architecture artifacts
-- `evals/architect-discover/roundX_<repo>/diagram.html`: primary interactive HTML architecture diagram
+- `evals/architect-discover/roundX_<repo>/diagram.html`: primary interactive HTML architecture diagram (with Comment Mode)
 - `evals/architect-discover/roundX_<repo>/diagram-prompt.md`: secondary Claude Imagine upload bundle
 - `evals/architect-discover/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
 - `evals/architect-discover/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
@@ -145,9 +145,9 @@ Set the output path to:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`
 
-Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs:
+Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs (prefer hybrid template + LLM SVG fragments; fallback to deterministic layout if fragments are missing):
 
-- `evals/architect-discover/roundX_<repo>/diagram.html` (primary)
+- `evals/architect-discover/roundX_<repo>/diagram.html` (primary, includes Comment Mode)
 - `evals/architect-discover/roundX_<repo>/diagram-prompt.md` (secondary)
 
 **Do not skip diagram generation.** During eval runs, invoke `architect-diagram` after `architect-discover` so every round includes both outputs for UX and Anthropic-facing evaluation.
@@ -157,6 +157,12 @@ Then invoke `architect-diagram` using the parent round folder as output root so 
 - `## Agent Instruction: Execute the Prompt Below Exactly`
 
 Immediately below the heading, include an explicit instruction that if the file is uploaded with no user-typed prompt, the agent should treat the embedded prompt as the full instruction and execute it directly.
+
+At the very end of `diagram-prompt.md`, require this one-line handoff instruction:
+
+- `View the architecture diagram here: <fully_resolved_file_path>`
+
+Where `<fully_resolved_file_path>` is the absolute path to `evals/architect-discover/roundX_<repo>/diagram.html`.
 
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
@@ -279,10 +285,19 @@ Before pausing for user input, verify:
 - the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `diagram.html` exists and is self-contained (no external dependencies)
+- `scripts/validate-diagram-html.sh evals/architect-discover/roundX_<repo>/diagram.html` passes
+- `diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with JSON handoff)
+- relationship hit targets are selectable and carry `data-relationship-id` for edge comments
+- any legend appears outside the architecture/system boundary region
+- arrows avoid passing through node interiors; edge labels stay close and roughly parallel to edge direction
+- confidence labels are not rendered on the diagram canvas (shown in details sidebar only)
+- details sidebar is collapsed by default, auto-expands on node click, and includes manual collapse control
 - `diagram-prompt.md` exists and includes:
   - the heading `## Agent Instruction: Execute the Prompt Below Exactly`
   - explicit zero-text upload execution instruction
   - prompt + virtual tree + full artifact contents
+  - final line: `View the architecture diagram here: <fully_resolved_file_path>`
+  - `<fully_resolved_file_path>` is absolute and points to `.../diagram.html`
 - `subagent_feedback.md` exists
 - `scores.yaml` exists and contains all 8 dimensions
 - `reflections.md` exists
