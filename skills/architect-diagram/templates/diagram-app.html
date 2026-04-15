@@ -288,6 +288,12 @@
     }
 
     svg text { user-select: none; }
+    svg [data-element-id] { cursor: pointer; }
+    .comment-mode-on svg [data-element-id],
+    .comment-mode-on svg [data-relationship-id] { cursor: crosshair; }
+    svg [data-element-id][data-selected='true'] {
+      filter: drop-shadow(0 0 5px rgba(255, 208, 114, 0.95));
+    }
   </style>
 </head>
 <body>
@@ -410,6 +416,7 @@ function updateHeader() {
   $('backBtn').disabled = state.history.length === 0;
   $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
   $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
+  document.body.classList.toggle('comment-mode-on', state.commentMode);
 }
 
 function updateTabs() {
@@ -429,9 +436,120 @@ function updateTabs() {
   });
 }
 
+function normalizeSvgFragment(fragment) {
+  let t = String(fragment || '').trim();
+  if (!t) return '';
+
+  if (t.startsWith('```')) {
+    const lines = t.split('\n');
+    lines.shift();
+    if (lines.length && lines[lines.length - 1].trim() === '```') lines.pop();
+    t = lines.join('\n').trim();
+  }
+
+  t = t.replace(/<script[\s\S]*?<\/script>/gi, '');
+  return t;
+}
+
+function wireSvgInteractions(svg, view) {
+  svg.querySelectorAll('[data-element-id]').forEach(function (el) {
+    if (el.getAttribute('data-element-id') === state.selectedId) {
+      el.setAttribute('data-selected', 'true');
+    } else {
+      el.removeAttribute('data-selected');
+    }
+
+    if (!el.getAttribute('data-view-id')) {
+      el.setAttribute('data-view-id', view.id);
+    }
+    if (!el.getAttribute('data-target-label')) {
+      el.setAttribute('data-target-label', el.getAttribute('data-element-id') || 'element');
+    }
+  });
+
+  svg.querySelectorAll('[data-relationship-id]').forEach(function (el) {
+    if (!el.getAttribute('data-view-id')) {
+      el.setAttribute('data-view-id', view.id);
+    }
+    if (!el.getAttribute('data-target-label')) {
+      el.setAttribute('data-target-label', el.getAttribute('data-relationship-id') || 'relationship');
+    }
+  });
+
+  svg.addEventListener('click', function (ev) {
+    const element = ev.target.closest('[data-element-id]');
+    const rel = ev.target.closest('[data-relationship-id]');
+
+    if (state.commentMode) {
+      ev.preventDefault();
+      const target = element
+        ? {
+            view_id: view.id,
+            element_id: element.dataset.elementId,
+            relationship_id: null,
+            target_label: element.dataset.targetLabel || element.dataset.elementId,
+          }
+        : rel
+        ? {
+            view_id: view.id,
+            element_id: null,
+            relationship_id: rel.dataset.relationshipId || null,
+            target_label: rel.dataset.targetLabel || rel.dataset.relationshipId || 'relationship',
+          }
+        : {
+            view_id: view.id,
+            element_id: null,
+            relationship_id: null,
+            target_label: 'canvas',
+          };
+      openCommentDialog(target);
+      return;
+    }
+
+    if (!element) {
+      state.selectedId = null;
+      updateDetails();
+      render();
+      return;
+    }
+
+    const id = element.dataset.elementId;
+    const nextView = (DATA.drill_map || {})[id];
+    if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
+      state.history.push(state.viewId);
+      state.viewId = nextView;
+      state.selectedId = null;
+      render();
+      return;
+    }
+
+    state.selectedId = id;
+    updateDetails();
+    render();
+  });
+}
+
 function drawDiagramView(view) {
   const host = $('canvas');
   host.innerHTML = '';
+
+  const provided = normalizeSvgFragment(view.svg_fragment);
+  if (provided) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = provided;
+    const svg = wrap.querySelector('svg');
+    if (svg) {
+      svg.style.display = 'block';
+      svg.style.maxWidth = 'none';
+      svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+      if (!svg.getAttribute('data-view-id')) {
+        svg.setAttribute('data-view-id', view.id);
+      }
+      wireSvgInteractions(svg, view);
+      host.appendChild(svg);
+      return;
+    }
+  }
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const layout = layoutNodes(view.nodes || [], view.edges || [], view.type || 'generic');
@@ -582,64 +700,31 @@ function drawDiagramView(view) {
     svg.appendChild(g);
   });
 
-  svg.addEventListener('click', function (ev) {
-    const element = ev.target.closest('[data-element-id]');
-    const rel = ev.target.closest('[data-relationship-id]');
-
-    if (state.commentMode) {
-      ev.preventDefault();
-      const target = element
-        ? {
-            view_id: view.id,
-            element_id: element.dataset.elementId,
-            relationship_id: null,
-            target_label: element.dataset.targetLabel || element.dataset.elementId,
-          }
-        : rel
-        ? {
-            view_id: view.id,
-            element_id: null,
-            relationship_id: rel.dataset.relationshipId || null,
-            target_label: rel.dataset.targetLabel || rel.dataset.relationshipId || 'relationship',
-          }
-        : {
-            view_id: view.id,
-            element_id: null,
-            relationship_id: null,
-            target_label: 'canvas',
-          };
-      openCommentDialog(target);
-      return;
-    }
-
-    if (!element) {
-      state.selectedId = null;
-      updateDetails();
-      render();
-      return;
-    }
-
-    const id = element.dataset.elementId;
-    const nextView = (DATA.drill_map || {})[id];
-    if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
-      state.history.push(state.viewId);
-      state.viewId = nextView;
-      state.selectedId = null;
-      render();
-      return;
-    }
-
-    state.selectedId = id;
-    updateDetails();
-    render();
-  });
-
+  wireSvgInteractions(svg, view);
   host.appendChild(svg);
 }
 
 function drawSequenceView(view) {
   const host = $('canvas');
   host.innerHTML = '';
+
+  const provided = normalizeSvgFragment(view.svg_fragment);
+  if (provided) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = provided;
+    const svg = wrap.querySelector('svg');
+    if (svg) {
+      svg.style.display = 'block';
+      svg.style.maxWidth = 'none';
+      svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+      if (!svg.getAttribute('data-view-id')) {
+        svg.setAttribute('data-view-id', view.id);
+      }
+      wireSvgInteractions(svg, view);
+      host.appendChild(svg);
+      return;
+    }
+  }
 
   const box = document.createElement('div');
   box.style.padding = '8px';

@@ -45,6 +45,46 @@ def list_view_files(views_dir: Path) -> List[Path]:
     return sorted([p for p in views_dir.iterdir() if p.suffix in {".yaml", ".yml"}])
 
 
+def normalize_svg_fragment(text: str) -> str:
+    t = text.strip()
+    if t.startswith("```"):
+        lines = t.splitlines()
+        if lines:
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        t = "\n".join(lines).strip()
+
+    # defensive strip of embedded script blocks in fragments
+    while True:
+        low = t.lower()
+        start = low.find("<script")
+        if start == -1:
+            break
+        end = low.find("</script>", start)
+        if end == -1:
+            t = t[:start]
+            break
+        t = t[:start] + t[end + len("</script>"):]
+    return t.strip()
+
+
+def load_svg_fragments(output_root: Path, views: List[Dict[str, Any]], svg_dir_name: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    svg_dir = output_root / svg_dir_name
+    if not svg_dir.exists() or not svg_dir.is_dir():
+        return out
+
+    for view in views:
+        vid = view.get("id")
+        if not isinstance(vid, str) or not vid:
+            continue
+        fp = svg_dir / f"{vid}.svg"
+        if fp.exists() and fp.is_file():
+            out[vid] = normalize_svg_fragment(fp.read_text(encoding="utf-8", errors="ignore"))
+    return out
+
+
 def canon_view_type(value: Any) -> str:
     if value is None:
         return ""
@@ -177,6 +217,7 @@ def build_payload(
     model: Dict[str, Any],
     views: List[Dict[str, Any]],
     mode: str,
+    svg_fragments: Dict[str, str],
 ) -> Dict[str, Any]:
     all_elements = [normalize_element(e) for e in (model.get("elements") or []) if isinstance(e, dict)]
     all_relationships = [normalize_relationship(r) for r in (model.get("relationships") or []) if isinstance(r, dict)]
@@ -223,6 +264,7 @@ def build_payload(
                     "title": title,
                     "kind": "sequence",
                     "steps": sorted(steps, key=lambda s: s.get("order", 10**9)),
+                    "svg_fragment": svg_fragments.get(view_id),
                 }
             )
             continue
@@ -267,6 +309,7 @@ def build_payload(
                 "nodes": sorted(nodes, key=lambda n: (n.get("name") or n.get("id") or "")),
                 "edges": edges,
                 "parent_container_id": view.get("parent_container_id") or None,
+                "svg_fragment": svg_fragments.get(view_id),
             }
         )
 
@@ -324,9 +367,11 @@ def render_html(template_path: Path, payload: Dict[str, Any], mode: str) -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Render deterministic diagram.html from architecture artifacts")
+    ap = argparse.ArgumentParser(description="Render diagram.html frame from architecture artifacts")
     ap.add_argument("--output-root", required=True, help="Folder containing architecture/")
-    ap.add_argument("--mode", choices=["fast", "rich"], default="fast", help="Rendering mode")
+    ap.add_argument("--mode", choices=["fast", "rich"], default="fast", help="Fallback rendering mode")
+    ap.add_argument("--svg-dir", default="diagram-svg", help="Folder under output-root containing per-view SVG fragments")
+    ap.add_argument("--require-svg-fragments", action="store_true", help="Fail if any non-sequence view is missing an SVG fragment")
     ap.add_argument("--write-data-json", action="store_true", help="Also write diagram-data.json for debugging")
     args = ap.parse_args()
 
@@ -336,8 +381,14 @@ def main() -> int:
     manifest = read_yaml(arch_dir / "manifest.yaml")
     model = read_yaml(arch_dir / "model.yaml")
     views = load_views(arch_dir / "views")
+    svg_fragments = load_svg_fragments(output_root, views, args.svg_dir)
 
-    payload = build_payload(manifest, model, views, args.mode)
+    if args.require_svg_fragments:
+        missing = [v.get("id") for v in views if v.get("type") != "sequence" and not svg_fragments.get(v.get("id", ""))]
+        if missing:
+            raise RenderError(f"Missing SVG fragments for views: {', '.join([m for m in missing if m])}")
+
+    payload = build_payload(manifest, model, views, args.mode, svg_fragments)
 
     template_path = Path(__file__).resolve().parents[1] / "templates" / "diagram-app.html"
     if not template_path.exists():
@@ -350,7 +401,8 @@ def main() -> int:
     if args.write_data_json:
         (output_root / "diagram-data.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(f"Wrote {out_html}")
+    fragment_count = sum(1 for v in payload.get("views", []) if v.get("svg_fragment"))
+    print(f"Wrote {out_html} (svg fragments used: {fragment_count})")
     return 0
 
 

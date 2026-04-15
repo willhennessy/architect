@@ -34,16 +34,19 @@ Produce a self-contained interactive architecture diagram grounded in:
    - JSON must include each comment with associated target IDs (or `null` for empty-space clicks)
    - include a one-click copy control for the JSON payload
 
-## Deterministic rendering approach (default)
+## Hybrid rendering model (preferred)
 
-Prefer deterministic rendering over freeform HTML code generation:
+Use a fixed HTML app template and inject per-view SVG fragments:
 
-- `python3 scripts/render-diagram-html.py --output-root <output-root> --mode <fast|rich>`
+- template app: `templates/diagram-app.html`
+- fragment source: `<output-root>/diagram-svg/<view-id>.svg`
+- injector: `scripts/render-diagram-html.py`
 
-Mode behavior:
+This keeps interactions stable while allowing LLM-quality layout.
 
-- `fast` (default): lower complexity, lower token/time cost, focuses on core views.
-- `rich`: denser labels and additional views (including sequence when present).
+Fallback behavior:
+
+- if SVG fragment missing for a view, template fallback layout may render the view.
 
 ## Comment targeting rules
 
@@ -84,6 +87,7 @@ Thin connectors (lines/arrows) must remain easy to click:
 
 - Generated inline JavaScript must be syntactically valid.
 - Avoid malformed nested template expressions (for example: `${x-${y}}`).
+- SVG fragments must not contain `<script>` tags.
 - After generation, run `scripts/validate-diagram-html.sh <output-root>/diagram.html` and fix failures before completion.
 
 ## Style constraints
@@ -92,3 +96,4 @@ Thin connectors (lines/arrows) must remain easy to click:
 - Consistent color semantics by element kind.
 - Clear visual distinction between drillable and non-drillable nodes.
 - Comment mode should be visually obvious without obscuring core diagram readability.
+- Prefer grouped/clustered layout over naive uniform grids.

@@ -21,16 +21,24 @@ Where `<output-root>` is the parent folder that contains `architecture/`.
   - relationship metadata when rendering edges
 - Sequence views (if present) must be separated from core drill-down hierarchy.
 
-## Deterministic renderer requirements
+## Hybrid rendering requirements
 
-Use the deterministic renderer as the default implementation path:
+Primary rendering strategy:
 
-- `python3 scripts/render-diagram-html.py --output-root <output-root> --mode <fast|rich>`
+1. Generate per-view SVG fragments (layout layer)
+2. Inject SVG fragments into fixed app template (interaction layer)
 
-Mode policy:
+Recommended fragment location:
 
-- `fast` (default): system-context + container focus, lower visual density, lower latency/cost.
-- `rich`: includes additional detail views (including sequence when available).
+- `<output-root>/diagram-svg/<view-id>.svg`
+
+Reference:
+
+- `references/svg-fragment-spec.md`
+
+Fallback strategy:
+
+- if fragments are absent, template fallback layout may be used (`fast`/`rich`)
 
 ## Comment Mode requirements (`diagram.html`)
 
@@ -118,7 +126,8 @@ Before finishing, verify:
 - `diagram.html` includes comment mode (`Comment` toggle + `C` shortcut + submit modal).
 - edge hit targets are selectable and include `data-relationship-id`.
 - comment export is JSON and includes required fields (`view_id`, `element_id`, `relationship_id`, `comment`).
-- deterministic render path was used (`render-diagram-html.py`) unless an explicit exception is documented.
+- template-injection render path was used (`render-diagram-html.py`).
+- if `diagram-svg/` fragments are present, they are used in the injected output.
 - `scripts/validate-diagram-html.sh <output-root>/diagram.html` passes.
 - inline JavaScript parses cleanly (`node --check` via validator when available).
 - no malformed template expressions like `${x-${y}}` remain in HTML/JS output.

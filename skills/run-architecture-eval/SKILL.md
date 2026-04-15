@@ -145,7 +145,7 @@ Set the output path to:
 
 - `evals/architect-discover/roundX_<repo>/architecture/`
 
-Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs (default deterministic **fast** mode for lower latency):
+Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes both outputs (prefer hybrid template + LLM SVG fragments; fallback to deterministic layout if fragments are missing):
 
 - `evals/architect-discover/roundX_<repo>/diagram.html` (primary, includes Comment Mode)
 - `evals/architect-discover/roundX_<repo>/diagram-prompt.md` (secondary)

@@ -22,6 +22,10 @@ Required:
 - `<output-root>/diagram.html` (primary)
 - `<output-root>/diagram-prompt.md` (secondary)
 
+Recommended intermediate output (for high-quality primary rendering):
+
+- `<output-root>/diagram-svg/<view-id>.svg` (one per non-sequence view)
+
 Optional debug output:
 
 - `<output-root>/diagram-data.json` (when `--write-data-json` is enabled)
@@ -38,16 +42,24 @@ Optional debug output:
 - `diagram-prompt.md` must include the exact top heading required by the output contract and a zero-text upload execution instruction directly below it.
 - `diagram-prompt.md` must end with a one-line pointer to the rendered HTML path:
   - `View the architecture diagram here: <fully_resolved_file_path>`
-- Prefer deterministic rendering via script over ad-hoc hand-authored HTML/JS.
 
-## Rendering modes (complexity control)
+## Rendering approach (hybrid)
 
-Use deterministic mode selection to control latency/cost:
+Primary path (demo-quality):
 
-- **fast (default):** render system-context + container views only; minimal labels; skip sequence tab unless explicitly requested.
-- **rich:** include additional views (component/sequence) and denser labeling.
+1. Use the model to generate per-view SVG fragments (layout quality)
+2. Inject those fragments into the fixed HTML app template (stable UX + interactions)
 
-Rule: start in `fast` unless the user explicitly requests richer visualization detail.
+Fallback path (when SVG fragments are missing):
+
+- deterministic built-in layout in the template app
+
+## Rendering modes (fallback complexity control)
+
+`render-diagram-html.py` mode impacts fallback layout:
+
+- **fast (default):** lane-based fallback layout, lower complexity
+- **rich:** layered graph fallback layout with denser labeling
 
 ## Workflow
 
@@ -58,16 +70,18 @@ Rule: start in `fast` unless the user explicitly requests richer visualization d
 2. **Load architecture artifacts**
    - Read `manifest.yaml`, `model.yaml`, `summary.md`, and available `views/*.yaml` (plus optional `diff.yaml`).
 
-3. **Build drill-down mapping from artifacts**
-   - Derive hierarchy and drill-down transitions from manifest/view files.
-   - Keep sequence views separate from drill-down hierarchy.
+3. **Generate SVG fragments for primary diagram views (recommended)**
+   - Read [references/svg-fragment-spec.md](references/svg-fragment-spec.md).
+   - Generate `<output-root>/diagram-svg/<view-id>.svg` for each non-sequence view.
 
-4. **Render primary HTML diagram deterministically (required)**
+4. **Render primary HTML diagram (template injection)**
    - Read [references/html-diagram-spec.md](references/html-diagram-spec.md).
    - Read [references/comment-handoff-format.md](references/comment-handoff-format.md).
    - Run:
      - `python3 scripts/render-diagram-html.py --output-root <output-root> --mode fast`
-   - Use `--mode rich` only when requested or clearly needed.
+   - For strict demo quality, require fragments:
+     - `python3 scripts/render-diagram-html.py --output-root <output-root> --mode fast --require-svg-fragments`
+   - Use `--mode rich` when richer fallback layout is needed.
 
 5. **Run deterministic diagram validation (required)**
    - Run `scripts/validate-diagram-html.sh <output-root>/diagram.html`.
