@@ -526,9 +526,12 @@ function isDrillable(elementId) {
   return Boolean((DATA.drill_map || {})[String(elementId || '')]);
 }
 
-function drillIconAnchor(box) {
+function drillIconAnchor(box, label) {
+  const text = String(label || '');
+  const textWidthEstimate = Math.max(44, Math.min(box.w * 0.38, text.length * 3.2));
   return {
-    x: box.x + Math.max(14, box.w * 0.28),
+    // place icon just left of the centered label block
+    x: box.x + box.w / 2 - textWidthEstimate / 2 - 12,
     y: box.y + box.h / 2,
   };
 }
@@ -581,6 +584,31 @@ function buildDrillIconGroup(x, y, color) {
   return g;
 }
 
+function elementBBox(el) {
+  if (!el) return null;
+
+  const tag = String(el.tagName || '').toLowerCase();
+  if (tag === 'rect') {
+    const x = parseFloat(el.getAttribute('x') || '0');
+    const y = parseFloat(el.getAttribute('y') || '0');
+    const w = parseFloat(el.getAttribute('width') || '0');
+    const h = parseFloat(el.getAttribute('height') || '0');
+    if (isFinite(x) && isFinite(y) && isFinite(w) && isFinite(h)) {
+      return { x: x, y: y, width: w, height: h };
+    }
+  }
+
+  try {
+    const box = el.getBBox();
+    if (box && isFinite(box.x) && isFinite(box.y) && isFinite(box.width) && isFinite(box.height)) {
+      return box;
+    }
+  } catch (_err) {
+    // ignore
+  }
+  return null;
+}
+
 function addDrillIconsToSvg(svg) {
   if (!svg) return;
 
@@ -594,15 +622,11 @@ function addDrillIconsToSvg(svg) {
     if (!elementId || seen.has(elementId) || !isDrillable(elementId)) return;
     seen.add(elementId);
 
-    let box;
-    try {
-      box = el.getBBox();
-    } catch (_err) {
-      return;
-    }
-    if (!box || !isFinite(box.x) || !isFinite(box.y)) return;
+    const box = elementBBox(el);
+    if (!box || box.width < 8 || box.height < 8) return;
 
-    const p = drillIconAnchor(box);
+    const label = el.getAttribute('data-target-label') || elementId;
+    const p = drillIconAnchor(box, label);
     const icon = buildDrillIconGroup(p.x, p.y, '#d7e6ff');
     icon.setAttribute('data-drill-icon-for', elementId);
     svg.appendChild(icon);
@@ -854,7 +878,7 @@ function drawDiagramView(view) {
     }
 
     if (isDrillable(node.id)) {
-      const p = drillIconAnchor(box);
+      const p = drillIconAnchor(box, node.name || node.id);
       const icon = buildDrillIconGroup(p.x, p.y, '#e6f0ff');
       icon.setAttribute('data-drill-icon-for', node.id);
       g.appendChild(icon);
