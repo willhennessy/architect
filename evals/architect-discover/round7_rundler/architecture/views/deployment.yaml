@@ -1,0 +1,43 @@
+version: 2
+id: "deployment"
+type: "deployment"
+title: "Rundler Distributed Deployment"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show the split-process deployment shape that makes RPC, Pool, and Builder runtime boundaries explicit."
+scope: "Distributed mode using separate RPC, Pool, and Builder hosts"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "rundler-rpc"
+  - "rundler-pool"
+  - "rundler-builder"
+  - "redis-lock-store"
+relationship_ids:
+  - "rundler-rpc-calls-rundler-pool"
+  - "rundler-rpc-calls-rundler-builder"
+  - "rundler-builder-calls-rundler-pool"
+  - "rundler-pool-publishes-to-rundler-builder"
+  - "rundler-builder-calls-redis-lock-store"
+deployment_node_ids:
+  - "deployment-rpc-host"
+  - "deployment-pool-host"
+  - "deployment-builder-host"
+  - "deployment-redis-service"
+placement:
+  - node_id: "deployment-rpc-host"
+    element_id: "rundler-rpc"
+  - node_id: "deployment-pool-host"
+    element_id: "rundler-pool"
+  - node_id: "deployment-builder-host"
+    element_id: "rundler-builder"
+  - node_id: "deployment-redis-service"
+    element_id: "redis-lock-store"
+assumptions:
+  - text: "This view is grounded in the remote spec-test compose because it is the clearest concrete split deployment in the repo."
+    confidence: "confirmed"
+unknowns:
+  - "The repo does not specify whether Redis is colocated with Builder or provided as managed infrastructure in production."
+notes:
+  - "Integrated `node` mode removes the remote boundaries by colocating RPC, Pool, and Builder in a single process."
+  - "`backend` mode collocates Pool and Builder while keeping their gRPC APIs exposed to a separate RPC process."

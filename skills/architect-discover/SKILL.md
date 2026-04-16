@@ -1,9 +1,9 @@
 ---
 name: architect-discover
-description: Discover and model the architecture of an unfamiliar codebase, then emit a canonical architecture model plus derived structured view files for multiple audiences. Use this skill when asked to explore a repository, identify runtime boundaries, data ownership, key workflows, or generate architecture artifacts from source code.
+description: Discover and model the architecture of an unfamiliar codebase, emit a canonical architecture model plus derived structured view files for multiple audiences, then automatically hand off to architect-diagram for the interactive HTML diagram. Use this skill when asked to explore a repository, identify runtime boundaries, data ownership, key workflows, or generate architecture artifacts from source code.
 ---
 
-Use this skill to inspect a codebase for the first time and produce structured architecture artifacts. The deliverable is a canonical architecture model plus derived view files. Do not render diagrams in this skill.
+Use this skill to inspect a codebase for the first time and produce structured architecture artifacts. The deliverable is a canonical architecture model plus derived view files, followed by a handoff to `architect-diagram` for `diagram.html`.
 
 Default modeling style:
 
@@ -68,6 +68,8 @@ If the user specifies a different output path, honor it.
 - Do not assign the same data object to multiple systems of record unless the duplication is explicitly justified in the summary or notes.
 - If a capability supports multiple real transports or deployment boundaries, prefer an explicit mode split or a neutral protocol label over one precise but incomplete claim.
 - If storage interfaces or first-class APIs expose persisted entities, include them in data-ownership analysis even when they are not the star of a workflow view.
+- After each draft or final artifact generation pass, automatically invoke `architect-diagram` using the same output root so the rendered HTML diagram stays in sync with the latest artifacts.
+- Keep the skill boundary explicit: `architect-discover` owns discovery and artifact generation; `architect-diagram` owns `diagram.html` rendering.
 
 ## Evidence Hierarchy
 
@@ -379,16 +381,25 @@ Run a lightweight consistency pass after generation. At minimum verify:
 
 If validation fails, fix the artifacts before completing the task.
 
-### 13. Handoff to diagram skill (optional)
+### 13. Handoff to diagram skill (required)
 
-If the user asks for rendered diagrams, hand off to `architect-diagram` **after** architecture artifacts are complete.
+After architecture artifacts are complete for the current draft/final revision, hand off to `architect-diagram`.
 
 Pass it:
 
 - the parent output folder containing `architecture/`
 - the generated `manifest.yaml`, `model.yaml`, and `views/*.yaml`
 
-Do not generate `diagram.html` or `diagram-prompt.md` in this skill.
+Expected default output in the same output root:
+
+- `diagram.html` (primary interactive diagram)
+
+Optional only when the user explicitly requests it:
+
+- `diagram-prompt.md` via `architect-diagram-prompt`
+
+Present the rendered diagram as part of the same discovery response so the diagram step feels automatic, not separately requested.
+Do not generate `diagram.html` or `diagram-prompt.md` directly in this skill; use the dedicated diagram skills for those outputs.
 
 ## Stable Naming and Deduplication
 
@@ -454,6 +465,8 @@ The skill is complete only when:
 5. `diff.yaml` exists in update mode
 6. assumptions, unknowns, confidence, and evidence are explicit
 7. a post-generation validation pass has been completed and any reference or abstraction-level errors have been fixed
+8. `diagram.html` has been generated for the current artifact set via `architect-diagram`
+9. if requested, `diagram-prompt.md` has been generated for the current artifact set via `architect-diagram-prompt`
 
 
 ## Sequence View Policy (default)

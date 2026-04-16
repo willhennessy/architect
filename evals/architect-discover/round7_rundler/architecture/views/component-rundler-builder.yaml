@@ -1,0 +1,37 @@
+version: 2
+id: "component-rundler-builder"
+type: "component"
+title: "Rundler Builder Components"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show how Builder assigns work, proposes bundles, signs them, and submits them through pluggable senders."
+scope: "Internal modules inside Rundler Builder plus direct dependencies needed for context"
+source_model: "architecture/model.yaml"
+parent_container_id: "rundler-builder"
+element_ids:
+  - "builder-assigner"
+  - "builder-bundle-proposer"
+  - "builder-bundle-sender-workers"
+  - "builder-transaction-sender"
+  - "builder-signer-manager"
+  - "rundler-pool"
+  - "evm-json-rpc-node"
+  - "private-transaction-relay"
+relationship_ids:
+  - "builder-bundle-sender-workers-calls-builder-assigner"
+  - "builder-assigner-calls-rundler-pool"
+  - "builder-bundle-sender-workers-calls-builder-bundle-proposer"
+  - "builder-bundle-proposer-calls-rundler-pool"
+  - "builder-bundle-proposer-calls-evm-json-rpc-node"
+  - "builder-bundle-sender-workers-calls-builder-signer-manager"
+  - "builder-bundle-sender-workers-calls-builder-transaction-sender"
+  - "builder-transaction-sender-calls-evm-json-rpc-node"
+  - "builder-transaction-sender-calls-private-transaction-relay"
+assumptions:
+  - text: "The shared signer pool is best modeled inside Builder because worker count and signer selection are builder-owned configuration decisions."
+    confidence: "confirmed"
+unknowns:
+  - "Which sender backend is dominant in production is configuration dependent and not fixed by the repo."
+notes:
+  - "Redis and AWS KMS are omitted here to keep the component view focused on Builder flow; they remain visible at container level."

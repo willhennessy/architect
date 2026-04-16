@@ -1,0 +1,89 @@
+version: 2
+id: "sequence-user-operation-ingest"
+type: "sequence"
+title: "User Operation Ingest"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how a submitted user operation reaches the live mempool."
+scope: "eth_sendUserOperation request path from user to Pool admission"
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "dapp-user"
+  - "rundler-rpc"
+  - "rundler-pool"
+  - "evm-json-rpc-node"
+steps:
+  - order: 1
+    source_id: "dapp-user"
+    target_id: "rundler-rpc"
+    relationship_id: "dapp-user-calls-rundler-rpc"
+    label: "Submit eth_sendUserOperation or related status query"
+    sync_async: "sync"
+    data_objects:
+      - "user_operations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-rpc-doc"
+      - "ev-rpc-eth-server"
+  - order: 2
+    source_id: "rundler-rpc"
+    target_id: "rundler-pool"
+    relationship_id: "rundler-rpc-calls-rundler-pool"
+    label: "Route the request to Pool using local handle or remote client"
+    sync_async: "sync"
+    data_objects:
+      - "user_operations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-cli-rpc"
+      - "ev-rpc-doc"
+  - order: 3
+    source_id: "rundler-pool"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "rundler-pool-calls-evm-json-rpc-node"
+    label: "Run prechecks and simulation against current chain state"
+    sync_async: "sync"
+    data_objects:
+      - "debug_trace_calls"
+      - "chain_state"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-doc"
+      - "ev-pool-chain"
+  - order: 4
+    source_id: "evm-json-rpc-node"
+    target_id: "rundler-pool"
+    label: "Return simulation and chain data used for admission"
+    sync_async: "sync"
+    data_objects:
+      - "simulation_results"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-pool-doc"
+  - order: 5
+    source_id: "rundler-pool"
+    target_id: "rundler-rpc"
+    label: "Admit the operation into the mempool and return status"
+    sync_async: "sync"
+    data_objects:
+      - "user_operation_lifecycle"
+    confidence: "strong_inference"
+    evidence_ids:
+      - "ev-pool-uo-pool"
+      - "ev-rpc-eth-server"
+  - order: 6
+    source_id: "rundler-rpc"
+    target_id: "dapp-user"
+    label: "Return the response to the client"
+    sync_async: "sync"
+    data_objects:
+      - "rpc_responses"
+    confidence: "strong_inference"
+    evidence_ids:
+      - "ev-rpc-eth-server"
+assumptions: []
+unknowns:
+  - "The exact response payload depends on the RPC method variant and validation outcome."
+notes:
+  - "RPC also performs direct chain-backed gas estimation on other methods, so it is not modeled as a pure pass-through edge."

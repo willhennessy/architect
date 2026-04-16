@@ -1,0 +1,1948 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="diagram-render-mode" content="rich" />
+  <title>Claude Architect</title>
+  <style>
+    :root {
+      --bg-primary: #1F1F1E;
+      --bg-secondary: #262626;
+      --bg-tertiary: #2C2C2B;
+      --text-primary: #F9F9F7;
+      --text-secondary: #97958C;
+      --text-diagram-subtitle: #F9F9F7B3;
+      --line: #3A3937;
+      --line-strong: #4A4945;
+      --accent: #7A6FA6;
+      --accent-alt: #4F8F8B;
+      --warn: #B08968;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(122, 111, 166, 0.14) 0%, rgba(122, 111, 166, 0) 26%),
+        radial-gradient(circle at 18% 0%, rgba(79, 143, 139, 0.12) 0%, rgba(79, 143, 139, 0) 24%),
+        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 22%, #171716 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    #app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(31, 31, 30, 0.92);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 42;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .title {
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(72vw, 980px);
+    }
+
+    .mode-badge {
+      display: none;
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .tabbar {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(38, 38, 38, 0.90);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 44px;
+      z-index: 41;
+    }
+
+    .tab {
+      border: 1px solid var(--line-strong);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .tab:hover {
+      border-color: rgba(249, 249, 247, 0.18);
+      color: var(--text-primary);
+      background: #323230;
+    }
+
+    .tab.active {
+      color: var(--text-primary);
+      border-color: rgba(122, 111, 166, 0.9);
+      box-shadow: inset 0 0 0 1px rgba(122, 111, 166, 0.28);
+      background: rgba(122, 111, 166, 0.18);
+      font-weight: 700;
+    }
+
+    .tab-sep {
+      color: var(--text-secondary);
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .toolbar {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(38, 38, 38, 0.90);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 82px;
+      z-index: 40;
+    }
+
+    button {
+      border: 1px solid var(--line-strong);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-radius: 9px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+    }
+
+    button:hover:not(:disabled):not(.comment-toggle.on) {
+      border-color: rgba(249, 249, 247, 0.18);
+      background: #323230;
+    }
+
+    button:disabled { opacity: .5; cursor: default; }
+
+    .comment-toggle.on {
+      color: var(--bg-primary);
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--warn), #9A7557);
+      font-weight: 700;
+    }
+
+    .comment-toggle.on:hover:not(:disabled) {
+      color: var(--bg-primary);
+      border-color: transparent;
+      background: linear-gradient(135deg, #a78060, #8f6c51);
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 10px;
+      transition: grid-template-columns 140ms ease;
+    }
+
+    .workspace.details-open {
+      grid-template-columns: 1fr 320px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at top, rgba(122, 111, 166, 0.08) 0%, rgba(122, 111, 166, 0) 34%),
+        linear-gradient(180deg, #2A2A29 0%, var(--bg-primary) 100%);
+      overflow: hidden;
+    }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      padding: 6px;
+    }
+
+    .hint {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      font-size: 11px;
+      color: var(--text-primary);
+      background: rgba(176, 137, 104, 0.22);
+      border: 1px solid rgba(176, 137, 104, 0.48);
+      border-radius: 8px;
+      padding: 4px 8px;
+      display: none;
+    }
+
+    .hint.show { display: block; }
+
+    #details {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--bg-secondary);
+      overflow: hidden;
+      font-size: 12px;
+      display: none;
+      min-width: 0;
+    }
+
+    .workspace.details-open #details {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .details-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #232322;
+    }
+
+    .details-title {
+      font-size: 11px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+
+    #detailsBody {
+      overflow: auto;
+      padding: 12px;
+      min-height: 0;
+    }
+
+    .details-collapse-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 8px;
+    }
+
+    .empty-note { color: var(--text-secondary); text-align: center; padding-top: 40px; }
+
+    .meta-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+
+    .chip {
+      display: inline-block;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      margin-right: 4px;
+      margin-top: 3px;
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .queue {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1 1 240px;
+      min-width: 0;
+      margin-left: 4px;
+    }
+
+    .queue.show { display: flex; }
+
+    .queue-label {
+      font-size: 11px;
+      color: var(--text-primary);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .queue-items {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .queue-item {
+      border: 1px solid rgba(176, 137, 104, 0.48);
+      background: rgba(176, 137, 104, 0.14);
+      color: var(--text-primary);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(16, 16, 15, .62);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+
+    .overlay.show { display: flex; }
+
+    .dialog {
+      width: min(720px, 96vw);
+      max-height: 86vh;
+      overflow: auto;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      padding: 12px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.36);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 92px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+    }
+
+    textarea::placeholder {
+      color: rgba(151, 149, 140, 0.78);
+    }
+
+    pre {
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #1B1B1A;
+      color: var(--text-primary);
+      font-size: 11px;
+      line-height: 1.45;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    svg text { user-select: none; }
+    svg [data-element-id] { cursor: pointer; }
+    .comment-mode-on svg [data-element-id],
+    .comment-mode-on svg [data-relationship-id] { cursor: crosshair; }
+    svg [data-element-id][data-selected='true'] {
+      filter: drop-shadow(0 0 7px rgba(176, 137, 104, 0.45));
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="title">Claude Architect</div>
+      <div class="subtitle" id="systemSubtitle"></div>
+    </div>
+    <span class="mode-badge" id="modeBadge"></span>
+  </div>
+  <div class="tabbar" id="tabs" aria-label="View navigation"></div>
+  <div class="toolbar">
+    <button id="commentToggle" class="comment-toggle">Comment (C)</button>
+    <button id="submitBtn" disabled>Submit comments</button>
+    <div class="queue" id="queueBar">
+      <span class="queue-label">Queued</span>
+      <div class="queue-items" id="queueItems"></div>
+    </div>
+  </div>
+  <div class="workspace" id="workspace">
+    <div class="canvas-wrap">
+      <div class="hint" id="commentHint">Comment mode: click node, edge, or canvas</div>
+      <div id="canvas"></div>
+    </div>
+    <aside id="details" aria-label="Details sidebar">
+      <div class="details-header">
+        <div class="details-title">Details</div>
+        <button id="detailsCollapseBtn" class="details-collapse-btn" title="Collapse details sidebar">Collapse</button>
+      </div>
+      <div id="detailsBody"><div class="empty-note">Click a node to inspect details</div></div>
+    </aside>
+  </div>
+</div>
+
+<div class="overlay" id="commentDialogOverlay">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Add comment</h3>
+    <div id="commentTarget" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px"></div>
+    <textarea id="commentText" placeholder="Type feedback..."></textarea>
+    <div class="dialog-actions">
+      <button id="commentCancel">Cancel</button>
+      <button id="commentAdd">Add comment</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="payloadOverlay">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Comment payload (JSON)</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Copy this JSON and paste it into your coding agent.</p>
+    <pre id="payloadPre"></pre>
+    <div class="dialog-actions">
+      <button id="payloadCopy">Copy</button>
+      <button id="payloadClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {"system_name": "Rundler", "system_subtitle": "Rundler is an ERC-4337 bundler backend implemented as a Rust workspace with three primary runtime roles: RPC, Pool, and Builder. Those roles can run integrated in one process or split across processes that communicate over local handles or gRPC. The Pool owns the live user operation lifecycle state, while the Builder owns bundle execution state and optional signer infrastructure integrations.", "initial_view_id": "system-context", "views": [{"id": "system-context", "type": "system_context", "title": "Rundler System Context", "kind": "diagram", "nodes": [{"id": "aws-kms", "name": "AWS KMS", "kind": "external_system", "description": "Optional managed signer backend for builder transaction signing.", "technology": "AWS KMS API", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "bundler-operator", "name": "Bundler Operator", "kind": "person", "description": "Human operator running, configuring, and debugging Rundler deployments.", "technology": "", "confidence": "confirmed", "tags": ["external-actor"], "parent_id": null, "c4_level": "context"}, {"id": "dapp-user", "name": "DApp / Wallet User", "kind": "person", "description": "External client that submits ERC-4337 user operations and polls for status.", "technology": "", "confidence": "confirmed", "tags": ["external-actor"], "parent_id": null, "c4_level": "context"}, {"id": "evm-json-rpc-node", "name": "EVM JSON-RPC Node", "kind": "external_system", "description": "External EVM node used for chain state reads, simulation, receipts, and transaction submission.", "technology": "JSON-RPC over HTTP(S)", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "entrypoint-contract", "name": "EntryPoint Contract", "kind": "external_system", "description": "On-chain ERC-4337 EntryPoint contract that validates and executes bundle transactions.", "technology": "EVM smart contract", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "private-transaction-relay", "name": "Private Transaction Relay", "kind": "external_system", "description": "Optional private transaction submission backend used by configured builder sender implementations.", "technology": "HTTPS", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "rundler", "name": "Rundler", "kind": "software_system", "description": "ERC-4337 bundler backend that validates, pools, bundles, and submits user operations on EVM chains.", "technology": "Rust", "confidence": "confirmed", "tags": ["erc-4337", "bundler"], "parent_id": null, "c4_level": "context"}], "edges": [{"id": "dapp-user-calls-rundler", "source_id": "dapp-user", "target_id": "rundler", "label": "Submits user operations and polls status", "protocol": "https"}, {"id": "bundler-operator-calls-rundler", "source_id": "bundler-operator", "target_id": "rundler", "label": "Configures and debugs bundler state", "protocol": "manual"}, {"id": "rundler-calls-evm-json-rpc-node", "source_id": "rundler", "target_id": "evm-json-rpc-node", "label": "Reads chain state, simulates, and submits transactions", "protocol": "https"}, {"id": "rundler-submits-bundles-to-entrypoint-contract", "source_id": "rundler", "target_id": "entrypoint-contract", "label": "Executes handleOps-style bundles on-chain", "protocol": "n_a"}, {"id": "rundler-calls-private-transaction-relay", "source_id": "rundler", "target_id": "private-transaction-relay", "label": "Optionally submits bundles through private relays", "protocol": "https"}, {"id": "rundler-calls-aws-kms", "source_id": "rundler", "target_id": "aws-kms", "label": "Optionally signs bundle transactions with KMS keys", "protocol": "https"}], "parent_container_id": null, "svg_fragment": "<svg viewBox=\"0 0 941 616\" width=\"941\" height=\"616\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />\n    </marker>\n  </defs>\n  <rect x=\"0\" y=\"0\" width=\"941\" height=\"616\" fill=\"#0b1020\" />\n  <rect x=\"338.6\" y=\"68.0\" width=\"266.0\" height=\"156.0\" rx=\"14\" fill=\"rgba(24, 34, 58, 0.25)\" stroke=\"#4f617f\" stroke-dasharray=\"5 4\" />\n  <text x=\"354.6\" y=\"90.0\" font-size=\"11\" fill=\"#99aecb\" font-weight=\"700\">Rundler</text>\n  \n  <path d=\"M 298.6 133.5 L 350.2 133.5 Q 352.6 133.5 352.6 135.9 L 352.6 135.9 Q 352.6 138.4 355.1 138.4 L 366.6 138.4\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 298.6 133.5 L 350.2 133.5 Q 352.6 133.5 352.6 135.9 L 352.6 135.9 Q 352.6 138.4 355.1 138.4 L 366.6 138.4\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"dapp-user-calls-rundler\" data-view-id=\"system-context\" data-target-label=\"Submits user operations and polls status\" />\n  <text x=\"325.6\" y=\"141.5\" transform=\"rotate(0.0 325.6 141.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Submits user operations and polls s…</text>\n  \n  <path d=\"M 298.6 207.4 L 305.6 207.4 Q 312.6 207.4 312.6 200.4 L 312.6 193.3 Q 312.6 183.3 322.6 183.3 L 366.6 183.3\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 298.6 207.4 L 305.6 207.4 Q 312.6 207.4 312.6 200.4 L 312.6 193.3 Q 312.6 183.3 322.6 183.3 L 366.6 183.3\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"bundler-operator-calls-rundler\" data-view-id=\"system-context\" data-target-label=\"Configures and debugs bundler state\" />\n  <text x=\"339.6\" y=\"191.3\" transform=\"rotate(0.0 339.6 191.3)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Configures and debugs bundler state</text>\n  \n  <path d=\"M 576.6 138.1 L 618.1 138.1 Q 620.6 138.1 620.6 135.6 L 620.6 135.6 Q 620.6 133.0 623.2 133.0 L 644.6 133.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 576.6 138.1 L 618.1 138.1 Q 620.6 138.1 620.6 135.6 L 620.6 135.6 Q 620.6 133.0 623.2 133.0 L 644.6 133.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-calls-evm-json-rpc-node\" data-view-id=\"system-context\" data-target-label=\"Reads chain state, simulates, and submits transactions\" />\n  <text x=\"598.6\" y=\"146.1\" transform=\"rotate(0.0 598.6 146.1)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Reads chain state, simulates, and s…</text>\n  \n  <path d=\"M 576.6 183.4 L 610.6 183.4 Q 620.6 183.4 620.6 193.4 L 620.6 197.6 Q 620.6 207.6 630.6 207.6 L 644.6 207.6\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 576.6 183.4 L 610.6 183.4 Q 620.6 183.4 620.6 193.4 L 620.6 197.6 Q 620.6 207.6 630.6 207.6 L 644.6 207.6\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-submits-bundles-to-entrypoint-contract\" data-view-id=\"system-context\" data-target-label=\"Executes handleOps-style bundles on-chain\" />\n  <text x=\"598.6\" y=\"191.4\" transform=\"rotate(0.0 598.6 191.4)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Executes handleOps-style bundles on…</text>\n  \n  <path d=\"M 532.9 196.0 L 583.8 196.0 Q 593.8 196.0 593.8 206.0 L 593.8 318.0 Q 593.8 328.0 603.8 328.0 L 694.6 328.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 532.9 196.0 L 583.8 196.0 Q 593.8 196.0 593.8 206.0 L 593.8 318.0 Q 593.8 328.0 603.8 328.0 L 694.6 328.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-calls-private-transaction-relay\" data-view-id=\"system-context\" data-target-label=\"Optionally submits bundles through private relays\" />\n  <text x=\"585.8\" y=\"262.0\" transform=\"rotate(90.0 585.8 262.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Optionally submits bundles through …</text>\n  \n  <path d=\"M 507.3 196.0 L 507.3 333.0 Q 507.3 343.0 517.3 343.0 L 692.6 343.0 Q 702.6 343.0 702.6 353.0 L 702.6 470.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 507.3 196.0 L 507.3 333.0 Q 507.3 343.0 517.3 343.0 L 692.6 343.0 Q 702.6 343.0 702.6 353.0 L 702.6 470.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-calls-aws-kms\" data-view-id=\"system-context\" data-target-label=\"Optionally signs bundle transactions with KMS keys\" />\n  <text x=\"604.9\" y=\"351.0\" transform=\"rotate(0.0 604.9 351.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Optionally signs bundle transaction…</text>\n  <rect x=\"64.0\" y=\"80.0\" width=\"234.6\" height=\"90.0\" rx=\"12\" fill=\"#31466b\" stroke=\"#7d98c2\" stroke-width=\"1.2\" data-element-id=\"dapp-user\" data-view-id=\"system-context\" data-target-label=\"DApp / Wallet User\" />\n  <path d=\"M 65.0 102.0 L 65.0 92.0 Q 65.0 81.0 76.0 81.0 L 286.6 81.0 Q 297.6 81.0 297.6 92.0 L 297.6 102.0 Z\" fill=\"#3a527c\" />\n  <text x=\"181.3\" y=\"95.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Person]</text>\n  <text x=\"181.3\" y=\"128.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">DApp / Wallet User</text>\n  <text x=\"181.3\" y=\"146.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">External client that submit…</text>\n  <rect x=\"64.0\" y=\"204.0\" width=\"234.6\" height=\"90.0\" rx=\"12\" fill=\"#31466b\" stroke=\"#7d98c2\" stroke-width=\"1.2\" data-element-id=\"bundler-operator\" data-view-id=\"system-context\" data-target-label=\"Bundler Operator\" />\n  <path d=\"M 65.0 226.0 L 65.0 216.0 Q 65.0 205.0 76.0 205.0 L 286.6 205.0 Q 297.6 205.0 297.6 216.0 L 297.6 226.0 Z\" fill=\"#3a527c\" />\n  <text x=\"181.3\" y=\"219.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Person]</text>\n  <text x=\"181.3\" y=\"252.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Bundler Operator</text>\n  <text x=\"181.3\" y=\"270.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Human operator running, con…</text>\n  <rect x=\"366.6\" y=\"96.0\" width=\"210.0\" height=\"100.0\" rx=\"12\" fill=\"#2c4c78\" stroke=\"#73a0d8\" stroke-width=\"1.2\" data-element-id=\"rundler\" data-view-id=\"system-context\" data-target-label=\"Rundler\" />\n  <path d=\"M 367.6 118.0 L 367.6 108.0 Q 367.6 97.0 378.6 97.0 L 564.6 97.0 Q 575.6 97.0 575.6 108.0 L 575.6 118.0 Z\" fill=\"#365f95\" />\n  <text x=\"471.6\" y=\"111.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Software System]</text>\n  <text x=\"471.6\" y=\"144.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler</text>\n  <text x=\"471.6\" y=\"162.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"644.6\" y=\"80.0\" width=\"213.8\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"evm-json-rpc-node\" data-view-id=\"system-context\" data-target-label=\"EVM JSON-RPC Node\" />\n  <path d=\"M 645.6 102.0 L 645.6 92.0 Q 645.6 81.0 656.6 81.0 L 846.4 81.0 Q 857.4 81.0 857.4 92.0 L 857.4 102.0 Z\" fill=\"#4a556a\" />\n  <text x=\"751.5\" y=\"95.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"751.5\" y=\"128.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EVM JSON-RPC Node</text>\n  <text x=\"751.5\" y=\"146.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">JSON-RPC over HTTP(S)</text>\n  <rect x=\"644.6\" y=\"204.0\" width=\"232.3\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"entrypoint-contract\" data-view-id=\"system-context\" data-target-label=\"EntryPoint Contract\" />\n  <path d=\"M 645.6 226.0 L 645.6 216.0 Q 645.6 205.0 656.6 205.0 L 865.0 205.0 Q 876.0 205.0 876.0 216.0 L 876.0 226.0 Z\" fill=\"#4a556a\" />\n  <text x=\"760.8\" y=\"219.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"760.8\" y=\"252.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EntryPoint Contract</text>\n  <text x=\"760.8\" y=\"270.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">EVM smart contract</text>\n  <rect x=\"644.6\" y=\"328.0\" width=\"232.3\" height=\"108.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"private-transaction-relay\" data-view-id=\"system-context\" data-target-label=\"Private Transaction Relay\" />\n  <path d=\"M 645.6 350.0 L 645.6 340.0 Q 645.6 329.0 656.6 329.0 L 865.0 329.0 Q 876.0 329.0 876.0 340.0 L 876.0 350.0 Z\" fill=\"#4a556a\" />\n  <text x=\"760.8\" y=\"343.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"760.8\" y=\"376.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Private Transaction</text>\n  <text x=\"760.8\" y=\"394.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Relay</text>\n  <text x=\"760.8\" y=\"412.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">HTTPS</text>\n  <rect x=\"644.6\" y=\"470.0\" width=\"180.0\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"aws-kms\" data-view-id=\"system-context\" data-target-label=\"AWS KMS\" />\n  <path d=\"M 645.6 492.0 L 645.6 482.0 Q 645.6 471.0 656.6 471.0 L 812.6 471.0 Q 823.6 471.0 823.6 482.0 L 823.6 492.0 Z\" fill=\"#4a556a\" />\n  <text x=\"734.6\" y=\"485.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"734.6\" y=\"518.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">AWS KMS</text>\n  <text x=\"734.6\" y=\"536.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">AWS KMS API</text>\n</svg>"}, {"id": "container", "type": "container", "title": "Rundler Container View", "kind": "diagram", "nodes": [{"id": "aws-kms", "name": "AWS KMS", "kind": "external_system", "description": "Optional managed signer backend for builder transaction signing.", "technology": "AWS KMS API", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "bundler-operator", "name": "Bundler Operator", "kind": "person", "description": "Human operator running, configuring, and debugging Rundler deployments.", "technology": "", "confidence": "confirmed", "tags": ["external-actor"], "parent_id": null, "c4_level": "context"}, {"id": "dapp-user", "name": "DApp / Wallet User", "kind": "person", "description": "External client that submits ERC-4337 user operations and polls for status.", "technology": "", "confidence": "confirmed", "tags": ["external-actor"], "parent_id": null, "c4_level": "context"}, {"id": "evm-json-rpc-node", "name": "EVM JSON-RPC Node", "kind": "external_system", "description": "External EVM node used for chain state reads, simulation, receipts, and transaction submission.", "technology": "JSON-RPC over HTTP(S)", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "entrypoint-contract", "name": "EntryPoint Contract", "kind": "external_system", "description": "On-chain ERC-4337 EntryPoint contract that validates and executes bundle transactions.", "technology": "EVM smart contract", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "private-transaction-relay", "name": "Private Transaction Relay", "kind": "external_system", "description": "Optional private transaction submission backend used by configured builder sender implementations.", "technology": "HTTPS", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "redis-lock-store", "name": "Redis Lock Store", "kind": "cache", "description": "Optional external lock store used only for KMS signer key leasing.", "technology": "Redis", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "container"}, {"id": "rundler", "name": "Rundler", "kind": "software_system", "description": "ERC-4337 bundler backend that validates, pools, bundles, and submits user operations on EVM chains.", "technology": "Rust", "confidence": "confirmed", "tags": ["erc-4337", "bundler"], "parent_id": null, "c4_level": "context"}, {"id": "rundler-builder", "name": "Rundler Builder", "kind": "container", "description": "Worker-oriented task that assigns work, builds bundles, signs transactions, submits them, and tracks outcomes.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["worker"], "parent_id": null, "c4_level": "container"}, {"id": "rundler-pool", "name": "Rundler Pool", "kind": "container", "description": "Stateful task that validates, stores, and updates pending user operations per entry point.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["stateful"], "parent_id": null, "c4_level": "container"}, {"id": "rundler-rpc", "name": "Rundler RPC", "kind": "container", "description": "JSON-RPC edge service exposing eth_, debug_, rundler_, and admin namespaces plus health checks.", "technology": "Rust / jsonrpsee", "confidence": "confirmed", "tags": ["edge"], "parent_id": null, "c4_level": "container"}], "edges": [{"id": "dapp-user-calls-rundler-rpc", "source_id": "dapp-user", "target_id": "rundler-rpc", "label": "Calls eth_ and rundler_ JSON-RPC methods", "protocol": "https"}, {"id": "bundler-operator-calls-rundler-rpc", "source_id": "bundler-operator", "target_id": "rundler-rpc", "label": "Calls debug_ and admin_ endpoints", "protocol": "https"}, {"id": "rundler-rpc-calls-rundler-pool", "source_id": "rundler-rpc", "target_id": "rundler-pool", "label": "Forwards user operation submission and state queries", "protocol": ""}, {"id": "rundler-rpc-calls-rundler-builder", "source_id": "rundler-rpc", "target_id": "rundler-builder", "label": "Triggers debug bundling and builder control paths", "protocol": ""}, {"id": "rundler-rpc-calls-evm-json-rpc-node", "source_id": "rundler-rpc", "target_id": "evm-json-rpc-node", "label": "Runs gas estimation and receipt lookups against chain data", "protocol": "https"}, {"id": "rundler-pool-calls-evm-json-rpc-node", "source_id": "rundler-pool", "target_id": "evm-json-rpc-node", "label": "Simulates operations and tracks chain updates", "protocol": "https"}, {"id": "rundler-builder-calls-rundler-pool", "source_id": "rundler-builder", "target_id": "rundler-pool", "label": "Fetches eligible operations and reports failures", "protocol": ""}, {"id": "rundler-pool-publishes-to-rundler-builder", "source_id": "rundler-pool", "target_id": "rundler-builder", "label": "Publishes new block and mempool update signals", "protocol": ""}, {"id": "rundler-builder-calls-evm-json-rpc-node", "source_id": "rundler-builder", "target_id": "evm-json-rpc-node", "label": "Re-simulates bundles and submits transactions", "protocol": "https"}, {"id": "rundler-builder-submits-bundles-to-entrypoint-contract", "source_id": "rundler-builder", "target_id": "entrypoint-contract", "label": "Submits bundle transactions that execute EntryPoint logic", "protocol": "n_a"}, {"id": "rundler-builder-calls-private-transaction-relay", "source_id": "rundler-builder", "target_id": "private-transaction-relay", "label": "Uses private transaction sender implementations when configured", "protocol": "https"}, {"id": "rundler-builder-calls-aws-kms", "source_id": "rundler-builder", "target_id": "aws-kms", "label": "Uses KMS-backed signer implementations when enabled", "protocol": "https"}, {"id": "rundler-builder-calls-redis-lock-store", "source_id": "rundler-builder", "target_id": "redis-lock-store", "label": "Leases KMS keys to signer workers", "protocol": "n_a"}], "parent_container_id": null, "svg_fragment": "<svg viewBox=\"0 0 1151 732\" width=\"1151\" height=\"732\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />\n    </marker>\n  </defs>\n  <rect x=\"0\" y=\"0\" width=\"1151\" height=\"732\" fill=\"#0b1020\" />\n  <rect x=\"366.6\" y=\"130.0\" width=\"420.0\" height=\"532.0\" rx=\"14\" fill=\"rgba(20, 31, 54, 0.26)\" stroke=\"#506385\" stroke-dasharray=\"5 4\" />\n  <text x=\"382.6\" y=\"152.0\" font-size=\"11\" fill=\"#99aecb\" font-weight=\"700\">Rundler [System Boundary]</text>\n  \n  <path d=\"M 298.6 185.7 L 367.0 185.7 Q 371.9 185.7 371.9 190.6 L 371.9 190.6 Q 371.9 195.5 376.7 195.5 L 405.1 195.5\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 298.6 185.7 L 367.0 185.7 Q 371.9 185.7 371.9 190.6 L 371.9 190.6 Q 371.9 195.5 376.7 195.5 L 405.1 195.5\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"dapp-user-calls-rundler-rpc\" data-view-id=\"container\" data-target-label=\"Calls eth_ and rundler_ JSON-RPC methods\" />\n  <text x=\"335.2\" y=\"193.7\" transform=\"rotate(0.0 335.2 193.7)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Calls eth_ and rundler_ JSON-RPC me…</text>\n  \n  <path d=\"M 298.6 265.3 L 321.9 265.3 Q 331.9 265.3 331.9 255.3 L 331.9 244.8 Q 331.9 234.8 341.9 234.8 L 405.1 234.8\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 298.6 265.3 L 321.9 265.3 Q 331.9 265.3 331.9 255.3 L 331.9 244.8 Q 331.9 234.8 341.9 234.8 L 405.1 234.8\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"bundler-operator-calls-rundler-rpc\" data-view-id=\"container\" data-target-label=\"Calls debug_ and admin_ endpoints\" />\n  <text x=\"368.5\" y=\"242.8\" transform=\"rotate(0.0 368.5 242.8)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Calls debug_ and admin_ endpoints</text>\n  \n  <path d=\"M 508.8 250.0 L 508.8 269.5 Q 508.8 270.0 508.8 270.0 L 508.8 270.0 Q 508.8 270.0 508.8 270.5 L 508.8 290.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 508.8 250.0 L 508.8 269.5 Q 508.8 270.0 508.8 270.0 L 508.8 270.0 Q 508.8 270.0 508.8 270.5 L 508.8 290.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-rpc-calls-rundler-pool\" data-view-id=\"container\" data-target-label=\"Forwards user operation submission and state queries\" />\n  <text x=\"500.8\" y=\"260.0\" transform=\"rotate(90.0 500.8 260.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Forwards user operation submission …</text>\n  \n  <path d=\"M 508.8 250.0 L 508.8 344.5 Q 508.8 345.0 508.8 345.0 L 508.8 345.0 Q 508.8 345.0 508.8 345.5 L 508.8 420.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 508.8 250.0 L 508.8 344.5 Q 508.8 345.0 508.8 345.0 L 508.8 345.0 Q 508.8 345.0 508.8 345.5 L 508.8 420.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-rpc-calls-rundler-builder\" data-view-id=\"container\" data-target-label=\"Triggers debug bundling and builder control paths\" />\n  <text x=\"500.8\" y=\"297.5\" transform=\"rotate(90.0 500.8 297.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Triggers debug bundling and builder…</text>\n  \n  <path d=\"M 612.5 213.2 L 733.9 213.2 Q 743.5 213.2 743.5 222.9 L 743.5 222.9 Q 743.5 232.5 753.2 232.5 L 854.6 232.5\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 612.5 213.2 L 733.9 213.2 Q 743.5 213.2 743.5 222.9 L 743.5 222.9 Q 743.5 232.5 753.2 232.5 L 854.6 232.5\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-rpc-calls-evm-json-rpc-node\" data-view-id=\"container\" data-target-label=\"Runs gas estimation and receipt lookups against chain data\" />\n  <text x=\"678.0\" y=\"221.2\" transform=\"rotate(0.0 678.0 221.2)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Runs gas estimation and receipt loo…</text>\n  \n  <path d=\"M 622.9 311.3 L 708.8 311.3 Q 718.8 311.3 718.8 301.3 L 718.8 273.2 Q 718.8 263.2 728.8 263.2 L 854.6 263.2\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 622.9 311.3 L 708.8 311.3 Q 718.8 311.3 718.8 301.3 L 718.8 273.2 Q 718.8 263.2 728.8 263.2 L 854.6 263.2\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-pool-calls-evm-json-rpc-node\" data-view-id=\"container\" data-target-label=\"Simulates operations and tracks chain updates\" />\n  <text x=\"786.7\" y=\"271.2\" transform=\"rotate(0.0 786.7 271.2)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Simulates operations and tracks cha…</text>\n  \n  <path d=\"M 508.8 420.0 L 508.8 380.5 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 508.8 420.0 L 508.8 380.5 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-builder-calls-rundler-pool\" data-view-id=\"container\" data-target-label=\"Fetches eligible operations and reports failures\" />\n  <text x=\"516.8\" y=\"400.0\" transform=\"rotate(-90.0 516.8 400.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Fetches eligible operations and rep…</text>\n  \n  <path d=\"M 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.5 L 508.8 420.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.5 L 508.8 420.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-pool-publishes-to-rundler-builder\" data-view-id=\"container\" data-target-label=\"Publishes new block and mempool update signals\" />\n  <text x=\"500.8\" y=\"400.0\" transform=\"rotate(90.0 500.8 400.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Publishes new block and mempool upd…</text>\n  \n  <path d=\"M 599.7 420.0 L 715.1 420.0 Q 725.1 420.0 725.1 410.0 L 725.1 296.0 Q 725.1 286.0 735.1 286.0 L 870.6 286.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 599.7 420.0 L 715.1 420.0 Q 725.1 420.0 725.1 410.0 L 725.1 296.0 Q 725.1 286.0 735.1 286.0 L 870.6 286.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-builder-calls-evm-json-rpc-node\" data-view-id=\"container\" data-target-label=\"Re-simulates bundles and submits transactions\" />\n  <text x=\"797.9\" y=\"294.0\" transform=\"rotate(0.0 797.9 294.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Re-simulates bundles and submits tr…</text>\n  \n  <path d=\"M 622.9 440.3 L 718.8 440.3 Q 728.8 440.3 728.8 430.3 L 728.8 400.1 Q 728.8 390.1 738.8 390.1 L 854.6 390.1\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 622.9 440.3 L 718.8 440.3 Q 728.8 440.3 728.8 430.3 L 728.8 400.1 Q 728.8 390.1 738.8 390.1 L 854.6 390.1\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-builder-submits-bundles-to-entrypoint-contract\" data-view-id=\"container\" data-target-label=\"Submits bundle transactions that execute EntryPoint logic\" />\n  <text x=\"791.7\" y=\"398.1\" transform=\"rotate(0.0 791.7 398.1)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Submits bundle transactions that ex…</text>\n  \n  <path d=\"M 622.9 473.2 L 740.5 473.2 Q 748.8 473.2 748.8 481.4 L 748.8 481.4 Q 748.8 489.7 757.0 489.7 L 854.6 489.7\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 622.9 473.2 L 740.5 473.2 Q 748.8 473.2 748.8 481.4 L 748.8 481.4 Q 748.8 489.7 757.0 489.7 L 854.6 489.7\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-builder-calls-private-transaction-relay\" data-view-id=\"container\" data-target-label=\"Uses private transaction sender implementations when configured\" />\n  <text x=\"685.8\" y=\"481.2\" transform=\"rotate(0.0 685.8 481.2)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Uses private transaction sender imp…</text>\n  \n  <path d=\"M 622.9 508.5 L 718.8 508.5 Q 728.8 508.5 728.8 518.5 L 728.8 586.7 Q 728.8 596.7 738.8 596.7 L 854.6 596.7\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 622.9 508.5 L 718.8 508.5 Q 728.8 508.5 728.8 518.5 L 728.8 586.7 Q 728.8 596.7 738.8 596.7 L 854.6 596.7\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-builder-calls-aws-kms\" data-view-id=\"container\" data-target-label=\"Uses KMS-backed signer implementations when enabled\" />\n  <text x=\"791.7\" y=\"604.7\" transform=\"rotate(0.0 791.7 604.7)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Uses KMS-backed signer implementati…</text>\n  \n  <path d=\"M 504.1 510.0 L 504.1 511.0 Q 504.1 512.0 503.1 512.0 L 502.8 512.0 Q 501.6 512.0 501.6 513.3 L 501.6 534.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 504.1 510.0 L 504.1 511.0 Q 504.1 512.0 503.1 512.0 L 502.8 512.0 Q 501.6 512.0 501.6 513.3 L 501.6 534.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rundler-builder-calls-redis-lock-store\" data-view-id=\"container\" data-target-label=\"Leases KMS keys to signer workers\" />\n  <text x=\"493.6\" y=\"523.0\" transform=\"rotate(90.0 493.6 523.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Leases KMS keys to signer workers</text>\n  <rect x=\"64.0\" y=\"130.0\" width=\"234.6\" height=\"90.0\" rx=\"12\" fill=\"#31466b\" stroke=\"#7d98c2\" stroke-width=\"1.2\" data-element-id=\"dapp-user\" data-view-id=\"container\" data-target-label=\"DApp / Wallet User\" />\n  <path d=\"M 65.0 152.0 L 65.0 142.0 Q 65.0 131.0 76.0 131.0 L 286.6 131.0 Q 297.6 131.0 297.6 142.0 L 297.6 152.0 Z\" fill=\"#3a527c\" />\n  <text x=\"181.3\" y=\"145.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Person]</text>\n  <text x=\"181.3\" y=\"178.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">DApp / Wallet User</text>\n  <text x=\"181.3\" y=\"196.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">External client that submit…</text>\n  <rect x=\"64.0\" y=\"254.0\" width=\"234.6\" height=\"90.0\" rx=\"12\" fill=\"#31466b\" stroke=\"#7d98c2\" stroke-width=\"1.2\" data-element-id=\"bundler-operator\" data-view-id=\"container\" data-target-label=\"Bundler Operator\" />\n  <path d=\"M 65.0 276.0 L 65.0 266.0 Q 65.0 255.0 76.0 255.0 L 286.6 255.0 Q 297.6 255.0 297.6 266.0 L 297.6 276.0 Z\" fill=\"#3a527c\" />\n  <text x=\"181.3\" y=\"269.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Person]</text>\n  <text x=\"181.3\" y=\"302.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Bundler Operator</text>\n  <text x=\"181.3\" y=\"320.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Human operator running, con…</text>\n  <rect x=\"405.1\" y=\"160.0\" width=\"207.4\" height=\"90.0\" rx=\"12\" fill=\"#295164\" stroke=\"#6ea2bb\" stroke-width=\"1.2\" data-element-id=\"rundler-rpc\" data-view-id=\"container\" data-target-label=\"Rundler RPC\" />\n  <path d=\"M 406.1 182.0 L 406.1 172.0 Q 406.1 161.0 417.1 161.0 L 600.5 161.0 Q 611.5 161.0 611.5 172.0 L 611.5 182.0 Z\" fill=\"#33667e\" />\n  <text x=\"508.8\" y=\"175.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Rust / jsonrpsee]</text>\n  <text x=\"508.8\" y=\"208.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler RPC</text>\n  <text x=\"508.8\" y=\"226.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / jsonrpsee</text>\n  <rect x=\"394.6\" y=\"290.0\" width=\"228.3\" height=\"90.0\" rx=\"12\" fill=\"#295164\" stroke=\"#6ea2bb\" stroke-width=\"1.2\" data-element-id=\"rundler-pool\" data-view-id=\"container\" data-target-label=\"Rundler Pool\" />\n  <path d=\"M 395.6 312.0 L 395.6 302.0 Q 395.6 291.0 406.6 291.0 L 610.9 291.0 Q 621.9 291.0 621.9 302.0 L 621.9 312.0 Z\" fill=\"#33667e\" />\n  <text x=\"508.8\" y=\"305.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Rust / tonic + tokio]</text>\n  <text x=\"508.8\" y=\"338.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler Pool</text>\n  <text x=\"508.8\" y=\"356.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / tonic + tokio</text>\n  <rect x=\"394.6\" y=\"420.0\" width=\"228.3\" height=\"90.0\" rx=\"12\" fill=\"#295164\" stroke=\"#6ea2bb\" stroke-width=\"1.2\" data-element-id=\"rundler-builder\" data-view-id=\"container\" data-target-label=\"Rundler Builder\" />\n  <path d=\"M 395.6 442.0 L 395.6 432.0 Q 395.6 421.0 406.6 421.0 L 610.9 421.0 Q 621.9 421.0 621.9 432.0 L 621.9 442.0 Z\" fill=\"#33667e\" />\n  <text x=\"508.8\" y=\"435.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Rust / tonic + tokio]</text>\n  <text x=\"508.8\" y=\"468.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler Builder</text>\n  <text x=\"508.8\" y=\"486.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / tonic + tokio</text>\n  <rect x=\"854.6\" y=\"196.0\" width=\"213.8\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"evm-json-rpc-node\" data-view-id=\"container\" data-target-label=\"EVM JSON-RPC Node\" />\n  <path d=\"M 855.6 218.0 L 855.6 208.0 Q 855.6 197.0 866.6 197.0 L 1056.4 197.0 Q 1067.4 197.0 1067.4 208.0 L 1067.4 218.0 Z\" fill=\"#4a556a\" />\n  <text x=\"961.5\" y=\"211.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"961.5\" y=\"244.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EVM JSON-RPC Node</text>\n  <text x=\"961.5\" y=\"262.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">JSON-RPC over HTTP(S)</text>\n  <rect x=\"854.6\" y=\"320.0\" width=\"232.3\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"entrypoint-contract\" data-view-id=\"container\" data-target-label=\"EntryPoint Contract\" />\n  <path d=\"M 855.6 342.0 L 855.6 332.0 Q 855.6 321.0 866.6 321.0 L 1075.0 321.0 Q 1086.0 321.0 1086.0 332.0 L 1086.0 342.0 Z\" fill=\"#4a556a\" />\n  <text x=\"970.8\" y=\"335.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"970.8\" y=\"368.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EntryPoint Contract</text>\n  <text x=\"970.8\" y=\"386.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">EVM smart contract</text>\n  <rect x=\"854.6\" y=\"444.0\" width=\"232.3\" height=\"108.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"private-transaction-relay\" data-view-id=\"container\" data-target-label=\"Private Transaction Relay\" />\n  <path d=\"M 855.6 466.0 L 855.6 456.0 Q 855.6 445.0 866.6 445.0 L 1075.0 445.0 Q 1086.0 445.0 1086.0 456.0 L 1086.0 466.0 Z\" fill=\"#4a556a\" />\n  <text x=\"970.8\" y=\"459.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"970.8\" y=\"492.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Private Transaction</text>\n  <text x=\"970.8\" y=\"510.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Relay</text>\n  <text x=\"970.8\" y=\"528.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">HTTPS</text>\n  <rect x=\"854.6\" y=\"586.0\" width=\"180.0\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"aws-kms\" data-view-id=\"container\" data-target-label=\"AWS KMS\" />\n  <path d=\"M 855.6 608.0 L 855.6 598.0 Q 855.6 587.0 866.6 587.0 L 1022.6 587.0 Q 1033.6 587.0 1033.6 598.0 L 1033.6 608.0 Z\" fill=\"#4a556a\" />\n  <text x=\"944.6\" y=\"601.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"944.6\" y=\"634.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">AWS KMS</text>\n  <text x=\"944.6\" y=\"652.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">AWS KMS API</text>\n  <rect x=\"394.6\" y=\"534.0\" width=\"204.5\" height=\"90.0\" rx=\"12\" fill=\"#2d3445\" stroke=\"#73839e\" stroke-width=\"1.2\" data-element-id=\"redis-lock-store\" data-view-id=\"container\" data-target-label=\"Redis Lock Store\" />\n  <path d=\"M 395.6 556.0 L 395.6 546.0 Q 395.6 535.0 406.6 535.0 L 587.1 535.0 Q 598.1 535.0 598.1 546.0 L 598.1 556.0 Z\" fill=\"#39455b\" />\n  <text x=\"496.9\" y=\"549.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Cache/Queue]</text>\n  <text x=\"496.9\" y=\"582.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Redis Lock Store</text>\n  <text x=\"496.9\" y=\"600.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Redis</text>\n</svg>"}, {"id": "component-rundler-builder", "type": "component", "title": "Rundler Builder Components", "kind": "diagram", "nodes": [{"id": "builder-assigner", "name": "Builder Assigner", "kind": "component", "description": "Coordinates worker selection, starvation prevention, and sender-level work assignment across entry points.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-bundle-proposer", "name": "Builder Bundle Proposer", "kind": "component", "description": "Constructs candidate bundles by re-simulating operations, enforcing profitability, and preparing transactions.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-bundle-sender-workers", "name": "Builder Bundle Sender Workers", "kind": "component", "description": "Worker state machines that build, submit, retry, and cancel bundle transactions.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-signer-manager", "name": "Builder Signer Manager", "kind": "component", "description": "Manages private-key, mnemonic, or KMS-backed transaction signers and optional key leasing.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-transaction-sender", "name": "Builder Transaction Sender", "kind": "component", "description": "Pluggable submission backend for raw RPC, Flashbots, Bloxroute, and other transaction send modes.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "evm-json-rpc-node", "name": "EVM JSON-RPC Node", "kind": "external_system", "description": "External EVM node used for chain state reads, simulation, receipts, and transaction submission.", "technology": "JSON-RPC over HTTP(S)", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "private-transaction-relay", "name": "Private Transaction Relay", "kind": "external_system", "description": "Optional private transaction submission backend used by configured builder sender implementations.", "technology": "HTTPS", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "rundler-pool", "name": "Rundler Pool", "kind": "container", "description": "Stateful task that validates, stores, and updates pending user operations per entry point.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["stateful"], "parent_id": null, "c4_level": "container"}], "edges": [{"id": "builder-bundle-sender-workers-calls-builder-assigner", "source_id": "builder-bundle-sender-workers", "target_id": "builder-assigner", "label": "Requests entry point and worker assignment", "protocol": "in_process"}, {"id": "builder-assigner-calls-rundler-pool", "source_id": "builder-assigner", "target_id": "rundler-pool", "label": "Queries pool for eligible operations by shard and filter", "protocol": "in_process"}, {"id": "builder-bundle-sender-workers-calls-builder-bundle-proposer", "source_id": "builder-bundle-sender-workers", "target_id": "builder-bundle-proposer", "label": "Builds bundle candidates from assigned operations", "protocol": "in_process"}, {"id": "builder-bundle-proposer-calls-rundler-pool", "source_id": "builder-bundle-proposer", "target_id": "rundler-pool", "label": "Fetches operations and reports invalid bundle candidates", "protocol": "in_process"}, {"id": "builder-bundle-proposer-calls-evm-json-rpc-node", "source_id": "builder-bundle-proposer", "target_id": "evm-json-rpc-node", "label": "Re-simulates and validates bundle candidates", "protocol": "https"}, {"id": "builder-bundle-sender-workers-calls-builder-signer-manager", "source_id": "builder-bundle-sender-workers", "target_id": "builder-signer-manager", "label": "Requests signatures for bundle transactions", "protocol": "in_process"}, {"id": "builder-bundle-sender-workers-calls-builder-transaction-sender", "source_id": "builder-bundle-sender-workers", "target_id": "builder-transaction-sender", "label": "Submits, retries, or cancels bundle transactions", "protocol": "in_process"}, {"id": "builder-transaction-sender-calls-evm-json-rpc-node", "source_id": "builder-transaction-sender", "target_id": "evm-json-rpc-node", "label": "Sends raw or conditional bundle transactions", "protocol": "https"}, {"id": "builder-transaction-sender-calls-private-transaction-relay", "source_id": "builder-transaction-sender", "target_id": "private-transaction-relay", "label": "Uses private relay implementations when configured", "protocol": "https"}], "parent_container_id": "rundler-builder", "svg_fragment": "<svg viewBox=\"0 0 1345 612\" width=\"1345\" height=\"612\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />\n    </marker>\n  </defs>\n  <rect x=\"0\" y=\"0\" width=\"1345\" height=\"612\" fill=\"#0b1020\" />\n  <rect x=\"64.0\" y=\"130.0\" width=\"920.5\" height=\"300.0\" rx=\"14\" fill=\"rgba(20, 31, 54, 0.26)\" stroke=\"#506385\" stroke-dasharray=\"5 4\" />\n  <text x=\"80.0\" y=\"152.0\" font-size=\"11\" fill=\"#99aecb\" font-weight=\"700\">Rundler Builder [Container Boundary]</text>\n  \n  <path d=\"M 519.6 274.0 L 519.6 278.5 Q 519.6 279.0 519.6 279.0 L 519.6 279.0 Q 519.6 279.0 519.6 278.5 L 519.6 244.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 519.6 274.0 L 519.6 278.5 Q 519.6 279.0 519.6 279.0 L 519.6 279.0 Q 519.6 279.0 519.6 278.5 L 519.6 244.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-bundle-sender-workers-calls-builder-assigner\" data-view-id=\"component-rundler-builder\" data-target-label=\"Requests entry point and worker assignment\" />\n  <text x=\"527.6\" y=\"261.5\" transform=\"rotate(-90.0 527.6 261.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Requests entry point and worker ass…</text>\n  \n  <path d=\"M 621.8 202.5 L 819.8 202.5 Q 827.2 202.5 827.2 209.8 L 827.2 209.8 Q 827.2 217.1 834.5 217.1 L 1052.5 217.1\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 621.8 202.5 L 819.8 202.5 Q 827.2 202.5 827.2 209.8 L 827.2 209.8 Q 827.2 217.1 834.5 217.1 L 1052.5 217.1\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-assigner-calls-rundler-pool\" data-view-id=\"component-rundler-builder\" data-target-label=\"Queries pool for eligible operations by shard and filter\" />\n  <text x=\"939.8\" y=\"225.1\" transform=\"rotate(0.0 939.8 225.1)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Queries pool for eligible operation…</text>\n  \n  <path d=\"M 645.0 274.4 L 680.7 274.4 Q 690.7 274.4 690.7 264.4 L 690.7 254.0 Q 690.7 244.0 700.7 244.0 L 716.4 244.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 645.0 274.4 L 680.7 274.4 Q 690.7 274.4 690.7 264.4 L 690.7 254.0 Q 690.7 244.0 700.7 244.0 L 716.4 244.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-bundle-sender-workers-calls-builder-bundle-proposer\" data-view-id=\"component-rundler-builder\" data-target-label=\"Builds bundle candidates from assigned operations\" />\n  <text x=\"667.9\" y=\"282.4\" transform=\"rotate(0.0 667.9 282.4)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Builds bundle candidates from assig…</text>\n  \n  <path d=\"M 956.5 207.6 L 981.4 207.6 Q 984.5 207.6 984.5 210.7 L 984.5 210.7 Q 984.5 213.7 987.5 213.7 L 1052.5 213.7\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 956.5 207.6 L 981.4 207.6 Q 984.5 207.6 984.5 210.7 L 984.5 210.7 Q 984.5 213.7 987.5 213.7 L 1052.5 213.7\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-bundle-proposer-calls-rundler-pool\" data-view-id=\"component-rundler-builder\" data-target-label=\"Fetches operations and reports invalid bundle candidates\" />\n  <text x=\"1018.5\" y=\"221.7\" transform=\"rotate(0.0 1018.5 221.7)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Fetches operations and reports inva…</text>\n  \n  <path d=\"M 724.0 244.0 L 502.3 244.0 Q 492.3 244.0 492.3 254.0 L 492.3 438.0 Q 492.3 448.0 482.3 448.0 L 280.7 448.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 724.0 244.0 L 502.3 244.0 Q 492.3 244.0 492.3 254.0 L 492.3 438.0 Q 492.3 448.0 482.3 448.0 L 280.7 448.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-bundle-proposer-calls-evm-json-rpc-node\" data-view-id=\"component-rundler-builder\" data-target-label=\"Re-simulates and validates bundle candidates\" />\n  <text x=\"608.1\" y=\"236.0\" transform=\"rotate(0.0 608.1 236.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Re-simulates and validates bundle c…</text>\n  \n  <path d=\"M 394.2 331.8 L 383.8 331.8 Q 383.2 331.8 383.2 332.4 L 383.2 332.4 Q 383.2 333.1 382.5 333.1 L 352.2 333.1\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 394.2 331.8 L 383.8 331.8 Q 383.2 331.8 383.2 332.4 L 383.2 332.4 Q 383.2 333.1 382.5 333.1 L 352.2 333.1\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-bundle-sender-workers-calls-builder-signer-manager\" data-view-id=\"component-rundler-builder\" data-target-label=\"Requests signatures for bundle transactions\" />\n  <text x=\"367.7\" y=\"325.1\" transform=\"rotate(0.0 367.7 325.1)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Requests signatures for bundle tran…</text>\n  \n  <path d=\"M 394.2 277.4 L 356.2 277.4 Q 346.2 277.4 346.2 267.4 L 346.2 258.8 Q 346.2 254.9 342.2 254.9 L 338.2 254.9\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 394.2 277.4 L 356.2 277.4 Q 346.2 277.4 346.2 267.4 L 346.2 258.8 Q 346.2 254.9 342.2 254.9 L 338.2 254.9\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-bundle-sender-workers-calls-builder-transaction-sender\" data-view-id=\"component-rundler-builder\" data-target-label=\"Submits, retries, or cancels bundle transactions\" />\n  <text x=\"370.2\" y=\"269.4\" transform=\"rotate(0.0 370.2 269.4)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Submits, retries, or cancels bundle…</text>\n  \n  <path d=\"M 214.7 262.0 L 214.7 355.0 Q 214.7 365.0 204.7 365.0 L 199.1 365.0 Q 189.1 365.0 189.1 375.0 L 189.1 448.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 214.7 262.0 L 214.7 355.0 Q 214.7 365.0 204.7 365.0 L 199.1 365.0 Q 189.1 365.0 189.1 375.0 L 189.1 448.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-transaction-sender-calls-evm-json-rpc-node\" data-view-id=\"component-rundler-builder\" data-target-label=\"Sends raw or conditional bundle transactions\" />\n  <text x=\"206.7\" y=\"313.5\" transform=\"rotate(90.0 206.7 313.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Sends raw or conditional bundle tra…</text>\n  \n  <path d=\"M 262.5 262.0 L 262.5 325.0 Q 262.5 335.0 272.5 335.0 L 391.5 335.0 Q 401.5 335.0 401.5 345.0 L 401.5 448.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 262.5 262.0 L 262.5 325.0 Q 262.5 335.0 272.5 335.0 L 391.5 335.0 Q 401.5 335.0 401.5 345.0 L 401.5 448.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"builder-transaction-sender-calls-private-transaction-relay\" data-view-id=\"component-rundler-builder\" data-target-label=\"Uses private relay implementations when configured\" />\n  <text x=\"332.0\" y=\"343.0\" transform=\"rotate(0.0 332.0 343.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Uses private relay implementations …</text>\n  <rect x=\"417.4\" y=\"154.0\" width=\"204.5\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"builder-assigner\" data-view-id=\"component-rundler-builder\" data-target-label=\"Builder Assigner\" />\n  <path d=\"M 418.4 176.0 L 418.4 166.0 Q 418.4 155.0 429.4 155.0 L 609.8 155.0 Q 620.8 155.0 620.8 166.0 L 620.8 176.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"519.6\" y=\"169.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"519.6\" y=\"202.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Builder Assigner</text>\n  <text x=\"519.6\" y=\"220.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"687.0\" y=\"154.0\" width=\"269.4\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"builder-bundle-proposer\" data-view-id=\"component-rundler-builder\" data-target-label=\"Builder Bundle Proposer\" />\n  <path d=\"M 688.0 176.0 L 688.0 166.0 Q 688.0 155.0 699.0 155.0 L 944.5 155.0 Q 955.5 155.0 955.5 166.0 L 955.5 176.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"821.8\" y=\"169.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"821.8\" y=\"202.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Builder Bundle Proposer</text>\n  <text x=\"821.8\" y=\"220.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"394.2\" y=\"274.0\" width=\"250.9\" height=\"108.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"builder-bundle-sender-workers\" data-view-id=\"component-rundler-builder\" data-target-label=\"Builder Bundle Sender Workers\" />\n  <path d=\"M 395.2 296.0 L 395.2 286.0 Q 395.2 275.0 406.2 275.0 L 633.0 275.0 Q 644.0 275.0 644.0 286.0 L 644.0 296.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"519.6\" y=\"289.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"519.6\" y=\"322.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Builder Bundle Sender</text>\n  <text x=\"519.6\" y=\"340.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Workers</text>\n  <text x=\"519.6\" y=\"358.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"105.9\" y=\"154.0\" width=\"232.3\" height=\"108.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"builder-transaction-sender\" data-view-id=\"component-rundler-builder\" data-target-label=\"Builder Transaction Sender\" />\n  <path d=\"M 106.9 176.0 L 106.9 166.0 Q 106.9 155.0 117.9 155.0 L 326.2 155.0 Q 337.2 155.0 337.2 166.0 L 337.2 176.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"222.1\" y=\"169.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"222.1\" y=\"202.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Builder Transaction</text>\n  <text x=\"222.1\" y=\"220.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Sender</text>\n  <text x=\"222.1\" y=\"238.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"92.0\" y=\"292.0\" width=\"260.2\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"builder-signer-manager\" data-view-id=\"component-rundler-builder\" data-target-label=\"Builder Signer Manager\" />\n  <path d=\"M 93.0 314.0 L 93.0 304.0 Q 93.0 293.0 104.0 293.0 L 340.2 293.0 Q 351.2 293.0 351.2 304.0 L 351.2 314.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"222.1\" y=\"307.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"222.1\" y=\"340.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Builder Signer Manager</text>\n  <text x=\"222.1\" y=\"358.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"1052.5\" y=\"176.0\" width=\"228.3\" height=\"90.0\" rx=\"12\" fill=\"#295164\" stroke=\"#6ea2bb\" stroke-width=\"1.2\" data-element-id=\"rundler-pool\" data-view-id=\"component-rundler-builder\" data-target-label=\"Rundler Pool\" />\n  <path d=\"M 1053.5 198.0 L 1053.5 188.0 Q 1053.5 177.0 1064.5 177.0 L 1268.7 177.0 Q 1279.7 177.0 1279.7 188.0 L 1279.7 198.0 Z\" fill=\"#33667e\" />\n  <text x=\"1166.6\" y=\"191.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Rust / tonic + tokio]</text>\n  <text x=\"1166.6\" y=\"224.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler Pool</text>\n  <text x=\"1166.6\" y=\"242.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / tonic + tokio</text>\n  <rect x=\"76.0\" y=\"448.0\" width=\"213.8\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"evm-json-rpc-node\" data-view-id=\"component-rundler-builder\" data-target-label=\"EVM JSON-RPC Node\" />\n  <path d=\"M 77.0 470.0 L 77.0 460.0 Q 77.0 449.0 88.0 449.0 L 277.8 449.0 Q 288.8 449.0 288.8 460.0 L 288.8 470.0 Z\" fill=\"#4a556a\" />\n  <text x=\"182.9\" y=\"463.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"182.9\" y=\"496.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EVM JSON-RPC Node</text>\n  <text x=\"182.9\" y=\"514.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">JSON-RPC over HTTP(S)</text>\n  <rect x=\"325.8\" y=\"448.0\" width=\"232.3\" height=\"108.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"private-transaction-relay\" data-view-id=\"component-rundler-builder\" data-target-label=\"Private Transaction Relay\" />\n  <path d=\"M 326.8 470.0 L 326.8 460.0 Q 326.8 449.0 337.8 449.0 L 546.1 449.0 Q 557.1 449.0 557.1 460.0 L 557.1 470.0 Z\" fill=\"#4a556a\" />\n  <text x=\"441.9\" y=\"463.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"441.9\" y=\"496.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Private Transaction</text>\n  <text x=\"441.9\" y=\"514.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Relay</text>\n  <text x=\"441.9\" y=\"532.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">HTTPS</text>\n</svg>"}, {"id": "component-rundler-pool", "type": "component", "title": "Rundler Pool Components", "kind": "diagram", "nodes": [{"id": "evm-json-rpc-node", "name": "EVM JSON-RPC Node", "kind": "external_system", "description": "External EVM node used for chain state reads, simulation, receipts, and transaction submission.", "technology": "JSON-RPC over HTTP(S)", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "pool-chain-tracker", "name": "Pool Chain Tracker", "kind": "component", "description": "Chain polling and reorg tracker that updates Pool state from new blocks and mined or unmined user operations.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-mempool", "name": "Pool Mempool Core", "kind": "component", "description": "Per-entry-point in-memory user operation pool that runs prechecks, simulation, admission, and eviction logic.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-paymaster-tracker", "name": "Pool Paymaster Tracker", "kind": "component", "description": "Tracks confirmed and pending paymaster balances as part of mempool admission and reconciliation.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-reputation-manager", "name": "Pool Reputation Manager", "kind": "component", "description": "Tracks ERC-4337 entity reputation and allowlist or blocklist overrides.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-server", "name": "Pool Server", "kind": "component", "description": "Local and remote server facade that receives RPC and Builder requests for pool operations.", "technology": "Rust / tonic", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}], "edges": [{"id": "pool-server-calls-pool-mempool", "source_id": "pool-server", "target_id": "pool-mempool", "label": "Executes pool RPCs against mempool core", "protocol": "in_process"}, {"id": "pool-mempool-calls-pool-reputation-manager", "source_id": "pool-mempool", "target_id": "pool-reputation-manager", "label": "Checks and updates entity reputation during admission", "protocol": "in_process"}, {"id": "pool-mempool-calls-pool-paymaster-tracker", "source_id": "pool-mempool", "target_id": "pool-paymaster-tracker", "label": "Checks and updates paymaster balances during admission", "protocol": "in_process"}, {"id": "pool-chain-tracker-calls-evm-json-rpc-node", "source_id": "pool-chain-tracker", "target_id": "evm-json-rpc-node", "label": "Polls blocks and decodes mined or unmined operations", "protocol": "https"}, {"id": "pool-chain-tracker-updates-pool-mempool", "source_id": "pool-chain-tracker", "target_id": "pool-mempool", "label": "Applies mined and reorg-derived state updates", "protocol": "in_process"}], "parent_container_id": "rundler-pool", "svg_fragment": "<svg viewBox=\"0 0 953 704\" width=\"953\" height=\"704\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />\n    </marker>\n  </defs>\n  <rect x=\"0\" y=\"0\" width=\"953\" height=\"704\" fill=\"#0b1020\" />\n  <rect x=\"64.0\" y=\"130.0\" width=\"825.0\" height=\"410.0\" rx=\"14\" fill=\"rgba(20, 31, 54, 0.26)\" stroke=\"#506385\" stroke-dasharray=\"5 4\" />\n  <text x=\"80.0\" y=\"152.0\" font-size=\"11\" fill=\"#99aecb\" font-weight=\"700\">Rundler Pool [Container Boundary]</text>\n  \n  <path d=\"M 268.7 244.0 L 268.7 293.0 Q 268.7 303.0 278.7 303.0 L 406.0 303.0 Q 416.0 303.0 416.0 313.0 L 416.0 402.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 268.7 244.0 L 268.7 293.0 Q 268.7 303.0 278.7 303.0 L 406.0 303.0 Q 416.0 303.0 416.0 313.0 L 416.0 402.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"pool-server-calls-pool-mempool\" data-view-id=\"component-rundler-pool\" data-target-label=\"Executes pool RPCs against mempool core\" />\n  <text x=\"342.3\" y=\"311.0\" transform=\"rotate(0.0 342.3 311.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Executes pool RPCs against mempool …</text>\n  \n  <path d=\"M 376.6 402.0 L 352.3 402.0 Q 342.3 402.0 342.3 392.0 L 342.3 374.0 Q 342.3 364.0 332.3 364.0 L 308.0 364.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 376.6 402.0 L 352.3 402.0 Q 342.3 402.0 342.3 392.0 L 342.3 374.0 Q 342.3 364.0 332.3 364.0 L 308.0 364.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"pool-mempool-calls-pool-reputation-manager\" data-view-id=\"component-rundler-pool\" data-target-label=\"Checks and updates entity reputation during admission\" />\n  <text x=\"350.3\" y=\"383.0\" transform=\"rotate(-90.0 350.3 383.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Checks and updates entity reputatio…</text>\n  \n  <path d=\"M 564.8 447.0 L 582.3 447.0 Q 582.8 447.0 582.8 447.0 L 582.8 447.0 Q 582.8 447.0 583.3 447.0 L 600.8 447.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 564.8 447.0 L 582.3 447.0 Q 582.8 447.0 582.8 447.0 L 582.8 447.0 Q 582.8 447.0 583.3 447.0 L 600.8 447.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"pool-mempool-calls-pool-paymaster-tracker\" data-view-id=\"component-rundler-pool\" data-target-label=\"Checks and updates paymaster balances during admission\" />\n  <text x=\"573.8\" y=\"455.0\" transform=\"rotate(0.0 573.8 455.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Checks and updates paymaster balanc…</text>\n  \n  <path d=\"M 197.6 492.0 L 197.6 540.6 Q 197.6 545.0 193.2 545.0 L 193.2 545.0 Q 188.8 545.0 188.8 549.4 L 188.8 558.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 197.6 492.0 L 197.6 540.6 Q 197.6 545.0 193.2 545.0 L 193.2 545.0 Q 188.8 545.0 188.8 549.4 L 188.8 558.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"pool-chain-tracker-calls-evm-json-rpc-node\" data-view-id=\"component-rundler-pool\" data-target-label=\"Polls blocks and decodes mined or unmined operations\" />\n  <text x=\"189.6\" y=\"518.5\" transform=\"rotate(90.0 189.6 518.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Polls blocks and decodes mined or u…</text>\n  \n  <path d=\"M 315.0 447.0 L 322.5 447.0 Q 323.0 447.0 323.0 447.0 L 323.0 447.0 Q 323.0 447.0 323.5 447.0 L 351.0 447.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 315.0 447.0 L 322.5 447.0 Q 323.0 447.0 323.0 447.0 L 323.0 447.0 Q 323.0 447.0 323.5 447.0 L 351.0 447.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"pool-chain-tracker-updates-pool-mempool\" data-view-id=\"component-rundler-pool\" data-target-label=\"Applies mined and reorg-derived state updates\" />\n  <text x=\"337.0\" y=\"455.0\" transform=\"rotate(0.0 337.0 455.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Applies mined and reorg-derived sta…</text>\n  <rect x=\"136.7\" y=\"154.0\" width=\"180.0\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"pool-server\" data-view-id=\"component-rundler-pool\" data-target-label=\"Pool Server\" />\n  <path d=\"M 137.7 176.0 L 137.7 166.0 Q 137.7 155.0 148.7 155.0 L 304.7 155.0 Q 315.7 155.0 315.7 166.0 L 315.7 176.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"226.7\" y=\"169.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"226.7\" y=\"202.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Pool Server</text>\n  <text x=\"226.7\" y=\"220.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / tonic</text>\n  <rect x=\"92.0\" y=\"402.0\" width=\"223.0\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"pool-chain-tracker\" data-view-id=\"component-rundler-pool\" data-target-label=\"Pool Chain Tracker\" />\n  <path d=\"M 93.0 424.0 L 93.0 414.0 Q 93.0 403.0 104.0 403.0 L 303.0 403.0 Q 314.0 403.0 314.0 414.0 L 314.0 424.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"203.5\" y=\"417.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"203.5\" y=\"450.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Pool Chain Tracker</text>\n  <text x=\"203.5\" y=\"468.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"351.0\" y=\"402.0\" width=\"213.8\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"pool-mempool\" data-view-id=\"component-rundler-pool\" data-target-label=\"Pool Mempool Core\" />\n  <path d=\"M 352.0 424.0 L 352.0 414.0 Q 352.0 403.0 363.0 403.0 L 552.8 403.0 Q 563.8 403.0 563.8 414.0 L 563.8 424.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"457.9\" y=\"417.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"457.9\" y=\"450.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Pool Mempool Core</text>\n  <text x=\"457.9\" y=\"468.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"92.0\" y=\"274.0\" width=\"269.4\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"pool-reputation-manager\" data-view-id=\"component-rundler-pool\" data-target-label=\"Pool Reputation Manager\" />\n  <path d=\"M 93.0 296.0 L 93.0 286.0 Q 93.0 275.0 104.0 275.0 L 349.4 275.0 Q 360.4 275.0 360.4 286.0 L 360.4 296.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"226.7\" y=\"289.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"226.7\" y=\"322.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Pool Reputation Manager</text>\n  <text x=\"226.7\" y=\"340.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"600.8\" y=\"402.0\" width=\"260.2\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"pool-paymaster-tracker\" data-view-id=\"component-rundler-pool\" data-target-label=\"Pool Paymaster Tracker\" />\n  <path d=\"M 601.8 424.0 L 601.8 414.0 Q 601.8 403.0 612.8 403.0 L 849.0 403.0 Q 860.0 403.0 860.0 414.0 L 860.0 424.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"730.9\" y=\"417.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"730.9\" y=\"450.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Pool Paymaster Tracker</text>\n  <text x=\"730.9\" y=\"468.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"76.0\" y=\"558.0\" width=\"213.8\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"evm-json-rpc-node\" data-view-id=\"component-rundler-pool\" data-target-label=\"EVM JSON-RPC Node\" />\n  <path d=\"M 77.0 580.0 L 77.0 570.0 Q 77.0 559.0 88.0 559.0 L 277.8 559.0 Q 288.8 559.0 288.8 570.0 L 288.8 580.0 Z\" fill=\"#4a556a\" />\n  <text x=\"182.9\" y=\"573.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"182.9\" y=\"606.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EVM JSON-RPC Node</text>\n  <text x=\"182.9\" y=\"624.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">JSON-RPC over HTTP(S)</text>\n</svg>"}, {"id": "component-rundler-rpc", "type": "component", "title": "Rundler RPC Components", "kind": "diagram", "nodes": [{"id": "evm-json-rpc-node", "name": "EVM JSON-RPC Node", "kind": "external_system", "description": "External EVM node used for chain state reads, simulation, receipts, and transaction submission.", "technology": "JSON-RPC over HTTP(S)", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "rpc-debug-admin-api", "name": "RPC Debug/Admin API", "kind": "component", "description": "Implements debug_ and admin_ control paths that inspect and mutate Pool and Builder runtime state.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rpc-entrypoint-router", "name": "RPC Entry Point Router", "kind": "component", "description": "Routes RPC requests by entry point address and version and wires gas estimators to the right runtime dependencies.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rpc-eth-api", "name": "RPC Eth API", "kind": "component", "description": "Implements ERC-4337 eth_ RPC methods including sendUserOperation and estimateUserOperationGas.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rpc-rundler-api", "name": "RPC Rundler API", "kind": "component", "description": "Implements Rundler-specific RPC methods such as gas price guidance, dropLocalUserOperation, and delegation status.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rundler-builder", "name": "Rundler Builder", "kind": "container", "description": "Worker-oriented task that assigns work, builds bundles, signs transactions, submits them, and tracks outcomes.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["worker"], "parent_id": null, "c4_level": "container"}, {"id": "rundler-pool", "name": "Rundler Pool", "kind": "container", "description": "Stateful task that validates, stores, and updates pending user operations per entry point.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["stateful"], "parent_id": null, "c4_level": "container"}], "edges": [{"id": "rpc-eth-api-calls-rpc-entrypoint-router", "source_id": "rpc-eth-api", "target_id": "rpc-entrypoint-router", "label": "Routes user operation methods by entry point", "protocol": "in_process"}, {"id": "rpc-rundler-api-calls-rpc-entrypoint-router", "source_id": "rpc-rundler-api", "target_id": "rpc-entrypoint-router", "label": "Routes entry point aware Rundler queries", "protocol": "in_process"}, {"id": "rpc-entrypoint-router-calls-rundler-pool", "source_id": "rpc-entrypoint-router", "target_id": "rundler-pool", "label": "Delegates addOperation and pool-backed queries", "protocol": "in_process"}, {"id": "rpc-eth-api-calls-evm-json-rpc-node", "source_id": "rpc-eth-api", "target_id": "evm-json-rpc-node", "label": "Uses gas estimator against chain state", "protocol": "https"}, {"id": "rpc-debug-admin-api-calls-rundler-builder", "source_id": "rpc-debug-admin-api", "target_id": "rundler-builder", "label": "Triggers immediate bundles and bundling mode changes", "protocol": "in_process"}, {"id": "rpc-debug-admin-api-calls-rundler-pool", "source_id": "rpc-debug-admin-api", "target_id": "rundler-pool", "label": "Dumps or clears mempool and reputation state", "protocol": "in_process"}], "parent_container_id": "rundler-rpc", "svg_fragment": "<svg viewBox=\"0 0 1015 576\" width=\"1015\" height=\"576\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />\n    </marker>\n  </defs>\n  <rect x=\"0\" y=\"0\" width=\"1015\" height=\"576\" fill=\"#0b1020\" />\n  <rect x=\"64.0\" y=\"130.0\" width=\"590.5\" height=\"282.0\" rx=\"14\" fill=\"rgba(20, 31, 54, 0.26)\" stroke=\"#506385\" stroke-dasharray=\"5 4\" />\n  <text x=\"80.0\" y=\"152.0\" font-size=\"11\" fill=\"#99aecb\" font-weight=\"700\">Rundler RPC [Container Boundary]</text>\n  \n  <path d=\"M 298.2 236.5 L 323.2 236.5 Q 333.2 236.5 333.2 246.5 L 333.2 264.0 Q 333.2 274.0 343.2 274.0 L 388.3 274.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 298.2 236.5 L 323.2 236.5 Q 333.2 236.5 333.2 246.5 L 333.2 264.0 Q 333.2 274.0 343.2 274.0 L 388.3 274.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rpc-eth-api-calls-rpc-entrypoint-router\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Routes user operation methods by entry point\" />\n  <text x=\"360.8\" y=\"282.0\" transform=\"rotate(0.0 360.8 282.0)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Routes user operation methods by en…</text>\n  \n  <path d=\"M 496.4 244.0 L 496.4 278.5 Q 496.4 279.0 496.4 279.0 L 496.4 279.0 Q 496.4 279.0 496.4 278.5 L 496.4 274.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 496.4 244.0 L 496.4 278.5 Q 496.4 279.0 496.4 279.0 L 496.4 279.0 Q 496.4 279.0 496.4 278.5 L 496.4 274.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rpc-rundler-api-calls-rpc-entrypoint-router\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Routes entry point aware Rundler queries\" />\n  <text x=\"488.4\" y=\"261.5\" transform=\"rotate(90.0 488.4 261.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Routes entry point aware Rundler qu…</text>\n  \n  <path d=\"M 626.5 281.5 L 664.5 281.5 Q 674.5 281.5 674.5 271.5 L 674.5 263.9 Q 674.5 253.9 684.5 253.9 L 722.5 253.9\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 626.5 281.5 L 664.5 281.5 Q 674.5 281.5 674.5 271.5 L 674.5 263.9 Q 674.5 253.9 684.5 253.9 L 722.5 253.9\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rpc-entrypoint-router-calls-rundler-pool\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Delegates addOperation and pool-backed queries\" />\n  <text x=\"650.5\" y=\"289.5\" transform=\"rotate(0.0 650.5 289.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Delegates addOperation and pool-bac…</text>\n  \n  <path d=\"M 204.0 244.0 L 204.0 348.5 Q 204.0 357.0 195.5 357.0 L 195.5 357.0 Q 187.0 357.0 187.0 365.5 L 187.0 430.0\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 204.0 244.0 L 204.0 348.5 Q 204.0 357.0 195.5 357.0 L 195.5 357.0 Q 187.0 357.0 187.0 365.5 L 187.0 430.0\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rpc-eth-api-calls-evm-json-rpc-node\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Uses gas estimator against chain state\" />\n  <text x=\"196.0\" y=\"300.5\" transform=\"rotate(90.0 196.0 300.5)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Uses gas estimator against chain st…</text>\n  \n  <path d=\"M 324.3 323.8 L 525.2 323.8 Q 533.4 323.8 533.4 332.0 L 533.4 332.0 Q 533.4 340.3 541.6 340.3 L 722.5 340.3\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 324.3 323.8 L 525.2 323.8 Q 533.4 323.8 533.4 332.0 L 533.4 332.0 Q 533.4 340.3 541.6 340.3 L 722.5 340.3\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rpc-debug-admin-api-calls-rundler-builder\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Triggers immediate bundles and bundling mode changes\" />\n  <text x=\"428.9\" y=\"331.8\" transform=\"rotate(0.0 428.9 331.8)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Triggers immediate bundles and bund…</text>\n  \n  <path d=\"M 324.3 300.9 L 513.4 300.9 Q 523.4 300.9 523.4 290.9 L 523.4 248.8 Q 523.4 238.8 533.4 238.8 L 722.5 238.8\" stroke=\"#90a7cf\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />\n  <path d=\"M 324.3 300.9 L 513.4 300.9 Q 523.4 300.9 523.4 290.9 L 523.4 248.8 Q 523.4 238.8 533.4 238.8 L 722.5 238.8\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"\n        data-relationship-id=\"rpc-debug-admin-api-calls-rundler-pool\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Dumps or clears mempool and reputation state\" />\n  <text x=\"622.9\" y=\"246.8\" transform=\"rotate(0.0 622.9 246.8)\" text-anchor=\"middle\"\n        font-size=\"9\" fill=\"#95a9c9\">Dumps or clears mempool and reputat…</text>\n  <rect x=\"118.2\" y=\"154.0\" width=\"180.0\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"rpc-eth-api\" data-view-id=\"component-rundler-rpc\" data-target-label=\"RPC Eth API\" />\n  <path d=\"M 119.2 176.0 L 119.2 166.0 Q 119.2 155.0 130.2 155.0 L 286.2 155.0 Q 297.2 155.0 297.2 166.0 L 297.2 176.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"208.2\" y=\"169.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"208.2\" y=\"202.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">RPC Eth API</text>\n  <text x=\"208.2\" y=\"220.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"398.8\" y=\"154.0\" width=\"195.2\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"rpc-rundler-api\" data-view-id=\"component-rundler-rpc\" data-target-label=\"RPC Rundler API\" />\n  <path d=\"M 399.8 176.0 L 399.8 166.0 Q 399.8 155.0 410.8 155.0 L 582.0 155.0 Q 593.0 155.0 593.0 166.0 L 593.0 176.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"496.4\" y=\"169.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"496.4\" y=\"202.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">RPC Rundler API</text>\n  <text x=\"496.4\" y=\"220.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"92.0\" y=\"274.0\" width=\"232.3\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"rpc-debug-admin-api\" data-view-id=\"component-rundler-rpc\" data-target-label=\"RPC Debug/Admin API\" />\n  <path d=\"M 93.0 296.0 L 93.0 286.0 Q 93.0 275.0 104.0 275.0 L 312.3 275.0 Q 323.3 275.0 323.3 286.0 L 323.3 296.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"208.2\" y=\"289.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"208.2\" y=\"322.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">RPC Debug/Admin API</text>\n  <text x=\"208.2\" y=\"340.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"366.3\" y=\"274.0\" width=\"260.2\" height=\"90.0\" rx=\"12\" fill=\"#244c57\" stroke=\"#72aeb6\" stroke-width=\"1.2\" data-element-id=\"rpc-entrypoint-router\" data-view-id=\"component-rundler-rpc\" data-target-label=\"RPC Entry Point Router\" />\n  <path d=\"M 367.3 296.0 L 367.3 286.0 Q 367.3 275.0 378.3 275.0 L 614.5 275.0 Q 625.5 275.0 625.5 286.0 L 625.5 296.0 Z\" fill=\"#2c5d69\" />\n  <text x=\"496.4\" y=\"289.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Component]</text>\n  <text x=\"496.4\" y=\"322.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">RPC Entry Point Router</text>\n  <text x=\"496.4\" y=\"340.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust</text>\n  <rect x=\"722.5\" y=\"176.0\" width=\"228.3\" height=\"90.0\" rx=\"12\" fill=\"#295164\" stroke=\"#6ea2bb\" stroke-width=\"1.2\" data-element-id=\"rundler-pool\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Rundler Pool\" />\n  <path d=\"M 723.5 198.0 L 723.5 188.0 Q 723.5 177.0 734.5 177.0 L 938.7 177.0 Q 949.7 177.0 949.7 188.0 L 949.7 198.0 Z\" fill=\"#33667e\" />\n  <text x=\"836.6\" y=\"191.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Rust / tonic + tokio]</text>\n  <text x=\"836.6\" y=\"224.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler Pool</text>\n  <text x=\"836.6\" y=\"242.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / tonic + tokio</text>\n  <rect x=\"722.5\" y=\"300.0\" width=\"228.3\" height=\"90.0\" rx=\"12\" fill=\"#295164\" stroke=\"#6ea2bb\" stroke-width=\"1.2\" data-element-id=\"rundler-builder\" data-view-id=\"component-rundler-rpc\" data-target-label=\"Rundler Builder\" />\n  <path d=\"M 723.5 322.0 L 723.5 312.0 Q 723.5 301.0 734.5 301.0 L 938.7 301.0 Q 949.7 301.0 949.7 312.0 L 949.7 322.0 Z\" fill=\"#33667e\" />\n  <text x=\"836.6\" y=\"315.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[Container: Rust / tonic + tokio]</text>\n  <text x=\"836.6\" y=\"348.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">Rundler Builder</text>\n  <text x=\"836.6\" y=\"366.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">Rust / tonic + tokio</text>\n  <rect x=\"76.0\" y=\"430.0\" width=\"213.8\" height=\"90.0\" rx=\"12\" fill=\"#3d4556\" stroke=\"#8b98ae\" stroke-width=\"1.2\" data-element-id=\"evm-json-rpc-node\" data-view-id=\"component-rundler-rpc\" data-target-label=\"EVM JSON-RPC Node\" />\n  <path d=\"M 77.0 452.0 L 77.0 442.0 Q 77.0 431.0 88.0 431.0 L 277.8 431.0 Q 288.8 431.0 288.8 442.0 L 288.8 452.0 Z\" fill=\"#4a556a\" />\n  <text x=\"182.9\" y=\"445.0\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">[External System]</text>\n  <text x=\"182.9\" y=\"478.0\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">EVM JSON-RPC Node</text>\n  <text x=\"182.9\" y=\"496.0\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">JSON-RPC over HTTP(S)</text>\n</svg>"}], "elements": [{"id": "aws-kms", "name": "AWS KMS", "kind": "external_system", "description": "Optional managed signer backend for builder transaction signing.", "technology": "AWS KMS API", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "builder-assigner", "name": "Builder Assigner", "kind": "component", "description": "Coordinates worker selection, starvation prevention, and sender-level work assignment across entry points.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-bundle-proposer", "name": "Builder Bundle Proposer", "kind": "component", "description": "Constructs candidate bundles by re-simulating operations, enforcing profitability, and preparing transactions.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-bundle-sender-workers", "name": "Builder Bundle Sender Workers", "kind": "component", "description": "Worker state machines that build, submit, retry, and cancel bundle transactions.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-signer-manager", "name": "Builder Signer Manager", "kind": "component", "description": "Manages private-key, mnemonic, or KMS-backed transaction signers and optional key leasing.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "builder-transaction-sender", "name": "Builder Transaction Sender", "kind": "component", "description": "Pluggable submission backend for raw RPC, Flashbots, Bloxroute, and other transaction send modes.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-builder", "c4_level": "component"}, {"id": "bundler-operator", "name": "Bundler Operator", "kind": "person", "description": "Human operator running, configuring, and debugging Rundler deployments.", "technology": "", "confidence": "confirmed", "tags": ["external-actor"], "parent_id": null, "c4_level": "context"}, {"id": "dapp-user", "name": "DApp / Wallet User", "kind": "person", "description": "External client that submits ERC-4337 user operations and polls for status.", "technology": "", "confidence": "confirmed", "tags": ["external-actor"], "parent_id": null, "c4_level": "context"}, {"id": "entrypoint-contract", "name": "EntryPoint Contract", "kind": "external_system", "description": "On-chain ERC-4337 EntryPoint contract that validates and executes bundle transactions.", "technology": "EVM smart contract", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "evm-json-rpc-node", "name": "EVM JSON-RPC Node", "kind": "external_system", "description": "External EVM node used for chain state reads, simulation, receipts, and transaction submission.", "technology": "JSON-RPC over HTTP(S)", "confidence": "confirmed", "tags": ["required"], "parent_id": null, "c4_level": "context"}, {"id": "pool-chain-tracker", "name": "Pool Chain Tracker", "kind": "component", "description": "Chain polling and reorg tracker that updates Pool state from new blocks and mined or unmined user operations.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-mempool", "name": "Pool Mempool Core", "kind": "component", "description": "Per-entry-point in-memory user operation pool that runs prechecks, simulation, admission, and eviction logic.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-paymaster-tracker", "name": "Pool Paymaster Tracker", "kind": "component", "description": "Tracks confirmed and pending paymaster balances as part of mempool admission and reconciliation.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-reputation-manager", "name": "Pool Reputation Manager", "kind": "component", "description": "Tracks ERC-4337 entity reputation and allowlist or blocklist overrides.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "pool-server", "name": "Pool Server", "kind": "component", "description": "Local and remote server facade that receives RPC and Builder requests for pool operations.", "technology": "Rust / tonic", "confidence": "confirmed", "tags": [], "parent_id": "rundler-pool", "c4_level": "component"}, {"id": "private-transaction-relay", "name": "Private Transaction Relay", "kind": "external_system", "description": "Optional private transaction submission backend used by configured builder sender implementations.", "technology": "HTTPS", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "context"}, {"id": "redis-lock-store", "name": "Redis Lock Store", "kind": "cache", "description": "Optional external lock store used only for KMS signer key leasing.", "technology": "Redis", "confidence": "confirmed", "tags": ["optional"], "parent_id": null, "c4_level": "container"}, {"id": "rpc-debug-admin-api", "name": "RPC Debug/Admin API", "kind": "component", "description": "Implements debug_ and admin_ control paths that inspect and mutate Pool and Builder runtime state.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rpc-entrypoint-router", "name": "RPC Entry Point Router", "kind": "component", "description": "Routes RPC requests by entry point address and version and wires gas estimators to the right runtime dependencies.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rpc-eth-api", "name": "RPC Eth API", "kind": "component", "description": "Implements ERC-4337 eth_ RPC methods including sendUserOperation and estimateUserOperationGas.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rpc-rundler-api", "name": "RPC Rundler API", "kind": "component", "description": "Implements Rundler-specific RPC methods such as gas price guidance, dropLocalUserOperation, and delegation status.", "technology": "Rust", "confidence": "confirmed", "tags": [], "parent_id": "rundler-rpc", "c4_level": "component"}, {"id": "rundler", "name": "Rundler", "kind": "software_system", "description": "ERC-4337 bundler backend that validates, pools, bundles, and submits user operations on EVM chains.", "technology": "Rust", "confidence": "confirmed", "tags": ["erc-4337", "bundler"], "parent_id": null, "c4_level": "context"}, {"id": "rundler-builder", "name": "Rundler Builder", "kind": "container", "description": "Worker-oriented task that assigns work, builds bundles, signs transactions, submits them, and tracks outcomes.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["worker"], "parent_id": null, "c4_level": "container"}, {"id": "rundler-pool", "name": "Rundler Pool", "kind": "container", "description": "Stateful task that validates, stores, and updates pending user operations per entry point.", "technology": "Rust / tonic + tokio", "confidence": "confirmed", "tags": ["stateful"], "parent_id": null, "c4_level": "container"}, {"id": "rundler-rpc", "name": "Rundler RPC", "kind": "container", "description": "JSON-RPC edge service exposing eth_, debug_, rundler_, and admin namespaces plus health checks.", "technology": "Rust / jsonrpsee", "confidence": "confirmed", "tags": ["edge"], "parent_id": null, "c4_level": "container"}], "drill_map": {"rundler": "container", "rundler-builder": "component-rundler-builder", "rundler-pool": "component-rundler-pool", "rundler-rpc": "component-rundler-rpc"}};
+const MODE = "rich";
+
+const THEME = {
+  bgPrimary: '#1F1F1E',
+  bgSecondary: '#262626',
+  bgTertiary: '#2C2C2B',
+  textPrimary: '#F9F9F7',
+  textSecondary: '#97958C',
+  textDiagramSubtitle: '#F9F9F7B3',
+  blueMuted: '#4C78A8',
+  greenMuted: '#5A8F6A',
+  purpleDusty: '#7A6FA6',
+  amberWarm: '#B08968',
+  cyanMuted: '#4F8F8B',
+  redSoft: '#A05A5A',
+  slateNeutral: '#6B7280',
+  line: '#3A3937',
+  lineStrong: '#4A4945',
+};
+
+const state = {
+  viewId: DATA.initial_view_id,
+  history: [],
+  selectedId: null,
+  detailsOpen: false,
+  commentMode: false,
+  comments: [],
+  pendingTarget: null,
+};
+
+const nodesById = new Map((DATA.elements || []).map(function (e) { return [e.id, e]; }));
+const viewsById = new Map((DATA.views || []).map(function (v) { return [v.id, v]; }));
+
+const kindColor = {
+  person: THEME.blueMuted,
+  software_system: THEME.purpleDusty,
+  system: THEME.purpleDusty,
+  external_system: THEME.amberWarm,
+  external_actor: THEME.amberWarm,
+  actor: THEME.amberWarm,
+  container: THEME.greenMuted,
+  component: THEME.cyanMuted,
+  database: THEME.slateNeutral,
+  datastore: THEME.slateNeutral,
+  queue: THEME.redSoft,
+  cache: THEME.cyanMuted,
+};
+
+function hexToRgb(hex) {
+  const clean = String(hex || '').trim().replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return null;
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+function clampByte(n) {
+  return Math.max(0, Math.min(255, Math.round(n)));
+}
+
+function rgbToHex(rgb) {
+  if (!rgb) return '#000000';
+  return '#'
+    + clampByte(rgb.r).toString(16).padStart(2, '0')
+    + clampByte(rgb.g).toString(16).padStart(2, '0')
+    + clampByte(rgb.b).toString(16).padStart(2, '0');
+}
+
+function mixHex(baseHex, targetHex, targetWeight) {
+  const base = hexToRgb(baseHex);
+  const target = hexToRgb(targetHex);
+  if (!base || !target) return baseHex;
+  const w = Math.max(0, Math.min(1, Number(targetWeight) || 0));
+  return rgbToHex({
+    r: base.r * (1 - w) + target.r * w,
+    g: base.g * (1 - w) + target.g * w,
+    b: base.b * (1 - w) + target.b * w,
+  });
+}
+
+function hexToRgba(hex, alpha) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 'rgba(0, 0, 0, ' + String(alpha) + ')';
+  return 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + String(alpha) + ')';
+}
+
+function colorForKind(kind) {
+  return kindColor[String(kind || '').toLowerCase()] || THEME.slateNeutral;
+}
+
+const edgeColor = mixHex(THEME.textSecondary, THEME.textPrimary, 0.14);
+const edgeDetailColor = mixHex(THEME.textSecondary, THEME.bgPrimary, 0.18);
+const drillStrokeColor = mixHex(THEME.purpleDusty, THEME.textPrimary, 0.16);
+const scaffoldStrokeColor = mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08);
+const relationshipStrokeWidth = 1.15;
+const relationshipStrokeWidthSelected = 1.75;
+
+const SVG_COLOR_REMAP = {
+  '#0b1220': THEME.bgPrimary,
+  '#101a2f': THEME.bgSecondary,
+  '#0d172a': THEME.bgSecondary,
+  '#0a1324': THEME.bgTertiary,
+  '#081024': '#1B1B1A',
+  '#132449': THEME.bgSecondary,
+  '#e6eeff': THEME.textPrimary,
+  '#f0f9ff': THEME.textPrimary,
+  '#dff0ff': THEME.textPrimary,
+  '#f0fdf4': THEME.textPrimary,
+  '#8fa4cb': edgeColor,
+  '#5a7090': edgeDetailColor,
+  '#91acd8': THEME.textSecondary,
+  '#9fb7e2': THEME.textSecondary,
+  '#9db7e2': THEME.textSecondary,
+  '#9fb8e4': THEME.textSecondary,
+  '#abc0e5': THEME.textSecondary,
+  '#a8bcdf': THEME.textSecondary,
+  '#9fc7ff': mixHex(THEME.purpleDusty, THEME.textPrimary, 0.16),
+  '#27406f': THEME.line,
+  '#35558f': THEME.lineStrong,
+  '#2a446f': THEME.lineStrong,
+  '#22385f': THEME.line,
+  '#294474': THEME.lineStrong,
+  '#2d4f83': THEME.lineStrong,
+  '#2c4a7a': THEME.lineStrong,
+  '#4f6186': scaffoldStrokeColor,
+  '#1e3a5f': mixHex(THEME.blueMuted, THEME.bgPrimary, 0.26),
+  '#3b82f6': THEME.blueMuted,
+  '#60a5fa': mixHex(THEME.blueMuted, THEME.textPrimary, 0.22),
+  '#16a34a': THEME.greenMuted,
+  '#4ade80': mixHex(THEME.greenMuted, THEME.textPrimary, 0.18),
+  '#86efac': mixHex(THEME.greenMuted, THEME.textPrimary, 0.28),
+  '#0ea5e9': THEME.cyanMuted,
+  '#38bdf8': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.16),
+  '#7dd3fc': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.26),
+  '#8b5cf6': THEME.purpleDusty,
+  '#5f4aa0': mixHex(THEME.purpleDusty, THEME.textPrimary, 0.12),
+  '#a78bfa': mixHex(THEME.purpleDusty, THEME.textPrimary, 0.18),
+  '#f97316': THEME.amberWarm,
+  '#d97706': THEME.amberWarm,
+  '#b45309': THEME.redSoft,
+  '#8a5f23': mixHex(THEME.amberWarm, THEME.textPrimary, 0.12),
+  '#ffdca0': mixHex(THEME.amberWarm, THEME.textPrimary, 0.3),
+  '#ffbd59': THEME.amberWarm,
+  '#0f766e': THEME.cyanMuted,
+  '#2dd4bf': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.2),
+  '#5eead4': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.3),
+  '#334155': THEME.slateNeutral,
+  '#64748b': mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08),
+  '#94a3b8': mixHex(THEME.slateNeutral, THEME.textPrimary, 0.24),
+  'rgba(20,52,105,0.22)': hexToRgba(THEME.blueMuted, 0.12),
+  'rgba(20,52,105,0.20)': hexToRgba(THEME.blueMuted, 0.11),
+  'rgba(45,20,89,0.20)': hexToRgba(THEME.purpleDusty, 0.12),
+  'rgba(120,45,8,0.16)': hexToRgba(THEME.amberWarm, 0.11),
+  'rgba(22,87,57,0.18)': hexToRgba(THEME.greenMuted, 0.12),
+  'rgba(18,66,51,0.18)': hexToRgba(THEME.greenMuted, 0.12),
+  'rgba(62,74,102,0.20)': hexToRgba(THEME.slateNeutral, 0.12),
+};
+
+function $(id) { return document.getElementById(id); }
+
+function currentView() { return viewsById.get(state.viewId); }
+
+function updateHeader() {
+  const subtitle = DATA.system_subtitle || DATA.system_name || 'Architecture Diagram';
+  $('systemSubtitle').textContent = subtitle;
+  $('modeBadge').setAttribute('data-render-mode', MODE);
+  $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
+  $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
+  document.body.classList.toggle('comment-mode-on', state.commentMode);
+}
+
+function cleanedTitle(text) {
+  const t = String(text || '').trim();
+  if (!t) return '';
+  const parts = t.split('—').map(function (x) { return x.trim(); }).filter(Boolean);
+  if (parts.length <= 1) return t;
+  return parts[parts.length - 1];
+}
+
+function tabLabel(view) {
+  const t = String(view.type || '').toLowerCase();
+  if (t === 'system_context') return 'System Context';
+  if (t === 'container') return 'Containers';
+  if (t === 'component') {
+    const pid = view.parent_container_id;
+    const p = pid ? nodesById.get(pid) : null;
+    if (p && p.name) return p.name + ' Components';
+    const tail = cleanedTitle(view.title || view.id || 'Components');
+    if (/components?$/i.test(tail)) return tail;
+    return tail + ' Components';
+  }
+  return cleanedTitle(view.title || view.id || 'View');
+}
+
+function updateTabs() {
+  const tabs = $('tabs');
+  tabs.innerHTML = '';
+  const views = (DATA.views || []);
+  views.forEach(function (view, idx) {
+    const b = document.createElement('button');
+    b.className = 'tab' + (view.id === state.viewId ? ' active' : '');
+    b.textContent = tabLabel(view);
+    b.addEventListener('click', function () {
+      state.history = [];
+      state.viewId = view.id;
+      state.selectedId = null;
+      render();
+    });
+    tabs.appendChild(b);
+
+    if (idx < views.length - 1) {
+      const sep = document.createElement('span');
+      sep.className = 'tab-sep';
+      sep.textContent = '›';
+      tabs.appendChild(sep);
+    }
+  });
+}
+
+function normalizeSvgFragment(fragment) {
+  let t = String(fragment || '').trim();
+  if (!t) return '';
+
+  if (t.startsWith('```')) {
+    const lines = t.split('\n');
+    lines.shift();
+    if (lines.length && lines[lines.length - 1].trim() === '```') lines.pop();
+    t = lines.join('\n').trim();
+  }
+
+  t = t.replace(/<script[\s\S]*?<\/script>/gi, '');
+  // Remove person-style emoji markers from injected diagrams.
+  t = t.replace(/[👤👥🧑👨👩]/gu, '');
+  return t;
+}
+
+function isConfidenceTokenText(text) {
+  const t = String(text || '').toLowerCase().trim();
+  if (!t) return false;
+  const cleaned = t
+    .replace(/[\[\]()]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/-+/g, '_');
+  return cleaned === 'confirmed' || cleaned === 'strong_inference' || cleaned === 'weak_inference';
+}
+
+function stripConfidenceLabelsFromSvg(svg) {
+  if (!svg) return;
+
+  svg.querySelectorAll('[data-confidence-label], .confidence-label').forEach(function (el) {
+    el.remove();
+  });
+
+  svg.querySelectorAll('text').forEach(function (textEl) {
+    if (isConfidenceTokenText(textEl.textContent)) {
+      textEl.remove();
+    }
+  });
+}
+
+function isVisiblePaint(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (!v || v === 'none' || v === 'transparent') return false;
+  if (/rgba?\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(v)) return false;
+  return true;
+}
+
+function replaceColorTokens(value) {
+  let out = String(value || '');
+  Object.keys(SVG_COLOR_REMAP).forEach(function (from) {
+    const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(escaped, 'gi'), SVG_COLOR_REMAP[from]);
+  });
+  return out;
+}
+
+function remapSvgPalette(svg) {
+  if (!svg) return;
+  svg.querySelectorAll('*').forEach(function (el) {
+    ['fill', 'stroke', 'stop-color'].forEach(function (attr) {
+      if (!el.hasAttribute(attr)) return;
+      el.setAttribute(attr, replaceColorTokens(el.getAttribute(attr)));
+    });
+    if (el.hasAttribute('style')) {
+      el.setAttribute('style', replaceColorTokens(el.getAttribute('style')));
+    }
+  });
+}
+
+function isSecondaryNodeText(textEl, idx) {
+  const text = String(textEl.textContent || '').trim();
+  if (!text) return false;
+  if (idx > 0) return true;
+  if (/^\[.*\]$/.test(text)) return true;
+  const fontSize = parseFloat(textEl.getAttribute('font-size') || '0');
+  return isFinite(fontSize) && fontSize > 0 && fontSize <= 10;
+}
+
+function isPersonKind(kind) {
+  const normalized = String(kind || '').toLowerCase();
+  return normalized === 'person' || normalized === 'actor' || normalized === 'external_actor';
+}
+
+function personSubtitleText(kind) {
+  return '[👤 User]';
+}
+
+function isEmojiOnlyText(text) {
+  const cleaned = String(text || '').trim();
+  return cleaned === '👤' || cleaned === '👥' || cleaned === '🧑' || cleaned === '👨' || cleaned === '👩';
+}
+
+function estimateTextWidth(text, fontSize) {
+  return String(text || '').trim().length * Number(fontSize || 0) * 0.58;
+}
+
+function simplifyPersonNodeGroup(group, node) {
+  if (!group || !isPersonKind(node && node.kind)) return;
+
+  group.querySelectorAll('circle').forEach(function (circle) {
+    circle.remove();
+  });
+
+  const textEls = Array.from(group.querySelectorAll('text'));
+  textEls.forEach(function (textEl) {
+    if (isEmojiOnlyText(textEl.textContent || '')) {
+      textEl.remove();
+    }
+  });
+
+  let remainingTexts = Array.from(group.querySelectorAll('text'));
+  remainingTexts.forEach(function (textEl) {
+    const text = String(textEl.textContent || '').trim();
+    if (!text) return;
+    if (/^\[[^\]]*\]$/.test(text)) {
+      textEl.textContent = personSubtitleText(node && node.kind);
+    }
+  });
+
+  const rect = group.querySelector('rect');
+  const box = elementBBox(rect);
+  if (!rect || !box) return;
+
+  remainingTexts = Array.from(group.querySelectorAll('text'));
+  let titleText = null;
+  let subtitleText = null;
+
+  remainingTexts.forEach(function (textEl) {
+    const text = String(textEl.textContent || '').trim();
+    if (!text) return;
+    if (/^\[[^\]]*\]$/.test(text)) subtitleText = textEl;
+    else if (!titleText) titleText = textEl;
+  });
+
+  if (!subtitleText) {
+    subtitleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    subtitleText.textContent = personSubtitleText(node && node.kind);
+    group.appendChild(subtitleText);
+  }
+
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+  const titleFontSize = 12;
+  const subtitleFontSize = 9;
+  const titleWidth = titleText ? estimateTextWidth(titleText.textContent, titleFontSize) : 0;
+  const subtitleWidth = estimateTextWidth(subtitleText.textContent, subtitleFontSize);
+  const contentWidth = Math.max(titleWidth, subtitleWidth);
+  const targetWidth = Math.max(box.width, Math.ceil(contentWidth + 28));
+  const targetHeight = Math.max(box.height, 78);
+  const nextX = centerX - targetWidth / 2;
+  const nextY = centerY - targetHeight / 2;
+
+  rect.setAttribute('x', String(nextX));
+  rect.setAttribute('y', String(nextY));
+  rect.setAttribute('width', String(targetWidth));
+  rect.setAttribute('height', String(targetHeight));
+
+  if (titleText) {
+    titleText.setAttribute('x', String(centerX));
+    titleText.setAttribute('y', String(nextY + targetHeight / 2 - 10));
+    titleText.setAttribute('text-anchor', 'middle');
+    titleText.setAttribute('dominant-baseline', 'middle');
+    titleText.setAttribute('font-size', String(titleFontSize));
+    titleText.setAttribute('font-weight', '600');
+    titleText.setAttribute('pointer-events', 'none');
+  }
+
+  subtitleText.textContent = personSubtitleText(node && node.kind);
+  subtitleText.setAttribute('x', String(centerX));
+  subtitleText.setAttribute('y', String(nextY + targetHeight / 2 + 12));
+  subtitleText.setAttribute('text-anchor', 'middle');
+  subtitleText.setAttribute('dominant-baseline', 'middle');
+  subtitleText.setAttribute('font-size', String(subtitleFontSize));
+  subtitleText.setAttribute('pointer-events', 'none');
+}
+
+function applyNodeGroupTheme(group, node) {
+  simplifyPersonNodeGroup(group, node);
+  const base = colorForKind(node && node.kind);
+  const stroke = mixHex(base, THEME.textPrimary, 0.22);
+
+  group.querySelectorAll('rect,circle,ellipse,path,polygon').forEach(function (shape) {
+    if (isVisiblePaint(shape.getAttribute('fill'))) {
+      shape.setAttribute('fill', base);
+    }
+    if (isVisiblePaint(shape.getAttribute('stroke'))) {
+      shape.setAttribute('stroke', stroke);
+    }
+  });
+
+  const texts = Array.from(group.querySelectorAll('text'));
+  texts.forEach(function (textEl, idx) {
+    textEl.setAttribute('fill', isSecondaryNodeText(textEl, idx) ? THEME.textDiagramSubtitle : THEME.textPrimary);
+  });
+}
+
+function fallbackNodeSubtitle(node) {
+  if (!node) return '';
+  if (node.technology) return String(node.technology);
+  if (isPersonKind(node.kind)) return personSubtitleText(node.kind);
+  return '';
+}
+
+function applyRelationshipGroupTheme(group) {
+  group.querySelectorAll('line,path,polyline,polygon').forEach(function (shape) {
+    if (shape.closest('defs')) return;
+    if (isVisiblePaint(shape.getAttribute('stroke'))) {
+      shape.setAttribute('stroke', edgeColor);
+      const tag = String(shape.tagName || '').toLowerCase();
+      if (tag === 'line' || tag === 'path' || tag === 'polyline') {
+        const current = parseFloat(shape.getAttribute('stroke-width') || '');
+        const next = isFinite(current) ? Math.min(current, relationshipStrokeWidth) : relationshipStrokeWidth;
+        shape.setAttribute('stroke-width', String(next));
+      }
+    }
+    if (isVisiblePaint(shape.getAttribute('fill'))) {
+      shape.setAttribute('fill', edgeColor);
+    }
+  });
+
+  const texts = Array.from(group.querySelectorAll('text'));
+  texts.forEach(function (textEl, idx) {
+    textEl.setAttribute('fill', idx === 0 ? THEME.textSecondary : edgeDetailColor);
+  });
+}
+
+function isLargeScaffoldShape(el) {
+  const w = parseFloat(el.getAttribute('width') || '0');
+  const h = parseFloat(el.getAttribute('height') || '0');
+  return isFinite(w) && isFinite(h) && (w >= 180 || h >= 110);
+}
+
+function applyScaffoldTheme(svg) {
+  svg.querySelectorAll('defs polygon, defs path, defs line').forEach(function (el) {
+    if (isVisiblePaint(el.getAttribute('fill'))) {
+      el.setAttribute('fill', edgeColor);
+    }
+    if (isVisiblePaint(el.getAttribute('stroke'))) {
+      el.setAttribute('stroke', edgeColor);
+    }
+  });
+
+  svg.querySelectorAll('text').forEach(function (textEl) {
+    if (textEl.closest('[data-element-id]') || textEl.closest('[data-relationship-id]')) return;
+    const weight = String(textEl.getAttribute('font-weight') || '');
+    const strong = weight === '700' || weight === '600';
+    textEl.setAttribute('fill', strong ? THEME.textPrimary : THEME.textSecondary);
+  });
+
+  svg.querySelectorAll('rect,circle,ellipse,path,polygon,line,polyline').forEach(function (shape) {
+    if (shape.closest('[data-element-id]') || shape.closest('[data-relationship-id]') || shape.closest('defs')) return;
+
+    if (String(shape.getAttribute('stroke-dasharray') || '').trim()) {
+      if (isVisiblePaint(shape.getAttribute('fill'))) {
+        shape.setAttribute('fill', hexToRgba(THEME.purpleDusty, 0.08));
+      }
+      if (isVisiblePaint(shape.getAttribute('stroke'))) {
+        shape.setAttribute('stroke', THEME.purpleDusty);
+      }
+      return;
+    }
+
+    if (isLargeScaffoldShape(shape)) {
+      if (isVisiblePaint(shape.getAttribute('fill'))) {
+        shape.setAttribute('fill', hexToRgba(THEME.slateNeutral, 0.08));
+      }
+      if (isVisiblePaint(shape.getAttribute('stroke'))) {
+        shape.setAttribute('stroke', scaffoldStrokeColor);
+      }
+      return;
+    }
+
+    if (isVisiblePaint(shape.getAttribute('stroke'))) {
+      shape.setAttribute('stroke', scaffoldStrokeColor);
+    }
+    if (isVisiblePaint(shape.getAttribute('fill'))) {
+      shape.setAttribute('fill', scaffoldStrokeColor);
+    }
+  });
+}
+
+function nextTextSibling(el) {
+  let cur = el ? el.nextElementSibling : null;
+  while (cur) {
+    if (String(cur.tagName || '').toLowerCase() === 'text') return cur;
+    cur = cur.nextElementSibling;
+  }
+  return null;
+}
+
+function findLegendGroups(svg) {
+  const groups = [];
+  svg.querySelectorAll('g').forEach(function (g) {
+    if (g.closest('[data-element-id]') || g.closest('[data-relationship-id]')) return;
+    const labels = Array.from(g.querySelectorAll('text')).map(function (t) {
+      return String(t.textContent || '').trim().toLowerCase();
+    });
+    const hasDirectionSignals =
+      labels.includes('sync')
+      && labels.includes('async')
+      && labels.includes('bidirectional');
+    const hasRoleSignals =
+      labels.includes('person')
+      || labels.includes('container')
+      || labels.includes('internal system')
+      || labels.includes('database')
+      || labels.includes('cache/queue')
+      || labels.includes('external')
+      || labels.includes('external system');
+    const hasLegendSignals = hasDirectionSignals && hasRoleSignals;
+    if (hasLegendSignals) groups.push(g);
+  });
+  return groups;
+}
+
+function legendColorForLabel(label) {
+  const normalized = String(label || '').trim().toLowerCase();
+  if (normalized === 'person') return { fill: THEME.blueMuted };
+  if (normalized === 'container') return { fill: THEME.greenMuted };
+  if (normalized === 'internal system') return { fill: THEME.purpleDusty };
+  if (normalized === 'database') return { fill: THEME.slateNeutral };
+  if (normalized === 'cache/queue') return { fill: THEME.cyanMuted };
+  if (normalized === 'external' || normalized === 'external system') {
+    return {
+      fill: THEME.amberWarm,
+      stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.18),
+    };
+  }
+  return null;
+}
+
+function applyLegendTheme(svg) {
+  findLegendGroups(svg).forEach(function (group) {
+    Array.from(group.children).forEach(function (child) {
+      const tag = String(child.tagName || '').toLowerCase();
+
+      if (tag === 'rect') {
+        const width = parseFloat(child.getAttribute('width') || '0');
+        const height = parseFloat(child.getAttribute('height') || '0');
+        if (width > 100 || height > 20) {
+          child.setAttribute('fill', 'rgba(31, 31, 30, 0.84)');
+          child.setAttribute('stroke', THEME.lineStrong);
+          return;
+        }
+
+        const labelNode = nextTextSibling(child);
+        const color = legendColorForLabel(labelNode && labelNode.textContent);
+        if (color) {
+          child.setAttribute('fill', color.fill);
+          if (color.stroke) child.setAttribute('stroke', color.stroke);
+          else child.removeAttribute('stroke');
+        }
+        return;
+      }
+
+      if (tag === 'line') {
+        child.setAttribute('stroke', edgeColor);
+        return;
+      }
+
+      if (tag === 'text') {
+        child.setAttribute('fill', THEME.textSecondary);
+      }
+    });
+  });
+}
+
+function applySvgTheme(svg, view) {
+  if (!svg) return;
+  remapSvgPalette(svg);
+
+  svg.querySelectorAll('[data-element-id]').forEach(function (group) {
+    const node = nodesById.get(group.getAttribute('data-element-id'));
+    applyNodeGroupTheme(group, node || {});
+  });
+
+  svg.querySelectorAll('[data-relationship-id]').forEach(function (group) {
+    applyRelationshipGroupTheme(group);
+  });
+
+  applyScaffoldTheme(svg);
+  applyLegendTheme(svg);
+}
+
+function isDrillable(elementId) {
+  return Boolean((DATA.drill_map || {})[String(elementId || '')]);
+}
+
+function buildCornerBadge(x, y) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('transform', 'translate(' + x + ' ' + y + ')');
+  g.setAttribute('pointer-events', 'none');
+  g.setAttribute('data-drill-badge', 'true');
+
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  bg.setAttribute('cx', '0');
+  bg.setAttribute('cy', '0');
+  bg.setAttribute('r', '7');
+  bg.setAttribute('fill', THEME.bgTertiary);
+  bg.setAttribute('stroke', drillStrokeColor);
+  bg.setAttribute('stroke-width', '1.2');
+  g.appendChild(bg);
+
+  const plusH = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  plusH.setAttribute('x1', '-2.4');
+  plusH.setAttribute('y1', '0');
+  plusH.setAttribute('x2', '2.4');
+  plusH.setAttribute('y2', '0');
+  plusH.setAttribute('stroke', THEME.textPrimary);
+  plusH.setAttribute('stroke-width', '1.4');
+  plusH.setAttribute('stroke-linecap', 'round');
+  g.appendChild(plusH);
+
+  const plusV = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  plusV.setAttribute('x1', '0');
+  plusV.setAttribute('y1', '-2.4');
+  plusV.setAttribute('x2', '0');
+  plusV.setAttribute('y2', '2.4');
+  plusV.setAttribute('stroke', THEME.textPrimary);
+  plusV.setAttribute('stroke-width', '1.4');
+  plusV.setAttribute('stroke-linecap', 'round');
+  g.appendChild(plusV);
+
+  return g;
+}
+
+function elementBBox(el) {
+  if (!el) return null;
+
+  const tag = String(el.tagName || '').toLowerCase();
+  if (tag === 'rect') {
+    const x = parseFloat(el.getAttribute('x') || '0');
+    const y = parseFloat(el.getAttribute('y') || '0');
+    const w = parseFloat(el.getAttribute('width') || '0');
+    const h = parseFloat(el.getAttribute('height') || '0');
+    if (isFinite(x) && isFinite(y) && isFinite(w) && isFinite(h)) {
+      return { x: x, y: y, width: w, height: h };
+    }
+  }
+
+  try {
+    const box = el.getBBox();
+    if (box && isFinite(box.x) && isFinite(box.y) && isFinite(box.width) && isFinite(box.height)) {
+      return box;
+    }
+  } catch (_err) {
+    // ignore
+  }
+  return null;
+}
+
+function applyDrillabilityAffordances(svg) {
+  if (!svg) return;
+
+  svg.querySelectorAll('[data-drill-badge="true"]').forEach(function (el) {
+    el.remove();
+  });
+
+  const seen = new Set();
+  svg.querySelectorAll('[data-element-id]').forEach(function (el) {
+    const elementId = el.getAttribute('data-element-id');
+    if (!elementId || seen.has(elementId)) return;
+    seen.add(elementId);
+
+    const drillable = isDrillable(elementId);
+    el.setAttribute('data-drillable', drillable ? 'true' : 'false');
+    if (!drillable) return;
+
+    // Border affordance (option 2)
+    let shape = null;
+    const tag = String(el.tagName || '').toLowerCase();
+    if (tag === 'rect' || tag === 'path' || tag === 'polygon') {
+      shape = el;
+    } else {
+      shape = el.querySelector('rect, path, polygon');
+    }
+    if (shape) {
+      shape.setAttribute('stroke', drillStrokeColor);
+      const current = parseFloat(shape.getAttribute('stroke-width') || '1.2');
+      shape.setAttribute('stroke-width', String(Math.max(1.8, current)));
+    }
+
+    // Corner badge affordance (option 1)
+    const box = elementBBox(el);
+    if (!box || box.width < 8 || box.height < 8) return;
+    const bx = Number.isFinite(box.x) ? box.x : 0;
+    const by = Number.isFinite(box.y) ? box.y : 0;
+    const bw = Number.isFinite(box.width) ? box.width : 0;
+
+    const badgeInset = 14;
+    const badge = buildCornerBadge(bx + bw - badgeInset, by + badgeInset);
+    badge.setAttribute('data-drill-badge-for', elementId);
+    svg.appendChild(badge);
+  });
+}
+
+function wireSvgInteractions(svg, view) {
+  svg.querySelectorAll('[data-element-id]').forEach(function (el) {
+    if (el.getAttribute('data-element-id') === state.selectedId) {
+      el.setAttribute('data-selected', 'true');
+    } else {
+      el.removeAttribute('data-selected');
+    }
+
+    if (!el.getAttribute('data-view-id')) {
+      el.setAttribute('data-view-id', view.id);
+    }
+    if (!el.getAttribute('data-target-label')) {
+      el.setAttribute('data-target-label', el.getAttribute('data-element-id') || 'element');
+    }
+  });
+
+  svg.querySelectorAll('[data-relationship-id]').forEach(function (el) {
+    if (!el.getAttribute('data-view-id')) {
+      el.setAttribute('data-view-id', view.id);
+    }
+    if (!el.getAttribute('data-target-label')) {
+      el.setAttribute('data-target-label', el.getAttribute('data-relationship-id') || 'relationship');
+    }
+  });
+
+  applyDrillabilityAffordances(svg);
+
+  svg.addEventListener('click', function (ev) {
+    const element = ev.target.closest('[data-element-id]');
+    const rel = ev.target.closest('[data-relationship-id]');
+
+    if (state.commentMode) {
+      ev.preventDefault();
+      const target = element
+        ? {
+            view_id: view.id,
+            element_id: element.dataset.elementId,
+            relationship_id: null,
+            target_label: element.dataset.targetLabel || element.dataset.elementId,
+          }
+        : rel
+        ? {
+            view_id: view.id,
+            element_id: null,
+            relationship_id: rel.dataset.relationshipId || null,
+            target_label: rel.dataset.targetLabel || rel.dataset.relationshipId || 'relationship',
+          }
+        : {
+            view_id: view.id,
+            element_id: null,
+            relationship_id: null,
+            target_label: 'canvas',
+          };
+      openCommentDialog(target);
+      return;
+    }
+
+    if (!element) {
+      state.selectedId = null;
+      updateDetails();
+      render();
+      return;
+    }
+
+    const id = element.dataset.elementId;
+    const nextView = (DATA.drill_map || {})[id];
+    if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
+      state.history.push(state.viewId);
+      state.viewId = nextView;
+      state.selectedId = null;
+      render();
+      return;
+    }
+
+    state.selectedId = id;
+    state.detailsOpen = true;
+    updateDetails();
+    render();
+  });
+}
+
+function drawDiagramView(view) {
+  const host = $('canvas');
+  host.innerHTML = '';
+
+  const provided = normalizeSvgFragment(view.svg_fragment);
+  if (provided) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = provided;
+    const svg = wrap.querySelector('svg');
+    if (svg) {
+      svg.style.display = 'block';
+      svg.style.width = '100%';
+      svg.style.height = 'auto';
+      svg.style.maxWidth = '100%';
+      svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+      if (!svg.getAttribute('data-view-id')) {
+        svg.setAttribute('data-view-id', view.id);
+      }
+      stripConfidenceLabelsFromSvg(svg);
+      applySvgTheme(svg, view);
+      wireSvgInteractions(svg, view);
+      host.appendChild(svg);
+      return;
+    }
+  }
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const layout = layoutNodes(view.nodes || [], view.edges || [], view.type || 'generic');
+  const width = layout.width;
+  const height = layout.height;
+  svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+  svg.setAttribute('width', String(width));
+  svg.setAttribute('height', String(height));
+  svg.style.display = 'block';
+  svg.style.width = '100%';
+  svg.style.height = 'auto';
+  svg.style.maxWidth = '100%';
+  svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+
+  (layout.lanes || []).forEach(function (lane) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(lane.x));
+    rect.setAttribute('y', String(lane.y));
+    rect.setAttribute('width', String(lane.w));
+    rect.setAttribute('height', String(lane.h));
+    rect.setAttribute('rx', '12');
+    rect.setAttribute('fill', lane.fill || hexToRgba(THEME.slateNeutral, 0.08));
+    rect.setAttribute('stroke', lane.stroke || scaffoldStrokeColor);
+    rect.setAttribute('stroke-width', '1');
+    rect.setAttribute('stroke-dasharray', lane.dash || '');
+    g.appendChild(rect);
+
+    if (lane.label) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(lane.x + 10));
+      text.setAttribute('y', String(lane.y + 14));
+      text.setAttribute('font-size', '10');
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('fill', lane.labelColor || THEME.textSecondary);
+      text.textContent = lane.label;
+      g.appendChild(text);
+    }
+
+    svg.appendChild(g);
+  });
+
+  // edges
+  (view.edges || []).forEach(function (edge) {
+    const a = layout.byId.get(edge.source_id);
+    const b = layout.byId.get(edge.target_id);
+    if (!a || !b) return;
+
+    const x1 = a.x + a.w / 2;
+    const y1 = a.y + a.h / 2;
+    const x2 = b.x + b.w / 2;
+    const y2 = b.y + b.h / 2;
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(x1));
+    line.setAttribute('y1', String(y1));
+    line.setAttribute('x2', String(x2));
+    line.setAttribute('y2', String(y2));
+    line.setAttribute('stroke', edgeColor);
+    line.setAttribute(
+      'stroke-width',
+      state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
+        ? String(relationshipStrokeWidthSelected)
+        : String(relationshipStrokeWidth)
+    );
+    line.setAttribute('opacity', '0.9');
+    svg.appendChild(line);
+
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    hit.setAttribute('x1', String(x1));
+    hit.setAttribute('y1', String(y1));
+    hit.setAttribute('x2', String(x2));
+    hit.setAttribute('y2', String(y2));
+    hit.setAttribute('stroke', state.commentMode ? 'transparent' : 'transparent');
+    hit.setAttribute('stroke-width', '14');
+    hit.setAttribute('fill', 'none');
+    hit.setAttribute('data-relationship-id', edge.id || '');
+    hit.setAttribute('data-view-id', view.id);
+    hit.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
+    svg.appendChild(hit);
+
+    if (MODE === 'rich' && edge.label) {
+      const tx = (x1 + x2) / 2;
+      const ty = (y1 + y2) / 2;
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(tx));
+      text.setAttribute('y', String(ty));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('font-size', '10');
+      text.setAttribute('fill', THEME.textSecondary);
+      text.textContent = edge.label.length > 42 ? edge.label.slice(0, 42) + '…' : edge.label;
+      svg.appendChild(text);
+    }
+  });
+
+  // nodes
+  (view.nodes || []).forEach(function (node) {
+    const box = layout.byId.get(node.id);
+    if (!box) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('data-element-id', node.id);
+    g.setAttribute('data-view-id', view.id);
+    g.setAttribute('data-target-label', node.name || node.id);
+    g.style.cursor = state.commentMode ? 'crosshair' : 'pointer';
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(box.x));
+    rect.setAttribute('y', String(box.y));
+    rect.setAttribute('width', String(box.w));
+    rect.setAttribute('height', String(box.h));
+    rect.setAttribute('rx', '10');
+    rect.setAttribute('fill', state.selectedId === node.id ? mixHex(colorForKind(node.kind), THEME.textPrimary, 0.12) : colorForKind(node.kind));
+    rect.setAttribute('stroke', state.selectedId === node.id ? THEME.textPrimary : mixHex(colorForKind(node.kind), THEME.textPrimary, 0.24));
+    rect.setAttribute('stroke-width', state.selectedId === node.id ? '2.2' : '1.1');
+    g.appendChild(rect);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(box.x + box.w / 2));
+    text.setAttribute('y', String(box.y + box.h / 2 - 4));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('font-size', '12');
+    text.setAttribute('font-weight', '600');
+    text.setAttribute('fill', THEME.textPrimary);
+    text.setAttribute('pointer-events', 'none');
+    text.textContent = truncate(node.name || node.id, MODE === 'fast' ? 24 : 34);
+    g.appendChild(text);
+
+    const subtitle = fallbackNodeSubtitle(node);
+    if (MODE === 'rich' && subtitle) {
+      const sub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      sub.setAttribute('x', String(box.x + box.w / 2));
+      sub.setAttribute('y', String(box.y + box.h / 2 + 11));
+      sub.setAttribute('text-anchor', 'middle');
+      sub.setAttribute('dominant-baseline', 'middle');
+      sub.setAttribute('font-size', '9');
+      sub.setAttribute('fill', THEME.textDiagramSubtitle);
+      sub.setAttribute('pointer-events', 'none');
+      sub.textContent = truncate(subtitle, 24);
+      g.appendChild(sub);
+    }
+
+    if (isDrillable(node.id)) {
+      rect.setAttribute('stroke', drillStrokeColor);
+      rect.setAttribute('stroke-width', String(Math.max(1.8, parseFloat(rect.getAttribute('stroke-width') || '1.2'))));
+      g.setAttribute('data-drillable', 'true');
+
+      const badgeInset = 14;
+      const badge = buildCornerBadge(box.x + box.w - badgeInset, box.y + badgeInset);
+      badge.setAttribute('data-drill-badge-for', node.id);
+      g.appendChild(badge);
+    }
+
+    svg.appendChild(g);
+  });
+
+  wireSvgInteractions(svg, view);
+  host.appendChild(svg);
+}
+
+function drawSequenceView(view) {
+  const host = $('canvas');
+  host.innerHTML = '';
+
+  const provided = normalizeSvgFragment(view.svg_fragment);
+  if (provided) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = provided;
+    const svg = wrap.querySelector('svg');
+    if (svg) {
+      svg.style.display = 'block';
+      svg.style.width = '100%';
+      svg.style.height = 'auto';
+      svg.style.maxWidth = '100%';
+      svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+      if (!svg.getAttribute('data-view-id')) {
+        svg.setAttribute('data-view-id', view.id);
+      }
+      stripConfidenceLabelsFromSvg(svg);
+      applySvgTheme(svg, view);
+      wireSvgInteractions(svg, view);
+      host.appendChild(svg);
+      return;
+    }
+  }
+
+  const box = document.createElement('div');
+  box.style.padding = '8px';
+
+  const title = document.createElement('div');
+  title.textContent = view.title || 'Sequence';
+  title.style.fontWeight = '700';
+  title.style.marginBottom = '10px';
+  title.style.color = THEME.textPrimary;
+  box.appendChild(title);
+
+  const list = document.createElement('div');
+  (view.steps || []).forEach(function (s) {
+    const row = document.createElement('div');
+    row.style.border = '1px solid ' + THEME.line;
+    row.style.borderRadius = '8px';
+    row.style.padding = '8px';
+    row.style.marginBottom = '6px';
+    row.style.background = THEME.bgSecondary;
+    row.style.fontSize = '12px';
+
+    const step = document.createElement('div');
+    step.style.color = THEME.textSecondary;
+    step.style.fontSize = '11px';
+    step.textContent = '#' + s.order + '  ' + (s.source_id || '?') + ' → ' + (s.target_id || '?');
+    row.appendChild(step);
+
+    const label = document.createElement('div');
+    label.style.marginTop = '3px';
+    label.style.color = THEME.textPrimary;
+    label.textContent = s.label || '';
+    row.appendChild(label);
+
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+  host.appendChild(box);
+}
+
+function nodeLane(node) {
+  const kind = String(node.kind || '').toLowerCase();
+  if (kind === 'person' || kind === 'external_system' || kind === 'external_actor' || kind === 'actor') return 'external';
+  if (kind === 'database' || kind === 'datastore' || kind === 'queue' || kind === 'cache') return 'storage';
+  if (kind === 'software_system' || kind === 'system' || kind === 'container' || kind === 'component') return 'internal';
+  return 'internal';
+}
+
+function sortByName(list) {
+  return list.slice().sort(function (a, b) {
+    return (a.name || a.id || '').localeCompare(b.name || b.id || '');
+  });
+}
+
+function layoutNodes(nodes, edges, viewType) {
+  const sorted = sortByName(nodes || []);
+  const byId = new Map();
+  const lanes = [];
+
+  const cardW = MODE === 'fast' ? 186 : 214;
+  const cardH = MODE === 'fast' ? 68 : 80;
+  const pad = 28;
+  const gapX = MODE === 'fast' ? 24 : 34;
+  const gapY = MODE === 'fast' ? 26 : 36;
+
+  const external = [];
+  const storage = [];
+  const internal = [];
+
+  sorted.forEach(function (n) {
+    const lane = nodeLane(n);
+    if (lane === 'external') external.push(n);
+    else if (lane === 'storage') storage.push(n);
+    else internal.push(n);
+  });
+
+  // system-context gets a tailored shape: system center, actors/systems on sides.
+  if (viewType === 'system_context') {
+    const systems = internal.filter(function (n) {
+      const k = String(n.kind || '').toLowerCase();
+      return k === 'software_system' || k === 'system';
+    });
+    const others = internal.filter(function (n) {
+      const k = String(n.kind || '').toLowerCase();
+      return !(k === 'software_system' || k === 'system');
+    });
+
+    const people = external.filter(function (n) { return String(n.kind || '').toLowerCase() === 'person'; });
+    const extSystems = external.filter(function (n) { return String(n.kind || '').toLowerCase() !== 'person'; });
+
+    const centerNodes = systems.length ? systems : others;
+    const width = Math.max(980, 340 + (Math.max(people.length, extSystems.length, 1) * (cardH + 20)));
+    const height = Math.max(560, 210 + (Math.max(people.length, extSystems.length, centerNodes.length, 1) * (cardH + 18)));
+
+    const centerX = Math.floor(width / 2 - cardW / 2);
+    const centerStartY = Math.floor(height / 2 - ((centerNodes.length * (cardH + 18) - 18) / 2));
+    centerNodes.forEach(function (n, i) {
+      byId.set(n.id, { x: centerX, y: centerStartY + i * (cardH + 18), w: cardW + 26, h: cardH + 6 });
+    });
+
+    const leftStartY = Math.floor(height / 2 - ((people.length * (cardH + 18) - 18) / 2));
+    people.forEach(function (n, i) {
+      byId.set(n.id, { x: pad, y: leftStartY + i * (cardH + 18), w: cardW, h: cardH });
+    });
+
+    const rightStartY = Math.floor(height / 2 - ((extSystems.length * (cardH + 18) - 18) / 2));
+    extSystems.forEach(function (n, i) {
+      byId.set(n.id, { x: width - pad - cardW, y: rightStartY + i * (cardH + 18), w: cardW, h: cardH });
+    });
+
+    lanes.push(
+      { x: 14, y: 14, w: 250, h: height - 28, label: 'External actors', fill: hexToRgba(THEME.blueMuted, 0.12), stroke: mixHex(THEME.blueMuted, THEME.textPrimary, 0.12), labelColor: THEME.textPrimary },
+      { x: centerX - 20, y: 14, w: cardW + 66, h: height - 28, label: 'System', fill: hexToRgba(THEME.purpleDusty, 0.12), stroke: mixHex(THEME.purpleDusty, THEME.textPrimary, 0.12), labelColor: THEME.textPrimary },
+      { x: width - 264, y: 14, w: 250, h: height - 28, label: 'External systems', fill: hexToRgba(THEME.amberWarm, 0.11), stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.12), labelColor: THEME.textPrimary }
+    );
+
+    return { byId: byId, width: width, height: height, lanes: lanes };
+  }
+
+  if (MODE === 'fast') {
+    const width = Math.max(980, pad * 2 + Math.max(external.length, internal.length, storage.length, 2) * (cardW + gapX));
+
+    const placeRow = function (row, y, centered) {
+      if (!row.length) return;
+      const contentW = row.length * (cardW + gapX) - gapX;
+      const startX = centered ? Math.max(pad, Math.floor((width - contentW) / 2)) : pad;
+      row.forEach(function (n, i) {
+        byId.set(n.id, { x: startX + i * (cardW + gapX), y: y, w: cardW, h: cardH });
+      });
+    };
+
+    const extY = pad + 22;
+    placeRow(external, extY, true);
+
+    const internalRows = Math.max(1, Math.ceil(internal.length / Math.max(2, Math.ceil(Math.sqrt(internal.length || 1)))));
+    const cols = Math.max(2, Math.ceil((internal.length || 1) / internalRows));
+    const intStartY = extY + cardH + 62;
+    internal.forEach(function (n, idx) {
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      const rowWidth = Math.min(cols, internal.length - row * cols) * (cardW + gapX) - gapX;
+      const startX = Math.max(pad, Math.floor((width - rowWidth) / 2));
+      byId.set(n.id, { x: startX + col * (cardW + gapX), y: intStartY + row * (cardH + gapY), w: cardW, h: cardH });
+    });
+
+    const intHeight = Math.max(cardH + 24, internalRows * (cardH + gapY) - gapY + 24);
+    const storageY = intStartY + intHeight + 36;
+    placeRow(storage, storageY, true);
+
+    const height = Math.max(560, storageY + cardH + 44);
+
+    lanes.push(
+      { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: hexToRgba(THEME.amberWarm, 0.10), stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
+      { x: 14, y: intStartY - 16, w: width - 28, h: intHeight + 30, label: 'Application', fill: hexToRgba(THEME.greenMuted, 0.12), stroke: mixHex(THEME.greenMuted, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
+      { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: hexToRgba(THEME.slateNeutral, 0.12), stroke: mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary }
+    );
+
+    return { byId: byId, width: width, height: height, lanes: lanes };
+  }
+
+  // rich mode: layered graph for internal nodes + explicit lanes.
+  const internalIds = new Set(internal.map(function (n) { return n.id; }));
+  const graphEdges = (edges || []).filter(function (e) {
+    return internalIds.has(e.source_id) && internalIds.has(e.target_id);
+  });
+
+  const rank = {};
+  internal.forEach(function (n) { rank[n.id] = 0; });
+
+  for (let i = 0; i < internal.length; i += 1) {
+    let changed = false;
+    graphEdges.forEach(function (e) {
+      const next = (rank[e.source_id] || 0) + 1;
+      if (next > (rank[e.target_id] || 0)) {
+        rank[e.target_id] = next;
+        changed = true;
+      }
+    });
+    if (!changed) break;
+  }
+
+  const ranks = new Map();
+  internal.forEach(function (n) {
+    const r = rank[n.id] || 0;
+    if (!ranks.has(r)) ranks.set(r, []);
+    ranks.get(r).push(n);
+  });
+
+  const maxRank = Math.max(0, ...Array.from(ranks.keys()));
+
+  const predecessors = {};
+  const successors = {};
+  internal.forEach(function (n) { predecessors[n.id] = []; successors[n.id] = []; });
+  graphEdges.forEach(function (e) {
+    predecessors[e.target_id].push(e.source_id);
+    successors[e.source_id].push(e.target_id);
+  });
+
+  const orderPos = {};
+  const setOrderPos = function () {
+    ranks.forEach(function (arr) {
+      arr.forEach(function (n, idx) { orderPos[n.id] = idx; });
+    });
+  };
+
+  setOrderPos();
+  for (let sweep = 0; sweep < 4; sweep += 1) {
+    for (let r = 1; r <= maxRank; r += 1) {
+      const arr = ranks.get(r) || [];
+      arr.sort(function (a, b) {
+        const pa = predecessors[a.id] || [];
+        const pb = predecessors[b.id] || [];
+        const ba = pa.length ? pa.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / pa.length : orderPos[a.id] || 0;
+        const bb = pb.length ? pb.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / pb.length : orderPos[b.id] || 0;
+        return ba - bb;
+      });
+      ranks.set(r, arr);
+      setOrderPos();
+    }
+    for (let r = maxRank - 1; r >= 0; r -= 1) {
+      const arr = ranks.get(r) || [];
+      arr.sort(function (a, b) {
+        const sa = successors[a.id] || [];
+        const sb = successors[b.id] || [];
+        const ba = sa.length ? sa.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / sa.length : orderPos[a.id] || 0;
+        const bb = sb.length ? sb.reduce(function (s, id) { return s + (orderPos[id] || 0); }, 0) / sb.length : orderPos[b.id] || 0;
+        return ba - bb;
+      });
+      ranks.set(r, arr);
+      setOrderPos();
+    }
+  }
+
+  const cols = maxRank + 1;
+  const internalContentW = cols * (cardW + gapX) - gapX;
+  const maxPerRank = Math.max(1, ...Array.from(ranks.values()).map(function (arr) { return arr.length; }));
+  const internalContentH = maxPerRank * (cardH + gapY) - gapY;
+
+  const width = Math.max(1040, pad * 2 + Math.max(internalContentW, external.length * (cardW + gapX), storage.length * (cardW + gapX)));
+
+  const extY = pad + 20;
+  const intY = extY + cardH + 58;
+  const storageY = intY + internalContentH + 56;
+  const height = Math.max(620, storageY + cardH + 50);
+
+  const placeCenteredRow = function (row, y) {
+    if (!row.length) return;
+    const contentW = row.length * (cardW + gapX) - gapX;
+    const startX = Math.max(pad, Math.floor((width - contentW) / 2));
+    row.forEach(function (n, i) {
+      byId.set(n.id, { x: startX + i * (cardW + gapX), y: y, w: cardW, h: cardH });
+    });
+  };
+
+  placeCenteredRow(external, extY);
+  placeCenteredRow(storage, storageY);
+
+  const startX = Math.max(pad, Math.floor((width - internalContentW) / 2));
+  for (let r = 0; r <= maxRank; r += 1) {
+    const arr = ranks.get(r) || [];
+    const colX = startX + r * (cardW + gapX);
+    const contentH = arr.length * (cardH + gapY) - gapY;
+    const startY = intY + Math.max(0, Math.floor((internalContentH - contentH) / 2));
+    arr.forEach(function (n, idx) {
+      byId.set(n.id, { x: colX, y: startY + idx * (cardH + gapY), w: cardW, h: cardH });
+    });
+  }
+
+  lanes.push(
+    { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: hexToRgba(THEME.amberWarm, 0.10), stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
+    { x: 14, y: intY - 16, w: width - 28, h: internalContentH + 34, label: 'Application graph (layered)', fill: hexToRgba(THEME.greenMuted, 0.12), stroke: mixHex(THEME.greenMuted, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
+    { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: hexToRgba(THEME.slateNeutral, 0.12), stroke: mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary }
+  );
+
+  return { byId: byId, width: width, height: height, lanes: lanes };
+}
+
+function updateDetails() {
+  const pane = $('detailsBody');
+  if (!state.selectedId) {
+    pane.innerHTML = '<div class="empty-note">Click a node to inspect details</div>';
+    return;
+  }
+  const node = nodesById.get(state.selectedId);
+  if (!node) {
+    pane.innerHTML = '<div class="empty-note">Selected node missing from model</div>';
+    return;
+  }
+
+  const rels = [];
+  (DATA.views || []).forEach(function (v) {
+    (v.edges || []).forEach(function (e) {
+      if (e.source_id === node.id || e.target_id === node.id) rels.push(e);
+    });
+  });
+
+  const html = [];
+  html.push('<div style="font-size:15px;font-weight:700;color:' + THEME.textPrimary + '">' + esc(node.name || node.id) + '</div>');
+
+  if (node.description) html.push('<div class="meta-label">Description</div><div>' + esc(node.description) + '</div>');
+  html.push('<div class="meta-label">Kind</div><div class="chip">' + esc(node.kind || 'unknown') + '</div>');
+  if (node.technology) html.push('<div class="meta-label">Technology</div><div>' + esc(node.technology) + '</div>');
+  if (node.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(node.confidence) + '</div>');
+
+  if ((node.tags || []).length) {
+    html.push('<div class="meta-label">Tags</div>');
+    node.tags.forEach(function (t) { html.push('<span class="chip">' + esc(t) + '</span>'); });
+  }
+
+  if (rels.length) {
+    html.push('<div class="meta-label">Relationships</div>');
+    rels.slice(0, 20).forEach(function (r) {
+      html.push('<div style="margin-bottom:6px;border:1px solid ' + THEME.line + ';border-radius:8px;padding:6px;background:' + THEME.bgTertiary + '">'
+        + '<div style="color:' + THEME.textSecondary + ';font-size:11px">' + esc(r.source_id) + ' → ' + esc(r.target_id) + '</div>'
+        + '<div>' + esc(r.label || r.id || '') + '</div>'
+        + '</div>');
+    });
+  }
+
+  pane.innerHTML = html.join('');
+}
+
+function updateQueue() {
+  const bar = $('queueBar');
+  const items = $('queueItems');
+  items.innerHTML = '';
+
+  if (!state.comments.length) {
+    bar.className = 'queue';
+    $('submitBtn').disabled = true;
+    return;
+  }
+
+  state.comments.forEach(function (c) {
+    const div = document.createElement('div');
+    div.className = 'queue-item';
+    div.textContent = (c.target_label || 'target') + ': ' + c.comment;
+    items.appendChild(div);
+  });
+
+  $('submitBtn').disabled = false;
+  bar.className = 'queue show';
+}
+
+function openCommentDialog(target) {
+  state.pendingTarget = target;
+  $('commentTarget').innerHTML =
+    'view_id: <code>' + esc(String(target.view_id)) + '</code> · '
+    + 'element_id: <code>' + esc(String(target.element_id)) + '</code> · '
+    + 'relationship_id: <code>' + esc(String(target.relationship_id)) + '</code>';
+  $('commentText').value = '';
+  $('commentDialogOverlay').className = 'overlay show';
+  $('commentText').focus();
+}
+
+function closeCommentDialog() {
+  $('commentDialogOverlay').className = 'overlay';
+  state.pendingTarget = null;
+}
+
+function submitPayload() {
+  const payload = {
+    system_name: DATA.system_name,
+    mode: MODE,
+    comments: state.comments.map(function (c, i) {
+      return {
+        index: i + 1,
+        view_id: c.view_id,
+        element_id: c.element_id,
+        relationship_id: c.relationship_id,
+        target_label: c.target_label || null,
+        comment: c.comment,
+      };
+    }),
+  };
+  const text = JSON.stringify(payload, null, 2);
+  $('payloadPre').textContent = text;
+  $('payloadOverlay').className = 'overlay show';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;');
+}
+
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+function render() {
+  updateHeader();
+  updateTabs();
+  updateDetails();
+  updateQueue();
+
+  const ws = $('workspace');
+  if (ws) {
+    ws.className = state.detailsOpen ? 'workspace details-open' : 'workspace';
+  }
+
+  const view = currentView();
+  if (!view) return;
+
+  if (view.kind === 'sequence') drawSequenceView(view);
+  else drawDiagramView(view);
+}
+
+$('commentToggle').addEventListener('click', function () {
+  state.commentMode = !state.commentMode;
+  render();
+});
+
+$('detailsCollapseBtn').addEventListener('click', function () {
+  state.detailsOpen = false;
+  state.selectedId = null;
+  render();
+});
+
+$('submitBtn').addEventListener('click', submitPayload);
+
+$('commentCancel').addEventListener('click', closeCommentDialog);
+$('commentDialogOverlay').addEventListener('click', function (e) {
+  if (e.target === $('commentDialogOverlay')) closeCommentDialog();
+});
+
+$('commentAdd').addEventListener('click', function () {
+  const txt = $('commentText').value.trim();
+  if (!txt || !state.pendingTarget) return;
+  state.comments.push({
+    view_id: state.pendingTarget.view_id,
+    element_id: state.pendingTarget.element_id,
+    relationship_id: state.pendingTarget.relationship_id,
+    target_label: state.pendingTarget.target_label,
+    comment: txt,
+  });
+  closeCommentDialog();
+  updateQueue();
+});
+
+$('payloadClose').addEventListener('click', function () {
+  $('payloadOverlay').className = 'overlay';
+});
+
+$('payloadOverlay').addEventListener('click', function (e) {
+  if (e.target === $('payloadOverlay')) $('payloadOverlay').className = 'overlay';
+});
+
+$('payloadCopy').addEventListener('click', async function () {
+  try {
+    await navigator.clipboard.writeText($('payloadPre').textContent || '');
+  } catch (err) {
+    // ignore clipboard failures in restricted environments
+  }
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    e.preventDefault();
+    state.commentMode = !state.commentMode;
+    render();
+  }
+  if (e.key === 'Escape') {
+    closeCommentDialog();
+    $('payloadOverlay').className = 'overlay';
+  }
+});
+
+render();
+</script>
+</body>
+</html>

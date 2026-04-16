@@ -1,0 +1,70 @@
+<svg viewBox="0 0 953 704" width="953" height="704" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#90a7cf" />
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="953" height="704" fill="#0b1020" />
+  <rect x="64.0" y="130.0" width="825.0" height="410.0" rx="14" fill="rgba(20, 31, 54, 0.26)" stroke="#506385" stroke-dasharray="5 4" />
+  <text x="80.0" y="152.0" font-size="11" fill="#99aecb" font-weight="700">Rundler Pool [Container Boundary]</text>
+  
+  <path d="M 268.7 244.0 L 268.7 293.0 Q 268.7 303.0 278.7 303.0 L 406.0 303.0 Q 416.0 303.0 416.0 313.0 L 416.0 402.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 268.7 244.0 L 268.7 293.0 Q 268.7 303.0 278.7 303.0 L 406.0 303.0 Q 416.0 303.0 416.0 313.0 L 416.0 402.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="pool-server-calls-pool-mempool" data-view-id="component-rundler-pool" data-target-label="Executes pool RPCs against mempool core" />
+  <text x="342.3" y="311.0" transform="rotate(0.0 342.3 311.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Executes pool RPCs against mempool …</text>
+  
+  <path d="M 376.6 402.0 L 352.3 402.0 Q 342.3 402.0 342.3 392.0 L 342.3 374.0 Q 342.3 364.0 332.3 364.0 L 308.0 364.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 376.6 402.0 L 352.3 402.0 Q 342.3 402.0 342.3 392.0 L 342.3 374.0 Q 342.3 364.0 332.3 364.0 L 308.0 364.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="pool-mempool-calls-pool-reputation-manager" data-view-id="component-rundler-pool" data-target-label="Checks and updates entity reputation during admission" />
+  <text x="350.3" y="383.0" transform="rotate(-90.0 350.3 383.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Checks and updates entity reputatio…</text>
+  
+  <path d="M 564.8 447.0 L 582.3 447.0 Q 582.8 447.0 582.8 447.0 L 582.8 447.0 Q 582.8 447.0 583.3 447.0 L 600.8 447.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 564.8 447.0 L 582.3 447.0 Q 582.8 447.0 582.8 447.0 L 582.8 447.0 Q 582.8 447.0 583.3 447.0 L 600.8 447.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="pool-mempool-calls-pool-paymaster-tracker" data-view-id="component-rundler-pool" data-target-label="Checks and updates paymaster balances during admission" />
+  <text x="573.8" y="455.0" transform="rotate(0.0 573.8 455.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Checks and updates paymaster balanc…</text>
+  
+  <path d="M 197.6 492.0 L 197.6 540.6 Q 197.6 545.0 193.2 545.0 L 193.2 545.0 Q 188.8 545.0 188.8 549.4 L 188.8 558.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 197.6 492.0 L 197.6 540.6 Q 197.6 545.0 193.2 545.0 L 193.2 545.0 Q 188.8 545.0 188.8 549.4 L 188.8 558.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="pool-chain-tracker-calls-evm-json-rpc-node" data-view-id="component-rundler-pool" data-target-label="Polls blocks and decodes mined or unmined operations" />
+  <text x="189.6" y="518.5" transform="rotate(90.0 189.6 518.5)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Polls blocks and decodes mined or u…</text>
+  
+  <path d="M 315.0 447.0 L 322.5 447.0 Q 323.0 447.0 323.0 447.0 L 323.0 447.0 Q 323.0 447.0 323.5 447.0 L 351.0 447.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 315.0 447.0 L 322.5 447.0 Q 323.0 447.0 323.0 447.0 L 323.0 447.0 Q 323.0 447.0 323.5 447.0 L 351.0 447.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="pool-chain-tracker-updates-pool-mempool" data-view-id="component-rundler-pool" data-target-label="Applies mined and reorg-derived state updates" />
+  <text x="337.0" y="455.0" transform="rotate(0.0 337.0 455.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Applies mined and reorg-derived sta…</text>
+  <rect x="136.7" y="154.0" width="180.0" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="pool-server" data-view-id="component-rundler-pool" data-target-label="Pool Server" />
+  <path d="M 137.7 176.0 L 137.7 166.0 Q 137.7 155.0 148.7 155.0 L 304.7 155.0 Q 315.7 155.0 315.7 166.0 L 315.7 176.0 Z" fill="#2c5d69" />
+  <text x="226.7" y="169.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="226.7" y="202.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Pool Server</text>
+  <text x="226.7" y="220.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust / tonic</text>
+  <rect x="92.0" y="402.0" width="223.0" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="pool-chain-tracker" data-view-id="component-rundler-pool" data-target-label="Pool Chain Tracker" />
+  <path d="M 93.0 424.0 L 93.0 414.0 Q 93.0 403.0 104.0 403.0 L 303.0 403.0 Q 314.0 403.0 314.0 414.0 L 314.0 424.0 Z" fill="#2c5d69" />
+  <text x="203.5" y="417.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="203.5" y="450.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Pool Chain Tracker</text>
+  <text x="203.5" y="468.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="351.0" y="402.0" width="213.8" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="pool-mempool" data-view-id="component-rundler-pool" data-target-label="Pool Mempool Core" />
+  <path d="M 352.0 424.0 L 352.0 414.0 Q 352.0 403.0 363.0 403.0 L 552.8 403.0 Q 563.8 403.0 563.8 414.0 L 563.8 424.0 Z" fill="#2c5d69" />
+  <text x="457.9" y="417.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="457.9" y="450.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Pool Mempool Core</text>
+  <text x="457.9" y="468.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="92.0" y="274.0" width="269.4" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="pool-reputation-manager" data-view-id="component-rundler-pool" data-target-label="Pool Reputation Manager" />
+  <path d="M 93.0 296.0 L 93.0 286.0 Q 93.0 275.0 104.0 275.0 L 349.4 275.0 Q 360.4 275.0 360.4 286.0 L 360.4 296.0 Z" fill="#2c5d69" />
+  <text x="226.7" y="289.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="226.7" y="322.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Pool Reputation Manager</text>
+  <text x="226.7" y="340.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="600.8" y="402.0" width="260.2" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="pool-paymaster-tracker" data-view-id="component-rundler-pool" data-target-label="Pool Paymaster Tracker" />
+  <path d="M 601.8 424.0 L 601.8 414.0 Q 601.8 403.0 612.8 403.0 L 849.0 403.0 Q 860.0 403.0 860.0 414.0 L 860.0 424.0 Z" fill="#2c5d69" />
+  <text x="730.9" y="417.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="730.9" y="450.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Pool Paymaster Tracker</text>
+  <text x="730.9" y="468.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="76.0" y="558.0" width="213.8" height="90.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="evm-json-rpc-node" data-view-id="component-rundler-pool" data-target-label="EVM JSON-RPC Node" />
+  <path d="M 77.0 580.0 L 77.0 570.0 Q 77.0 559.0 88.0 559.0 L 277.8 559.0 Q 288.8 559.0 288.8 570.0 L 288.8 580.0 Z" fill="#4a556a" />
+  <text x="182.9" y="573.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="182.9" y="606.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">EVM JSON-RPC Node</text>
+  <text x="182.9" y="624.0" text-anchor="middle" font-size="11" fill="#c5d3e8">JSON-RPC over HTTP(S)</text>
+</svg>

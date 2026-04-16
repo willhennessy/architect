@@ -1,0 +1,33 @@
+version: 2
+id: "component-rundler-rpc"
+type: "component"
+title: "Rundler RPC Components"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show how the RPC task splits user-facing, debug, and entry point routing responsibilities."
+scope: "Internal modules inside Rundler RPC plus direct dependencies needed for context"
+source_model: "architecture/model.yaml"
+parent_container_id: "rundler-rpc"
+element_ids:
+  - "rpc-eth-api"
+  - "rpc-rundler-api"
+  - "rpc-debug-admin-api"
+  - "rpc-entrypoint-router"
+  - "rundler-pool"
+  - "rundler-builder"
+  - "evm-json-rpc-node"
+relationship_ids:
+  - "rpc-eth-api-calls-rpc-entrypoint-router"
+  - "rpc-rundler-api-calls-rpc-entrypoint-router"
+  - "rpc-entrypoint-router-calls-rundler-pool"
+  - "rpc-eth-api-calls-evm-json-rpc-node"
+  - "rpc-debug-admin-api-calls-rundler-builder"
+  - "rpc-debug-admin-api-calls-rundler-pool"
+assumptions:
+  - text: "The router is the clearest place to represent entry point version dispatch and shared gas estimator wiring."
+    confidence: "confirmed"
+unknowns:
+  - "The exact internal split between receipt/event reads and status-oriented Rundler APIs may evolve as RPC surface area grows."
+notes:
+  - "The debug and admin component is combined here because both modules drive operational state mutation paths into Pool and Builder."
