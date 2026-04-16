@@ -454,3 +454,9 @@ The skill is complete only when:
 5. `diff.yaml` exists in update mode
 6. assumptions, unknowns, confidence, and evidence are explicit
 7. a post-generation validation pass has been completed and any reference or abstraction-level errors have been fixed
+
+
+## Sequence View Policy (default)
+
+- Do not generate sequence views by default.
+- Generate sequence views only when the user explicitly requests them.

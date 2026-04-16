@@ -96,7 +96,7 @@ The harness decides whether to regenerate plan artifacts or rerender diagram-onl
 Helper scripts used by harness:
 
 - `scripts/generate-docsign-plan-artifacts.py`
-- `scripts/generate-docsign-svg-fragments.py`
+- `skills/architect-diagram/scripts/generate-svg-fragments.py` (production generator used by harness)
 
 ---
 

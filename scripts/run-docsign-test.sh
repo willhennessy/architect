@@ -103,7 +103,7 @@ else
 fi
 
 # Always generate SVG fragments first, then render in strict demo mode (no fallback)
-python3 "$REPO_ROOT/scripts/generate-docsign-svg-fragments.py" --output-root "$RUN_DIR" >/dev/null
+python3 "$REPO_ROOT/skills/architect-diagram/scripts/generate-svg-fragments.py" --output-root "$RUN_DIR" >/dev/null
 python3 "$REPO_ROOT/skills/architect-diagram/scripts/render-diagram-html.py" --output-root "$RUN_DIR" --demo-mode >/dev/null
 "$REPO_ROOT/skills/architect-diagram/scripts/validate-diagram-html.sh" "$RUN_DIR/diagram.html" >/dev/null
 

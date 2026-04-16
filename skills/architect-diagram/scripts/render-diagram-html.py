@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Deterministic architecture HTML renderer.
+"""Render diagram.html frame from architecture artifacts.
 
-Renders diagram.html from architecture artifacts using a fixed HTML template.
-This keeps HTML generation cost predictable and low.
+Behavior:
+- inject per-view SVG fragments when present
+- fallback to in-template renderer when fragments missing
+- sequence views are disabled by default and included only with --include-sequence
 """
 
 from __future__ import annotations
@@ -55,7 +57,7 @@ def normalize_svg_fragment(text: str) -> str:
             lines = lines[:-1]
         t = "\n".join(lines).strip()
 
-    # defensive strip of embedded script blocks in fragments
+    # defensive strip of script blocks
     while True:
         low = t.lower()
         start = low.find("<script")
@@ -65,7 +67,7 @@ def normalize_svg_fragment(text: str) -> str:
         if end == -1:
             t = t[:start]
             break
-        t = t[:start] + t[end + len("</script>"):]
+        t = t[:start] + t[end + len("</script>") :]
     return t.strip()
 
 
@@ -115,6 +117,7 @@ def normalize_element(el: Dict[str, Any]) -> Dict[str, Any]:
         "confidence": el.get("confidence") or "",
         "tags": el.get("tags") or [],
         "parent_id": el.get("parent_id") or None,
+        "c4_level": el.get("c4_level") or "",
     }
 
 
@@ -169,7 +172,7 @@ def normalize_view(data: Dict[str, Any], source_path: Path) -> Dict[str, Any]:
     }
 
 
-def choose_views(all_views: List[Dict[str, Any]], mode: str) -> List[Dict[str, Any]]:
+def choose_views(all_views: List[Dict[str, Any]], mode: str, include_sequence: bool) -> List[Dict[str, Any]]:
     candidates = [v for v in all_views if v.get("type")]
     candidates.sort(key=lambda v: (VIEW_PRIORITY.get(v.get("type"), 99), v.get("title") or v.get("id") or ""))
 
@@ -183,10 +186,12 @@ def choose_views(all_views: List[Dict[str, Any]], mode: str) -> List[Dict[str, A
     chosen: List[Dict[str, Any]] = []
     for v in candidates:
         t = v.get("type")
-        if t in {"system_context", "container", "component", "sequence"}:
+        if t in {"system_context", "container", "component"}:
+            chosen.append(v)
+        elif t == "sequence" and include_sequence:
             chosen.append(v)
     if not chosen:
-        chosen = candidates[:]
+        chosen = [v for v in candidates if v.get("type") != "sequence"] or candidates[:1]
     return chosen
 
 
@@ -270,7 +275,7 @@ def build_payload(
         element_ids = set([eid for eid in (view.get("element_ids") or []) if isinstance(eid, str)])
         nodes = [elements_by_id[eid] for eid in element_ids if eid in elements_by_id]
 
-        # Graceful fallback for sparse/empty view files
+        # graceful fallback for sparse views
         if not nodes:
             if vtype == "system_context":
                 nodes = [e for e in all_elements if e.get("c4_level") == "context"]
@@ -350,11 +355,10 @@ def build_payload(
 
 
 def load_views(views_dir: Path) -> List[Dict[str, Any]]:
-    raw: List[Dict[str, Any]] = []
+    out: List[Dict[str, Any]] = []
     for vf in list_view_files(views_dir):
-        data = read_yaml(vf)
-        raw.append(normalize_view(data, vf))
-    return raw
+        out.append(normalize_view(read_yaml(vf), vf))
+    return out
 
 
 def render_html(template_path: Path, payload: Dict[str, Any], mode: str) -> str:
@@ -369,6 +373,7 @@ def main() -> int:
     ap.add_argument("--output-root", required=True, help="Folder containing architecture/")
     ap.add_argument("--mode", choices=["fast", "rich"], default="fast", help="Fallback rendering mode")
     ap.add_argument("--demo-mode", action="store_true", help="Demo quality mode: force rich view set and require SVG fragments (no fallback)")
+    ap.add_argument("--include-sequence", action="store_true", help="Include sequence views (disabled by default)")
     ap.add_argument("--svg-dir", default="diagram-svg", help="Folder under output-root containing per-view SVG fragments")
     ap.add_argument("--require-svg-fragments", action="store_true", help="Fail if any selected non-sequence view is missing an SVG fragment")
     ap.add_argument("--write-data-json", action="store_true", help="Also write diagram-data.json for debugging")
@@ -384,7 +389,7 @@ def main() -> int:
     manifest = read_yaml(arch_dir / "manifest.yaml")
     model = read_yaml(arch_dir / "model.yaml")
     views = load_views(arch_dir / "views")
-    chosen_views = choose_views(views, args.mode)
+    chosen_views = choose_views(views, args.mode, include_sequence=args.include_sequence)
     svg_fragments = load_svg_fragments(output_root, chosen_views, args.svg_dir)
 
     if args.require_svg_fragments:
@@ -406,7 +411,7 @@ def main() -> int:
         (output_root / "diagram-data.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
     fragment_count = sum(1 for v in payload.get("views", []) if v.get("svg_fragment"))
-    print(f"Wrote {out_html} (svg fragments used: {fragment_count})")
+    print(f"Wrote {out_html} (svg fragments used: {fragment_count}, include_sequence={args.include_sequence})")
     return 0
 
 

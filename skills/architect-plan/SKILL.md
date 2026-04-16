@@ -188,3 +188,9 @@ Complete only when:
 8. decision coverage check passes in strict mode for current artifacts
 9. container decomposition policy check passes in strict mode for current artifacts
 10. semantic drift gate passes for revision runs when baseline model is available (including name-stable ID checks)
+
+
+## Sequence View Policy (default)
+
+- Do not generate sequence views by default.
+- Generate sequence views only when the user explicitly requests them.

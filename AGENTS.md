@@ -62,6 +62,8 @@ Harness behavior:
 
 This protocol is required to reduce token/time usage and keep comparisons meaningful.
 
+The harness must call production diagram generation scripts (not harness-only rendering forks).
+
 ---
 
 ## Messaging/output requirement
