@@ -35,7 +35,7 @@
     #app {
       min-height: 100vh;
       display: grid;
-      grid-template-rows: auto auto auto 1fr auto;
+      grid-template-rows: auto auto auto 1fr;
     }
 
     .topbar {
@@ -143,6 +143,87 @@
       position: sticky;
       top: 82px;
       z-index: 40;
+    }
+
+    .statusbar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1 1 320px;
+    }
+
+    .statusbar.show { display: flex; }
+
+    .statusbar-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      border: 1px solid var(--line-strong);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-primary);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .status-pill::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: .9;
+    }
+
+    .statusbar.pending .status-pill {
+      color: #d6c29b;
+      border-color: rgba(176, 137, 104, 0.36);
+      background: rgba(176, 137, 104, 0.10);
+    }
+
+    .statusbar.success .status-pill {
+      color: #9fd4bf;
+      border-color: rgba(79, 143, 139, 0.36);
+      background: rgba(79, 143, 139, 0.10);
+    }
+
+    .statusbar.info .status-pill {
+      color: #b8b4d6;
+      border-color: rgba(122, 111, 166, 0.36);
+      background: rgba(122, 111, 166, 0.10);
+    }
+
+    .statusbar.error .status-pill {
+      color: #d6a7a7;
+      border-color: rgba(160, 90, 90, 0.42);
+      background: rgba(160, 90, 90, 0.12);
+    }
+
+    .status-message {
+      font-size: 13px;
+      color: var(--text-primary);
+      min-width: 0;
+      line-height: 1.35;
+      max-height: calc(1.35em * 2);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      word-break: break-word;
     }
 
     button {
@@ -296,12 +377,19 @@
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
-      flex: 1 1 240px;
+      flex: 1 1 320px;
       min-width: 0;
       margin-left: 4px;
     }
 
     .queue.show { display: flex; }
+
+    .queue-label {
+      font-size: 11px;
+      color: var(--text-primary);
+      font-weight: 700;
+      white-space: nowrap;
+    }
 
     .queue-items {
       display: flex;
@@ -439,7 +527,14 @@
     <button id="commentToggle" class="comment-toggle">Comment (C)</button>
     <button id="submitBtn" disabled>Submit comments</button>
     <div class="queue" id="queueBar">
+      <span class="queue-label">Queued</span>
       <div class="queue-items" id="queueItems"></div>
+    </div>
+    <div class="statusbar" id="statusBar">
+      <div class="statusbar-main">
+        <span class="status-pill" id="statusPill">Idle</span>
+        <div class="status-message" id="statusMessage"></div>
+      </div>
     </div>
   </div>
   <div class="workspace" id="workspace">
@@ -471,8 +566,8 @@
 
 <div class="overlay" id="payloadOverlay">
   <div class="dialog">
-    <h3 style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Comment payload (JSON)</h3>
-    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Copy this JSON and paste it into your coding agent.</p>
+    <h3 id="payloadTitle" style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Comment payload (JSON)</h3>
+    <p id="payloadHelper" style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Copy this JSON and paste it into your coding agent.</p>
     <pre id="payloadPre"></pre>
     <div class="dialog-actions">
       <button id="payloadCopy">Copy</button>
@@ -484,6 +579,7 @@
 <script>
 const DATA = __DIAGRAM_DATA_JSON__;
 const MODE = "__DIAGRAM_MODE__";
+const HANDOFF = DATA.comment_handoff || {};
 
 const THEME = {
   bgPrimary: '#1F1F1E',
@@ -511,6 +607,10 @@ const state = {
   commentMode: false,
   comments: [],
   pendingTarget: null,
+  submitInFlight: false,
+  activeJob: null,
+  eventSource: null,
+  pollTimer: null,
 };
 
 const nodesById = new Map((DATA.elements || []).map(function (e) { return [e.id, e]; }));
@@ -647,12 +747,217 @@ function $(id) { return document.getElementById(id); }
 
 function currentView() { return viewsById.get(state.viewId); }
 
+function statusToneForState(jobState) {
+  if (jobState === 'failed' || jobState === 'blocked') return 'error';
+  if (jobState === 'completed' || jobState === 'fast_patch_ready') return 'success';
+  if (jobState === 'slow_patch_running') return 'info';
+  return 'pending';
+}
+
+function statusLabelForState(jobState) {
+  if (jobState === 'received') return 'Received';
+  if (jobState === 'acknowledged') return 'Thinking';
+  if (jobState === 'analyzing') return 'Analyzing';
+  if (jobState === 'fast_patch_running') return 'Updating';
+  if (jobState === 'fast_patch_ready') return 'Quick Update';
+  if (jobState === 'slow_patch_running') return 'Reconciling';
+  if (jobState === 'completed') return 'Ready';
+  if (jobState === 'failed') return 'Failed';
+  if (jobState === 'blocked') return 'Blocked';
+  return 'Status';
+}
+
+function stopStatusSubscriptions() {
+  if (state.eventSource) {
+    state.eventSource.close();
+    state.eventSource = null;
+  }
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
+}
+
+function showPayloadFallback(payload, reason) {
+  const bridgeDetail = HANDOFF.bridge_url
+    ? ' Expected bridge: ' + HANDOFF.bridge_url + '.'
+    : '';
+  $('payloadTitle').textContent = 'Comment payload (fallback JSON)';
+  $('payloadHelper').textContent = reason
+    ? reason + bridgeDetail + ' Copy this JSON and paste it into your coding agent.'
+    : 'Copy this JSON and paste it into your coding agent.';
+  $('payloadPre').textContent = JSON.stringify(payload, null, 2);
+  $('payloadOverlay').className = 'overlay show';
+}
+
+function buildCommentPayload() {
+  return {
+    system_name: DATA.system_name,
+    output_root: HANDOFF.output_root || null,
+    diagram_revision_id: HANDOFF.diagram_revision_id || null,
+    mode: MODE,
+    comments: state.comments.map(function (c, i) {
+      return {
+        index: i + 1,
+        view_id: c.view_id,
+        element_id: c.element_id,
+        relationship_id: c.relationship_id,
+        target_label: c.target_label || null,
+        comment: c.comment,
+      };
+    }),
+  };
+}
+
+function applyJobStatus(status) {
+  if (!status || !status.state) return;
+  state.activeJob = status;
+  updateQueue();
+  updateStatusBar();
+
+  if (status.state === 'completed' || status.state === 'failed' || status.state === 'blocked') {
+    stopStatusSubscriptions();
+  }
+}
+
+function shouldSuppressHydratedStatus(status) {
+  if (!status || !status.state) return true;
+  if (status.state !== 'completed') return false;
+  if (!HANDOFF.latest_job_id) return false;
+  return status.job_id === HANDOFF.latest_job_id;
+}
+
+function conciseReadyMessage(status) {
+  if (!status || !status.state) return '';
+  if (status.state === 'completed') {
+    return 'Refresh the page to see updates.';
+  }
+  if (status.state === 'fast_patch_ready') {
+    return 'A quick update is ready. Refresh the page to see updates.';
+  }
+  return '';
+}
+
+function isJobHandlingInProgress(status) {
+  if (!status || !status.state) return false;
+  return ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(status.state) !== -1;
+}
+
+function updateStatusBar() {
+  const bar = $('statusBar');
+  const pill = $('statusPill');
+  const message = $('statusMessage');
+
+  if (!state.activeJob) {
+    bar.className = 'statusbar';
+    message.textContent = '';
+    return;
+  }
+
+  const tone = statusToneForState(state.activeJob.state);
+  bar.className = 'statusbar show ' + tone;
+  pill.textContent = statusLabelForState(state.activeJob.state);
+  const conciseReady = conciseReadyMessage(state.activeJob);
+  let statusText = conciseReady || state.activeJob.message || 'The agent is reviewing your comments.';
+  if (!conciseReady && state.activeJob.has_fast_result && !state.activeJob.has_final_result && state.activeJob.state === 'slow_patch_running') {
+    statusText = statusText + ' A quick patch is ready now. Another update is still coming.';
+  } else if (!conciseReady && !state.activeJob.message) {
+    if (state.activeJob.refresh_hint) {
+      statusText = state.activeJob.refresh_hint;
+    } else if (state.activeJob.needs_refresh) {
+      statusText = 'Refresh this page to view the updated diagram.';
+    }
+  }
+  message.textContent = statusText;
+}
+
+function startPollingJob(jobId, statusUrl) {
+  stopStatusSubscriptions();
+  if (!statusUrl && HANDOFF.bridge_url) {
+    statusUrl = HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(jobId);
+  }
+  if (!statusUrl) return;
+  state.pollTimer = setInterval(function () {
+    fetch(statusUrl)
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (status) {
+        if (!status) return;
+        applyJobStatus(status);
+      })
+      .catch(function () {
+        // ignore transient polling failures
+      });
+  }, 4000);
+}
+
+function subscribeToJob(job) {
+  stopStatusSubscriptions();
+  if (!job || !job.job_id) return;
+
+  const eventsUrl = job.events_url
+    || (HANDOFF.bridge_url ? HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(job.job_id) + '/events' : '');
+  const statusUrl = job.status_url
+    || (HANDOFF.bridge_url ? HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(job.job_id) : '');
+
+  if (eventsUrl && typeof EventSource !== 'undefined') {
+    try {
+      const source = new EventSource(eventsUrl);
+      source.addEventListener('state', function (ev) {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          applyJobStatus(payload.status || payload);
+        } catch (err) {
+          // ignore malformed event payloads
+        }
+      });
+      source.onerror = function () {
+        if (!state.pollTimer) startPollingJob(job.job_id, statusUrl);
+      };
+      state.eventSource = source;
+      return;
+    } catch (err) {
+      // fall through to polling
+    }
+  }
+
+  startPollingJob(job.job_id, statusUrl);
+}
+
+function hydrateLatestStatus() {
+  if (!HANDOFF.bridge_url || !HANDOFF.output_root) return;
+  const latestUrl = HANDOFF.bridge_url.replace(/\/$/, '') + '/latest-status?output_root=' + encodeURIComponent(HANDOFF.output_root);
+  fetch(latestUrl)
+    .then(function (res) { return res.ok ? res.json() : null; })
+    .then(function (payload) {
+      if (!payload || !payload.status) return;
+      if (shouldSuppressHydratedStatus(payload.status)) {
+        state.activeJob = null;
+        updateStatusBar();
+        return;
+      }
+      applyJobStatus(payload.status);
+      if (payload.status.job_id && ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(payload.status.state) !== -1) {
+        subscribeToJob({
+          job_id: payload.status.job_id,
+          status_url: HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(payload.status.job_id),
+          events_url: HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(payload.status.job_id) + '/events',
+        });
+      }
+    })
+    .catch(function () {
+      // bridge may be offline; fall back to embedded status only
+    });
+}
+
 function updateHeader() {
   const subtitle = DATA.system_subtitle || DATA.system_name || 'Architecture Diagram';
+  const commentToggle = $('commentToggle');
+  const commentHandlingInProgress = isJobHandlingInProgress(state.activeJob);
   $('systemSubtitle').textContent = subtitle;
   $('modeBadge').setAttribute('data-render-mode', MODE);
   $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
-  $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
+  commentToggle.className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
+  commentToggle.disabled = commentHandlingInProgress;
   document.body.classList.toggle('comment-mode-on', state.commentMode);
 }
 
@@ -1819,11 +2124,20 @@ function updateDetails() {
 function updateQueue() {
   const bar = $('queueBar');
   const items = $('queueItems');
+  const submitBtn = $('submitBtn');
   items.innerHTML = '';
+  submitBtn.textContent = state.submitInFlight ? 'Sending…' : 'Submit comments';
+  submitBtn.style.display = isJobHandlingInProgress(state.activeJob) ? 'none' : '';
+
+  if (state.activeJob && state.activeJob.state) {
+    bar.className = 'queue';
+    submitBtn.disabled = state.submitInFlight;
+    return;
+  }
 
   if (!state.comments.length) {
     bar.className = 'queue';
-    $('submitBtn').disabled = true;
+    submitBtn.disabled = state.submitInFlight;
     return;
   }
 
@@ -1852,7 +2166,7 @@ function updateQueue() {
     items.appendChild(div);
   });
 
-  $('submitBtn').disabled = false;
+  submitBtn.disabled = state.submitInFlight;
   bar.className = 'queue show';
 }
 
@@ -1872,24 +2186,65 @@ function closeCommentDialog() {
   state.pendingTarget = null;
 }
 
-function submitPayload() {
-  const payload = {
-    system_name: DATA.system_name,
-    mode: MODE,
-    comments: state.comments.map(function (c, i) {
-      return {
-        index: i + 1,
-        view_id: c.view_id,
-        element_id: c.element_id,
-        relationship_id: c.relationship_id,
-        target_label: c.target_label || null,
-        comment: c.comment,
-      };
-    }),
-  };
-  const text = JSON.stringify(payload, null, 2);
-  $('payloadPre').textContent = text;
-  $('payloadOverlay').className = 'overlay show';
+async function submitPayload() {
+  const payload = buildCommentPayload();
+  if (!payload.comments.length) return;
+
+  if (!HANDOFF.bridge_url || !HANDOFF.output_root) {
+    showPayloadFallback(payload, 'The local bridge is not configured in this diagram.');
+    return;
+  }
+
+  state.commentMode = false;
+  state.submitInFlight = true;
+  updateHeader();
+  applyJobStatus({
+    state: 'received',
+    message: 'Comments sent. The agent is reviewing them now.',
+    submitted_comment_count: payload.comments.length,
+    needs_refresh: false,
+  });
+
+  try {
+    const response = await fetch(HANDOFF.bridge_url.replace(/\/$/, '') + '/feedback-batches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errPayload = await response.json().catch(function () { return {}; });
+      throw new Error(errPayload.error || ('Bridge returned ' + response.status));
+    }
+
+    const accepted = await response.json();
+    state.comments = [];
+    state.commentMode = false;
+    $('payloadOverlay').className = 'overlay';
+    applyJobStatus({
+      job_id: accepted.job_id,
+      state: accepted.state,
+      message: accepted.message,
+      status_url: accepted.status_url,
+      events_url: accepted.events_url,
+      submitted_comment_count: payload.comments.length,
+      needs_refresh: false,
+    });
+    subscribeToJob({
+      job_id: accepted.job_id,
+      status_url: accepted.status_url,
+      events_url: accepted.events_url,
+    });
+  } catch (err) {
+    applyJobStatus({
+      state: 'failed',
+      message: 'The update hit a problem. Open the agent to review the error.',
+      needs_refresh: false,
+    });
+    showPayloadFallback(payload, String(err && err.message ? err.message + '. ' : 'Could not reach the local bridge. '));
+  } finally {
+    state.submitInFlight = false;
+    render();
+  }
 }
 
 function esc(s) {
@@ -1910,6 +2265,7 @@ function render() {
   updateTabs();
   updateDetails();
   updateQueue();
+  updateStatusBar();
 
   const ws = $('workspace');
   if (ws) {
@@ -1944,6 +2300,10 @@ $('commentDialogOverlay').addEventListener('click', function (e) {
 $('commentAdd').addEventListener('click', function () {
   const txt = $('commentText').value.trim();
   if (!txt || !state.pendingTarget) return;
+  if (state.activeJob && ['completed', 'failed', 'blocked'].indexOf(state.activeJob.state) !== -1) {
+    state.activeJob = null;
+    updateStatusBar();
+  }
   state.comments.push({
     view_id: state.pendingTarget.view_id,
     element_id: state.pendingTarget.element_id,
@@ -1986,6 +2346,7 @@ document.addEventListener('keydown', function (e) {
 });
 
 render();
+hydrateLatestStatus();
 </script>
 </body>
 </html>

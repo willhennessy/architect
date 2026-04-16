@@ -10,6 +10,7 @@ Behavior:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Set
@@ -85,6 +86,29 @@ def load_svg_fragments(output_root: Path, views: List[Dict[str, Any]], svg_dir_n
         if fp.exists() and fp.is_file():
             out[vid] = normalize_svg_fragment(fp.read_text(encoding="utf-8", errors="ignore"))
     return out
+
+
+def compute_revision_id(output_root: Path) -> str:
+    arch = output_root / "architecture"
+    parts: List[bytes] = []
+    for path in sorted((arch / "views").glob("*.y*ml")):
+        parts.append(path.name.encode("utf-8"))
+        parts.append(path.read_bytes())
+    for name in ("manifest.yaml", "model.yaml", "summary.md", "diff.yaml"):
+        path = arch / name
+        if path.exists():
+            parts.append(name.encode("utf-8"))
+            parts.append(path.read_bytes())
+    digest = hashlib.sha1(b"\n".join(parts)).hexdigest()[:12]
+    return f"rev-{digest}"
+
+
+def load_latest_feedback_pointer(output_root: Path) -> Dict[str, Any] | None:
+    latest_path = output_root / "feedback-jobs" / "latest.json"
+    if not latest_path.exists():
+        return None
+    latest = json.loads(latest_path.read_text(encoding="utf-8"))
+    return latest if isinstance(latest, dict) else None
 
 
 def canon_view_type(value: Any) -> str:
@@ -222,6 +246,8 @@ def build_payload(
     model: Dict[str, Any],
     chosen_views: List[Dict[str, Any]],
     svg_fragments: Dict[str, str],
+    output_root: Path,
+    feedback_bridge_url: str,
 ) -> Dict[str, Any]:
     all_elements = [normalize_element(e) for e in (model.get("elements") or []) if isinstance(e, dict)]
     all_relationships = [normalize_relationship(r) for r in (model.get("relationships") or []) if isinstance(r, dict)]
@@ -353,6 +379,13 @@ def build_payload(
         "views": payload_views,
         "elements": payload_elements,
         "drill_map": drill_map,
+        "comment_handoff": {
+            "bridge_url": feedback_bridge_url,
+            "output_root": str(output_root),
+            "diagram_path": str(output_root / "diagram.html"),
+            "diagram_revision_id": compute_revision_id(output_root),
+            "latest_job_id": (load_latest_feedback_pointer(output_root) or {}).get("job_id"),
+        },
     }
 
 
@@ -379,6 +412,7 @@ def main() -> int:
     ap.add_argument("--svg-dir", default="diagram-svg", help="Folder under output-root containing per-view SVG fragments")
     ap.add_argument("--require-svg-fragments", action="store_true", help="Fail if any selected non-sequence view is missing an SVG fragment")
     ap.add_argument("--write-data-json", action="store_true", help="Also write diagram-data.json for debugging")
+    ap.add_argument("--feedback-bridge-url", default="http://127.0.0.1:8765", help="Bridge URL embedded in diagram.html comment handoff")
     args = ap.parse_args()
 
     if args.demo_mode:
@@ -399,7 +433,7 @@ def main() -> int:
         if missing:
             raise RenderError(f"Missing SVG fragments for selected views: {', '.join([m for m in missing if m])}")
 
-    payload = build_payload(manifest, model, chosen_views, svg_fragments)
+    payload = build_payload(manifest, model, chosen_views, svg_fragments, output_root, args.feedback_bridge_url)
 
     template_path = Path(__file__).resolve().parents[1] / "templates" / "diagram-app.html"
     if not template_path.exists():

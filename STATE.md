@@ -4,65 +4,56 @@ Last updated: 2026-04-16
 
 ## Current Objective
 
-Make rich SVG fragment generation generic enough to support both planning and discovery outputs on arbitrary repos.
+Ship and document the Claude Channels-based handoff path so the user's active Claude session is the primary orchestrator of architect comment updates.
 
 ## Current Phase
 
-Diagram renderer generalization
+Claude Channels productization
 
 ## Current Task
 
-- [x] Replace the DocSign-only SVG fragment generator with a generic rich layout pipeline
+- [x] Document the blessed Claude handoff launch/setup path
 
 ### Current Task Details
 
-- **Goal**: Make rich fragment generation work on arbitrary architecture artifacts instead of only the fixed DocSign sample.
-- **Why now**: The Rundler eval proved the real blocker was the fragment generator, not Discover itself.
+- **Goal**: Turn the validated manual Claude Channels recipe into one canonical, copy-pasteable setup path for future sessions and contributors.
+- **Why now**: Claude handoff is now the primary mode. The launch/setup story needs one blessed path so the team does not drift back into experimental flags or conflicting instructions.
 - **Files in play**:
-  - `skills/architect-diagram/scripts/generate-svg-fragments.py`
-  - `skills/architect-diagram/scripts/render-diagram-html.py`
-  - `evals/architect-discover/round7_rundler/diagram-svg/`
-  - `evals/architect-discover/round7_rundler/diagram.html`
-  - `evals/manual-docsign-tests/run-003/diagram-svg/`
-  - `evals/manual-docsign-tests/diagram-3.html`
   - `STATE.md`
   - `DECISIONS.md`
+  - `README.md`
+  - `skills/architect-diagram/channels/architect-comments/README.md`
 - **Constraints**:
-  - Preserve the separation of responsibilities between discover and diagram skills.
-  - Do not revert unrelated local changes in diagram artifacts/templates.
-  - Keep interactivity metadata intact (`data-element-id`, `data-relationship-id`).
+  - Avoid PTY wrapping as the primary adoption path
+  - Prefer official supported host surfaces over reverse-engineered ones
+  - The user's active coding agent should remain the orchestrator of the architect loop
 - **Acceptance Criteria**:
-  - [x] `generate-svg-fragments.py` no longer depends on DocSign-specific element IDs.
-  - [x] Rich fragments are emitted for `system_context`, `container`, `component`, and `deployment` views.
-  - [x] Rundler rich fragments render successfully in demo mode.
-  - [x] DocSign planning harness still passes with the new generator.
-  - [x] Rendered diagrams validate after the change.
+  - [x] Add one explicit “known good” Claude setup section with exact commands
+  - [x] Document the required Claude flags and the MCP verification step
+  - [x] Document the misleading startup warning so operators do not misread a healthy session as broken
+  - [x] Link the blessed path from the root README
 - **Status**: Ready for Review
 
 ## Blockers / Open Questions
 
-- No functional blockers currently. Visual polish has not yet been reviewed manually in a browser.
+- The manual interactive run succeeded, but the startup text still showed a misleading `no MCP server configured with that name` warning even though `/mcp` showed `architect-comments` connected and Claude received the event. This appears to be a Claude CLI startup quirk and is now documented.
+- We now have a full manual end-to-end proof where Claude used both `update_feedback_status` and `finalize_feedback_update` during a real channel-driven update session; the remaining question is whether Claude desktop can ride on the same setup shape or needs separate guidance.
+- The repo contract and historical artifacts are not perfectly aligned on enums like `protocol` and `runtime_boundary`, so the validator currently follows real Architect output conventions where needed instead of the narrowest reading of `architecture-contract.md`.
 
 ## Up Next
 
-- [ ] Visually inspect Rundler and DocSign fragment outputs and tune heuristics where the new generic layout still looks stiff
-- [ ] Decide whether to add diagram hint fields to the artifact contract for stronger layout control on difficult repos
+- [ ] Decide whether Claude desktop is supported through the same Claude Code channel setup or remains CLI-only initially
+- [ ] Decide whether to expose the finalize flow anywhere outside the Claude channel spike or keep it Claude-only for now
+- [ ] Decide whether the bridge CLI should auto-prefer Claude handoff when a channel URL is present, or whether that stays an explicit flag
 
 ## Completed
 
-- [x] Read `README.md`, `skills/references/architecture-contract.md`, and the relevant skill files
-- [x] Ran the baseline regression and captured the current failure mode
-- [x] Updated discover skill guidance and agent prompt to auto-handoff to `architect-diagram`
-- [x] Fixed the diagram generator f-string syntax error
-- [x] Reran `./scripts/run-docsign-test.sh` successfully and generated `diagram-1.html`
-- [x] Initialized `evals/repos/rundler` and updated it to latest `origin/main`
-- [x] Generated `round7_rundler` architecture artifacts, diagram, prompt bundle, review, scores, and reflections
-- [x] Verified that `diagram.html` validates
-- [x] Identified the remaining arbitrary-repo fragment-renderer regression in `generate-svg-fragments.py`
-- [x] Replaced the hardcoded fragment generator with a generic scene/layout pipeline
-- [x] Verified rich fragment generation and demo-mode rendering on `round7_rundler`
-- [x] Reran `./scripts/run-docsign-test.sh` successfully and generated `diagram-3.html`
+- [x] Documented the blessed Claude handoff launch/setup path with the exact known-good commands and verification steps
+- [x] Added `validate-feedback-update.py` plus the `finalize_feedback_update` Claude MCP tool for deterministic validate-render-validate completion
+- [x] Added `POST /jobs/:id/status` plus the `update_feedback_status` Claude MCP tool for real-agent status updates
+- [x] Verified a real interactive Claude CLI session receives the Architect channel event and responds to the feedback batch end to end
+- [x] Replaced the hardcoded fragment generator with a generic scene/layout pipeline and verified rich fragment generation on arbitrary discovery outputs
 
 ## Notes for Next Session
 
-There are pre-existing local edits in `evals/architect-discover/round6_vegeta/diagram.html`, `skills/architect-diagram/templates/diagram-app.html`, and `tmp-sample-review.html`. Work around them rather than reverting them. The current fragment generator is now generic, but it still uses heuristic layout rather than contract-level layout hints, so the next likely iteration is visual tuning rather than functional unblocking.
+Claude handoff is now the primary documented mode and the deterministic worker is fallback. The blessed setup lives in `skills/architect-diagram/channels/architect-comments/README.md`: install the channel dependency, write `/tmp/architect-channel-mcp.json`, start the bridge with `--claude-channel-url ... --channel-handoff-only`, then start Claude with `--strict-mcp-config`, `--dangerously-load-development-channels server:architect-comments`, and `--permission-mode auto`. Do not also pass `--channels server:architect-comments`. `/mcp` is the real health check. Claude may still print a misleading startup warning about `no MCP server configured with that name`; if `/mcp` shows `architect-comments` connected, the session is healthy. The channel server provides `update_feedback_status` and `finalize_feedback_update`; a real manual run validated both tools end to end. `validate-feedback-update.py` is intentionally opinionated but follows real Architect artifact conventions where the written contract is narrower than current output practice. Upstream main also now includes the generic SVG fragment pipeline work for arbitrary discovery outputs, so the next likely iteration is product polish and host-support expansion rather than diagram-renderer unblocking.

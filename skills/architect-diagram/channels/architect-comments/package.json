@@ -1,0 +1,13 @@
+{
+  "name": "architect-comments-channel",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Claude Code development channel for Architect comment feedback",
+  "scripts": {
+    "start": "node ./channel.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}

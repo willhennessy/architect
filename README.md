@@ -99,6 +99,70 @@ Helper scripts used by harness:
 - `scripts/generate-docsign-plan-artifacts.py`
 - `skills/architect-diagram/scripts/generate-svg-fragments.py` (production generator used by harness)
 
+### 3) Claude handoff comment loop (primary mode)
+
+Architect now treats **Claude handoff** as the primary comment-update path.
+
+The blessed local launch/setup is documented here:
+
+- `skills/architect-diagram/channels/architect-comments/README.md`
+
+Recommended shape:
+
+1. start Claude with the Architect development channel enabled
+2. run the bridge with `--claude-channel-url ... --channel-handoff-only`
+3. submit comments from `diagram.html`
+4. let Claude own the update loop, progress reporting, validation, and rerender
+
+There is an in-repo development channel server for this flow:
+
+- server code: `skills/architect-diagram/channels/architect-comments/`
+- usage notes: `skills/architect-diagram/channels/architect-comments/README.md`
+
+The intended handoff flow is:
+
+1. `diagram.html` submits one batched comment payload to the localhost bridge
+2. the bridge persists a file-backed job and acknowledges receipt
+3. the bridge forwards the batch into the active Claude session as a `<channel ...>` event
+4. Claude uses `update_feedback_status` to stream real progress back to the browser
+5. Claude uses `finalize_feedback_update` to validate artifacts, rerender `diagram.html`, and validate the regenerated HTML before completion
+6. the user refreshes the same `diagram.html` file to see the updated diagram
+
+This keeps the browser/job contract stable while making the user's live Claude session the orchestrator of the comment-update loop.
+
+### 4) Live comment feedback bridge (fallback deterministic worker)
+
+Run the localhost bridge used by `diagram.html` comment submission:
+
+```bash
+python3 skills/architect-diagram/scripts/comment_feedback_bridge.py
+```
+
+Default bind:
+
+- `http://127.0.0.1:8765`
+
+What it does:
+
+- accepts one batched comment payload per submit
+- writes file-backed jobs under `<output-root>/feedback-jobs/`
+- acknowledges receipt immediately in the bridge terminal
+- if you do **not** run Claude handoff mode, it can run the built-in deterministic updater as a fallback
+- rewrites the same `<output-root>/diagram.html` path in place
+
+Browser behavior:
+
+- submit comments from `diagram.html`
+- watch status in the HTML banner and the bridge terminal
+- refresh the same `diagram.html` file when the UI says the update is ready
+- submitted comments clear after a successful submit and are gone again on refresh
+
+Important:
+
+- `diagram.html` embeds the bridge URL at render time
+- default embedded bridge URL is `http://127.0.0.1:8765`
+- if you run the bridge on a different port, either rerender `diagram.html` with `--feedback-bridge-url <url>` or restart the bridge on the embedded port
+
 ---
 
 ## Running evals
