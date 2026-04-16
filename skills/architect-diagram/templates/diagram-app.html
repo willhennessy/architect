@@ -44,6 +44,8 @@
       justify-content: space-between;
       gap: 12px;
       padding: 10px 14px;
+      min-height: 44px;
+      box-sizing: border-box;
       border-bottom: 1px solid var(--line);
       background: rgba(31, 31, 30, 0.92);
       backdrop-filter: blur(8px);
@@ -98,6 +100,7 @@
       flex-wrap: wrap;
       position: sticky;
       top: 44px;
+      margin-top: -1px;
       z-index: 41;
     }
 
@@ -290,7 +293,7 @@
 
     .hint {
       position: absolute;
-      right: 10px;
+      left: 10px;
       top: 10px;
       font-size: 11px;
       color: var(--text-primary);
@@ -457,7 +460,7 @@
     .overlay.show { display: flex; }
 
     .dialog {
-      width: min(720px, 96vw);
+      width: min(360px, 92vw);
       max-height: 86vh;
       overflow: auto;
       border: 1px solid var(--line-strong);
@@ -504,6 +507,19 @@
       margin-top: 8px;
     }
 
+    .dialog-primary {
+      color: var(--bg-primary);
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--warn), #9A7557);
+      font-weight: 700;
+    }
+
+    .dialog-primary:hover:not(:disabled) {
+      color: var(--bg-primary);
+      border-color: transparent;
+      background: linear-gradient(135deg, #a78060, #8f6c51);
+    }
+
     svg text { user-select: none; }
     svg [data-element-id] { cursor: pointer; }
     .comment-mode-on svg [data-element-id],
@@ -539,7 +555,7 @@
   </div>
   <div class="workspace" id="workspace">
     <div class="canvas-wrap">
-      <div class="hint" id="commentHint">Comment mode: click node, edge, or canvas</div>
+      <div class="hint" id="commentHint">Comment mode: click any node or edge</div>
       <div id="canvas"></div>
     </div>
     <aside id="details" aria-label="Details sidebar">
@@ -554,12 +570,11 @@
 
 <div class="overlay" id="commentDialogOverlay">
   <div class="dialog">
-    <h3 style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Add comment</h3>
-    <div id="commentTarget" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px"></div>
-    <textarea id="commentText" placeholder="Type feedback..."></textarea>
+    <h3 id="commentTitle" style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Comment</h3>
+    <textarea id="commentText" placeholder="Feedback for Claude..."></textarea>
     <div class="dialog-actions">
       <button id="commentCancel">Cancel</button>
-      <button id="commentAdd">Add comment</button>
+      <button id="commentAdd" class="dialog-primary">Add comment</button>
     </div>
   </div>
 </div>
@@ -615,6 +630,12 @@ const state = {
 
 const nodesById = new Map((DATA.elements || []).map(function (e) { return [e.id, e]; }));
 const viewsById = new Map((DATA.views || []).map(function (v) { return [v.id, v]; }));
+const relationshipsById = new Map();
+(DATA.views || []).forEach(function (view) {
+  (view.edges || []).forEach(function (edge) {
+    if (edge && edge.id && !relationshipsById.has(edge.id)) relationshipsById.set(edge.id, edge);
+  });
+});
 
 const kindColor = {
   person: THEME.blueMuted,
@@ -2170,12 +2191,40 @@ function updateQueue() {
   bar.className = 'queue show';
 }
 
+function commentTargetName(target) {
+  if (!target) return 'target';
+  if (target.element_id) {
+    const element = nodesById.get(target.element_id);
+    return (element && element.name) || target.target_label || target.element_id;
+  }
+  if (target.relationship_id) {
+    const rel = relationshipsById.get(target.relationship_id);
+    return (rel && rel.label) || target.target_label || target.relationship_id;
+  }
+  return target.target_label || 'canvas';
+}
+
+function addPendingComment() {
+  const txt = $('commentText').value.trim();
+  if (!txt || !state.pendingTarget) return;
+  if (state.activeJob && ['completed', 'failed', 'blocked'].indexOf(state.activeJob.state) !== -1) {
+    state.activeJob = null;
+    updateStatusBar();
+  }
+  state.comments.push({
+    view_id: state.pendingTarget.view_id,
+    element_id: state.pendingTarget.element_id,
+    relationship_id: state.pendingTarget.relationship_id,
+    target_label: state.pendingTarget.target_label,
+    comment: txt,
+  });
+  closeCommentDialog();
+  updateQueue();
+}
+
 function openCommentDialog(target) {
   state.pendingTarget = target;
-  $('commentTarget').innerHTML =
-    'view_id: <code>' + esc(String(target.view_id)) + '</code> · '
-    + 'element_id: <code>' + esc(String(target.element_id)) + '</code> · '
-    + 'relationship_id: <code>' + esc(String(target.relationship_id)) + '</code>';
+  $('commentTitle').textContent = 'Comment on ' + commentTargetName(target);
   $('commentText').value = '';
   $('commentDialogOverlay').className = 'overlay show';
   $('commentText').focus();
@@ -2297,22 +2346,12 @@ $('commentDialogOverlay').addEventListener('click', function (e) {
   if (e.target === $('commentDialogOverlay')) closeCommentDialog();
 });
 
-$('commentAdd').addEventListener('click', function () {
-  const txt = $('commentText').value.trim();
-  if (!txt || !state.pendingTarget) return;
-  if (state.activeJob && ['completed', 'failed', 'blocked'].indexOf(state.activeJob.state) !== -1) {
-    state.activeJob = null;
-    updateStatusBar();
-  }
-  state.comments.push({
-    view_id: state.pendingTarget.view_id,
-    element_id: state.pendingTarget.element_id,
-    relationship_id: state.pendingTarget.relationship_id,
-    target_label: state.pendingTarget.target_label,
-    comment: txt,
-  });
-  closeCommentDialog();
-  updateQueue();
+$('commentAdd').addEventListener('click', addPendingComment);
+
+$('commentText').addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+  e.preventDefault();
+  addPendingComment();
 });
 
 $('payloadClose').addEventListener('click', function () {
