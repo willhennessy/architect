@@ -45,6 +45,10 @@ Optional debug output:
 - By default, do **not** generate `diagram-prompt.md` in this skill.
 - If user asks for upload bundle generation, use `architect-diagram-prompt`.
 - **Sequence diagrams are disabled by default.** Include sequence only when explicitly requested.
+- Person/actor nodes must render as the same rectangular card family used by other nodes, with sufficient padding for label text.
+- Do not render person nodes as oversized head-and-body pictograms or circle-over-rectangle figures.
+- When a person/actor subtype label is shown inside a node, prefer compact inline copy like `[👤 User]`.
+- Visible relationship arrows should use lighter strokes than node borders; keep the visual stroke subtle while preserving large invisible hit targets for comment-mode interaction.
 
 ## Rendering approach
 

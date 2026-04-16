@@ -30,6 +30,7 @@ Every clickable edge target must include:
 - `data-target-label="<human label>"` (recommended; injector can backfill)
 
 For thin edges/arrows, include enlarged invisible hit targets (`stroke-width >= 12`).
+Keep the visible relationship stroke itself light and diagram-secondary (typically about `1.0-1.25px`), separate from the oversized invisible hit target.
 
 ## Visual quality guidance
 
@@ -41,6 +42,18 @@ Aim for architecture-readable layout, not uniform grid:
 - minimize edge crossings
 - keep labels readable
 
+### Node shape rules (required)
+
+1. **Person / actor nodes**
+   - Render people/actors as the same padded rectangular card family used for other nodes.
+   - Do not use large head-and-body pictograms, circle-over-rectangle silhouettes, or tall avatar-style shapes.
+   - Keep the title and subtype label inside the card with normal card padding.
+   - If a subtype label is shown, prefer compact inline copy such as `[👤 User]`.
+
+2. **Text containment**
+   - Node boxes must be sized to contain both title and subtitle text with visible padding.
+   - Never let title or subtitle text spill outside the node box.
+
 ### Additional legibility constraints (required)
 
 1. **Legend placement**
@@ -51,6 +64,7 @@ Aim for architecture-readable layout, not uniform grid:
    - Route arrows from node perimeter to node perimeter.
    - Edge paths must not pass through the interior of any node box.
    - Prefer orthogonal/curved routing that avoids node overlap over direct crossing lines.
+   - Keep visible arrow strokes thinner than node borders so relationships read as connective tissue, not primary shapes.
 
 3. **Edge labels**
    - Keep relationship labels close to their edge (small offset, ~4–10px).
