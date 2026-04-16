@@ -139,6 +139,7 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
       position: sticky;
       top: 82px;
       z-index: 40;
@@ -291,13 +292,13 @@
     }
 
     .queue {
-      border-top: 1px solid var(--line);
-      background: rgba(38, 38, 38, 0.94);
-      padding: 8px 14px;
       display: none;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      flex: 1 1 240px;
+      min-width: 0;
+      margin-left: 4px;
     }
 
     .queue.show { display: flex; }
@@ -310,16 +311,49 @@
     }
 
     .queue-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       border: 1px solid rgba(176, 137, 104, 0.48);
       background: rgba(176, 137, 104, 0.14);
       color: var(--text-primary);
       border-radius: 8px;
       padding: 4px 8px;
       font-size: 11px;
+      line-height: 1.2;
       max-width: 260px;
+      min-height: 24px;
+      overflow: hidden;
+    }
+
+    .queue-item-text {
+      display: inline-flex;
+      align-items: center;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .queue-remove {
+      border: 0;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 999px;
+      padding: 0;
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      display: inline-flex;
+      align-items: center;
+      align-self: center;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .queue-remove:hover:not(:disabled) {
+      background: rgba(249, 249, 247, 0.08);
+      color: var(--text-primary);
     }
 
     .overlay {
@@ -404,6 +438,9 @@
   <div class="toolbar">
     <button id="commentToggle" class="comment-toggle">Comment (C)</button>
     <button id="submitBtn" disabled>Submit comments</button>
+    <div class="queue" id="queueBar">
+      <div class="queue-items" id="queueItems"></div>
+    </div>
   </div>
   <div class="workspace" id="workspace">
     <div class="canvas-wrap">
@@ -417,10 +454,6 @@
       </div>
       <div id="detailsBody"><div class="empty-note">Click a node to inspect details</div></div>
     </aside>
-  </div>
-  <div class="queue" id="queueBar">
-    <strong style="font-size:11px;color:var(--text-primary)">Queued</strong>
-    <div class="queue-items" id="queueItems"></div>
   </div>
 </div>
 
@@ -1797,7 +1830,25 @@ function updateQueue() {
   state.comments.forEach(function (c) {
     const div = document.createElement('div');
     div.className = 'queue-item';
-    div.textContent = (c.target_label || 'target') + ': ' + c.comment;
+
+    const text = document.createElement('span');
+    text.className = 'queue-item-text';
+    text.textContent = (c.target_label || 'target') + ': ' + c.comment;
+
+    const remove = document.createElement('button');
+    remove.className = 'queue-remove';
+    remove.type = 'button';
+    remove.setAttribute('aria-label', 'Remove queued comment');
+    remove.textContent = '×';
+    remove.addEventListener('click', function () {
+      const idx = state.comments.indexOf(c);
+      if (idx === -1) return;
+      state.comments.splice(idx, 1);
+      updateQueue();
+    });
+
+    div.appendChild(remove);
+    div.appendChild(text);
     items.appendChild(div);
   });
 
