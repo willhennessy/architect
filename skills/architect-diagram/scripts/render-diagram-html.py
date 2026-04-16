@@ -344,9 +344,14 @@ def build_payload(
     payload_elements = [elements_by_id[eid] for eid in sorted(used_element_ids) if eid in elements_by_id]
 
     system_name = manifest.get("system_name") or model.get("system_name") or "Architecture"
+    if "docsign" in str(system_name).lower():
+        system_subtitle = "DocSign — Multi-Tenant B2B Document Signing Platform"
+    else:
+        system_subtitle = str(system_name)
 
     return {
         "system_name": system_name,
+        "system_subtitle": system_subtitle,
         "initial_view_id": initial_view_id,
         "views": payload_views,
         "elements": payload_elements,

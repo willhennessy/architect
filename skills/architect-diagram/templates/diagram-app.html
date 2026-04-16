@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Architecture Diagram</title>
+  <title>Claude Architect</title>
   <style>
     :root {
       --bg: #0b1220;
@@ -34,19 +34,38 @@
     .topbar {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 12px 14px;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
       border-bottom: 1px solid #263f6f;
-      background: rgba(11, 18, 32, 0.88);
+      background: rgba(11, 18, 32, 0.94);
       backdrop-filter: blur(8px);
       position: sticky;
       top: 0;
-      z-index: 20;
+      z-index: 42;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
     }
 
     .title {
-      font-weight: 700;
+      font-weight: 800;
       font-size: 14px;
+      color: #f0f6ff;
+      white-space: nowrap;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #9ab0d2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(72vw, 980px);
     }
 
     .mode-badge {
@@ -58,56 +77,59 @@
       padding: 3px 7px;
       border-radius: 999px;
       font-weight: 700;
+      flex-shrink: 0;
     }
-
-    .breadcrumbs {
-      margin-left: auto;
-      color: var(--muted);
-      font-size: 12px;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .crumb {
-      cursor: pointer;
-      color: #b9c9e8;
-    }
-
-    .crumb.current { color: #fff; cursor: default; }
 
     .tabbar {
-      padding: 0 14px;
+      padding: 8px 14px;
       border-bottom: 1px solid #22385f;
-      background: rgba(11, 18, 32, 0.65);
+      background: rgba(11, 18, 32, 0.90);
       display: flex;
+      align-items: center;
       gap: 6px;
       flex-wrap: wrap;
+      position: sticky;
+      top: 44px;
+      z-index: 41;
     }
 
     .tab {
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      padding: 10px 11px;
+      border: 1px solid #2c4472;
+      background: #12213f;
+      color: #a9bfdf;
+      padding: 6px 10px;
       font-size: 12px;
-      border-bottom: 2px solid transparent;
+      border-radius: 999px;
       cursor: pointer;
+      line-height: 1;
     }
 
+    .tab:hover { border-color: #45649e; color: #d5e5ff; }
+
     .tab.active {
-      color: #fff;
-      border-bottom-color: var(--accent);
+      color: #eef6ff;
+      border-color: #5ea6ff;
+      box-shadow: inset 0 0 0 1px rgba(94,166,255,0.18);
+      background: #16305a;
+      font-weight: 700;
+    }
+
+    .tab-sep {
+      color: #5875a6;
+      font-size: 12px;
+      user-select: none;
     }
 
     .toolbar {
       padding: 8px 14px;
       border-bottom: 1px solid #22385f;
-      background: rgba(11, 18, 32, 0.55);
+      background: rgba(11, 18, 32, 0.90);
       display: flex;
       gap: 8px;
       align-items: center;
+      position: sticky;
+      top: 82px;
+      z-index: 40;
     }
 
     button {
@@ -341,11 +363,13 @@
 <body>
 <div id="app">
   <div class="topbar">
-    <div class="title" id="systemName"></div>
+    <div class="brand">
+      <div class="title">Claude Architect</div>
+      <div class="subtitle" id="systemSubtitle"></div>
+    </div>
     <span class="mode-badge" id="modeBadge"></span>
-    <div class="breadcrumbs" id="breadcrumbs"></div>
   </div>
-  <div class="tabbar" id="tabs"></div>
+  <div class="tabbar" id="tabs" aria-label="View navigation"></div>
   <div class="toolbar">
     <button id="commentToggle" class="comment-toggle">Comment (C)</button>
     <button id="submitBtn" disabled>Submit comments</button>
@@ -426,53 +450,46 @@ function $(id) { return document.getElementById(id); }
 function currentView() { return viewsById.get(state.viewId); }
 
 function updateHeader() {
-  $('systemName').textContent = DATA.system_name || 'Architecture Diagram';
+  const subtitle = DATA.system_subtitle || DATA.system_name || 'Architecture Diagram';
+  $('systemSubtitle').textContent = subtitle;
   $('modeBadge').textContent = MODE;
-
-  const crumbs = [];
-  state.history.forEach(function (viewId, idx) {
-    const v = viewsById.get(viewId);
-    if (!v) return;
-    crumbs.push({ label: v.title || viewId, viewId: viewId, idx: idx, current: false });
-  });
-  const cv = currentView();
-  crumbs.push({ label: (cv && cv.title) || state.viewId, viewId: state.viewId, current: true });
-
-  const bc = $('breadcrumbs');
-  bc.innerHTML = '';
-  crumbs.forEach(function (c, i) {
-    const span = document.createElement('span');
-    span.textContent = c.label;
-    span.className = c.current ? 'crumb current' : 'crumb';
-    if (!c.current) {
-      span.addEventListener('click', function () {
-        state.history = state.history.slice(0, c.idx);
-        state.viewId = c.viewId;
-        state.selectedId = null;
-        render();
-      });
-    }
-    bc.appendChild(span);
-    if (i < crumbs.length - 1) {
-      const sep = document.createElement('span');
-      sep.textContent = '›';
-      sep.style.color = '#6f86ad';
-      bc.appendChild(sep);
-    }
-  });
 
   $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
   $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
   document.body.classList.toggle('comment-mode-on', state.commentMode);
 }
 
+function cleanedTitle(text) {
+  const t = String(text || '').trim();
+  if (!t) return '';
+  const parts = t.split('—').map(function (x) { return x.trim(); }).filter(Boolean);
+  if (parts.length <= 1) return t;
+  return parts[parts.length - 1];
+}
+
+function tabLabel(view) {
+  const t = String(view.type || '').toLowerCase();
+  if (t === 'system_context') return 'System Context';
+  if (t === 'container') return 'Containers';
+  if (t === 'component') {
+    const pid = view.parent_container_id;
+    const p = pid ? nodesById.get(pid) : null;
+    if (p && p.name) return p.name + ' Components';
+    const tail = cleanedTitle(view.title || view.id || 'Components');
+    if (/components?$/i.test(tail)) return tail;
+    return tail + ' Components';
+  }
+  return cleanedTitle(view.title || view.id || 'View');
+}
+
 function updateTabs() {
   const tabs = $('tabs');
   tabs.innerHTML = '';
-  (DATA.views || []).forEach(function (view) {
+  const views = (DATA.views || []);
+  views.forEach(function (view, idx) {
     const b = document.createElement('button');
     b.className = 'tab' + (view.id === state.viewId ? ' active' : '');
-    b.textContent = view.title || view.id;
+    b.textContent = tabLabel(view);
     b.addEventListener('click', function () {
       state.history = [];
       state.viewId = view.id;
@@ -480,6 +497,13 @@ function updateTabs() {
       render();
     });
     tabs.appendChild(b);
+
+    if (idx < views.length - 1) {
+      const sep = document.createElement('span');
+      sep.className = 'tab-sep';
+      sep.textContent = '›';
+      tabs.appendChild(sep);
+    }
   });
 }
 
@@ -495,6 +519,8 @@ function normalizeSvgFragment(fragment) {
   }
 
   t = t.replace(/<script[\s\S]*?<\/script>/gi, '');
+  // Remove person-style emoji markers from injected diagrams.
+  t = t.replace(/[👤👥🧑👨👩]/gu, '');
   return t;
 }
 
