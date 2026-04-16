@@ -1,0 +1,33 @@
+version: 2
+id: "system-context"
+type: "system_context"
+title: "Rundler System Context"
+audience:
+  - "new_hires"
+  - "pms"
+  - "senior_architects"
+purpose: "Show who interacts with Rundler and which external systems materially affect current runtime behavior."
+scope: "System-of-interest plus direct actors and external dependencies"
+source_model: "architecture/model.yaml"
+element_ids:
+  - "dapp-user"
+  - "bundler-operator"
+  - "rundler"
+  - "evm-json-rpc-node"
+  - "entrypoint-contract"
+  - "private-transaction-relay"
+  - "aws-kms"
+relationship_ids:
+  - "dapp-user-calls-rundler"
+  - "bundler-operator-calls-rundler"
+  - "rundler-calls-evm-json-rpc-node"
+  - "rundler-submits-bundles-to-entrypoint-contract"
+  - "rundler-calls-private-transaction-relay"
+  - "rundler-calls-aws-kms"
+assumptions:
+  - text: "Redis is omitted from system context because it only appears in KMS key leasing mode and is clearer in the container and deployment views."
+    confidence: "strong_inference"
+unknowns:
+  - "The public gateway or load balancer in front of Rundler RPC is not defined in the repo."
+notes:
+  - "Rundler keeps the same logical system boundary whether tasks run in one process or as separate services."

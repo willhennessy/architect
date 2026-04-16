@@ -58,8 +58,9 @@ In chat with the agent, use skill commands like:
 Typical workflow:
 
 1. Run `architect-plan` or `architect-discover`
-2. Run `architect-diagram` to generate `diagram.html`
-3. Run `architect-diagram-prompt` only if you explicitly need `diagram-prompt.md`
+2. Let that skill automatically hand off to `architect-diagram` to generate `diagram.html`
+3. Run `architect-diagram` directly only when you want diagram-only regeneration from existing artifacts
+4. Run `architect-diagram-prompt` only if you explicitly need `diagram-prompt.md`
 
 ---
 

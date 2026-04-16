@@ -1,0 +1,107 @@
+<svg viewBox="0 0 1345 612" width="1345" height="612" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#90a7cf" />
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1345" height="612" fill="#0b1020" />
+  <rect x="64.0" y="130.0" width="920.5" height="300.0" rx="14" fill="rgba(20, 31, 54, 0.26)" stroke="#506385" stroke-dasharray="5 4" />
+  <text x="80.0" y="152.0" font-size="11" fill="#99aecb" font-weight="700">Rundler Builder [Container Boundary]</text>
+  
+  <path d="M 519.6 274.0 L 519.6 278.5 Q 519.6 279.0 519.6 279.0 L 519.6 279.0 Q 519.6 279.0 519.6 278.5 L 519.6 244.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 519.6 274.0 L 519.6 278.5 Q 519.6 279.0 519.6 279.0 L 519.6 279.0 Q 519.6 279.0 519.6 278.5 L 519.6 244.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-bundle-sender-workers-calls-builder-assigner" data-view-id="component-rundler-builder" data-target-label="Requests entry point and worker assignment" />
+  <text x="527.6" y="261.5" transform="rotate(-90.0 527.6 261.5)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Requests entry point and worker ass…</text>
+  
+  <path d="M 621.8 202.5 L 819.8 202.5 Q 827.2 202.5 827.2 209.8 L 827.2 209.8 Q 827.2 217.1 834.5 217.1 L 1052.5 217.1" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 621.8 202.5 L 819.8 202.5 Q 827.2 202.5 827.2 209.8 L 827.2 209.8 Q 827.2 217.1 834.5 217.1 L 1052.5 217.1" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-assigner-calls-rundler-pool" data-view-id="component-rundler-builder" data-target-label="Queries pool for eligible operations by shard and filter" />
+  <text x="939.8" y="225.1" transform="rotate(0.0 939.8 225.1)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Queries pool for eligible operation…</text>
+  
+  <path d="M 645.0 274.4 L 680.7 274.4 Q 690.7 274.4 690.7 264.4 L 690.7 254.0 Q 690.7 244.0 700.7 244.0 L 716.4 244.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 645.0 274.4 L 680.7 274.4 Q 690.7 274.4 690.7 264.4 L 690.7 254.0 Q 690.7 244.0 700.7 244.0 L 716.4 244.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-bundle-sender-workers-calls-builder-bundle-proposer" data-view-id="component-rundler-builder" data-target-label="Builds bundle candidates from assigned operations" />
+  <text x="667.9" y="282.4" transform="rotate(0.0 667.9 282.4)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Builds bundle candidates from assig…</text>
+  
+  <path d="M 956.5 207.6 L 981.4 207.6 Q 984.5 207.6 984.5 210.7 L 984.5 210.7 Q 984.5 213.7 987.5 213.7 L 1052.5 213.7" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 956.5 207.6 L 981.4 207.6 Q 984.5 207.6 984.5 210.7 L 984.5 210.7 Q 984.5 213.7 987.5 213.7 L 1052.5 213.7" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-bundle-proposer-calls-rundler-pool" data-view-id="component-rundler-builder" data-target-label="Fetches operations and reports invalid bundle candidates" />
+  <text x="1018.5" y="221.7" transform="rotate(0.0 1018.5 221.7)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Fetches operations and reports inva…</text>
+  
+  <path d="M 724.0 244.0 L 502.3 244.0 Q 492.3 244.0 492.3 254.0 L 492.3 438.0 Q 492.3 448.0 482.3 448.0 L 280.7 448.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 724.0 244.0 L 502.3 244.0 Q 492.3 244.0 492.3 254.0 L 492.3 438.0 Q 492.3 448.0 482.3 448.0 L 280.7 448.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-bundle-proposer-calls-evm-json-rpc-node" data-view-id="component-rundler-builder" data-target-label="Re-simulates and validates bundle candidates" />
+  <text x="608.1" y="236.0" transform="rotate(0.0 608.1 236.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Re-simulates and validates bundle c…</text>
+  
+  <path d="M 394.2 331.8 L 383.8 331.8 Q 383.2 331.8 383.2 332.4 L 383.2 332.4 Q 383.2 333.1 382.5 333.1 L 352.2 333.1" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 394.2 331.8 L 383.8 331.8 Q 383.2 331.8 383.2 332.4 L 383.2 332.4 Q 383.2 333.1 382.5 333.1 L 352.2 333.1" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-bundle-sender-workers-calls-builder-signer-manager" data-view-id="component-rundler-builder" data-target-label="Requests signatures for bundle transactions" />
+  <text x="367.7" y="325.1" transform="rotate(0.0 367.7 325.1)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Requests signatures for bundle tran…</text>
+  
+  <path d="M 394.2 277.4 L 356.2 277.4 Q 346.2 277.4 346.2 267.4 L 346.2 258.8 Q 346.2 254.9 342.2 254.9 L 338.2 254.9" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 394.2 277.4 L 356.2 277.4 Q 346.2 277.4 346.2 267.4 L 346.2 258.8 Q 346.2 254.9 342.2 254.9 L 338.2 254.9" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-bundle-sender-workers-calls-builder-transaction-sender" data-view-id="component-rundler-builder" data-target-label="Submits, retries, or cancels bundle transactions" />
+  <text x="370.2" y="269.4" transform="rotate(0.0 370.2 269.4)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Submits, retries, or cancels bundle…</text>
+  
+  <path d="M 214.7 262.0 L 214.7 355.0 Q 214.7 365.0 204.7 365.0 L 199.1 365.0 Q 189.1 365.0 189.1 375.0 L 189.1 448.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 214.7 262.0 L 214.7 355.0 Q 214.7 365.0 204.7 365.0 L 199.1 365.0 Q 189.1 365.0 189.1 375.0 L 189.1 448.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-transaction-sender-calls-evm-json-rpc-node" data-view-id="component-rundler-builder" data-target-label="Sends raw or conditional bundle transactions" />
+  <text x="206.7" y="313.5" transform="rotate(90.0 206.7 313.5)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Sends raw or conditional bundle tra…</text>
+  
+  <path d="M 262.5 262.0 L 262.5 325.0 Q 262.5 335.0 272.5 335.0 L 391.5 335.0 Q 401.5 335.0 401.5 345.0 L 401.5 448.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 262.5 262.0 L 262.5 325.0 Q 262.5 335.0 272.5 335.0 L 391.5 335.0 Q 401.5 335.0 401.5 345.0 L 401.5 448.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="builder-transaction-sender-calls-private-transaction-relay" data-view-id="component-rundler-builder" data-target-label="Uses private relay implementations when configured" />
+  <text x="332.0" y="343.0" transform="rotate(0.0 332.0 343.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Uses private relay implementations …</text>
+  <rect x="417.4" y="154.0" width="204.5" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="builder-assigner" data-view-id="component-rundler-builder" data-target-label="Builder Assigner" />
+  <path d="M 418.4 176.0 L 418.4 166.0 Q 418.4 155.0 429.4 155.0 L 609.8 155.0 Q 620.8 155.0 620.8 166.0 L 620.8 176.0 Z" fill="#2c5d69" />
+  <text x="519.6" y="169.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="519.6" y="202.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Builder Assigner</text>
+  <text x="519.6" y="220.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="687.0" y="154.0" width="269.4" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="builder-bundle-proposer" data-view-id="component-rundler-builder" data-target-label="Builder Bundle Proposer" />
+  <path d="M 688.0 176.0 L 688.0 166.0 Q 688.0 155.0 699.0 155.0 L 944.5 155.0 Q 955.5 155.0 955.5 166.0 L 955.5 176.0 Z" fill="#2c5d69" />
+  <text x="821.8" y="169.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="821.8" y="202.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Builder Bundle Proposer</text>
+  <text x="821.8" y="220.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="394.2" y="274.0" width="250.9" height="108.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="builder-bundle-sender-workers" data-view-id="component-rundler-builder" data-target-label="Builder Bundle Sender Workers" />
+  <path d="M 395.2 296.0 L 395.2 286.0 Q 395.2 275.0 406.2 275.0 L 633.0 275.0 Q 644.0 275.0 644.0 286.0 L 644.0 296.0 Z" fill="#2c5d69" />
+  <text x="519.6" y="289.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="519.6" y="322.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Builder Bundle Sender</text>
+  <text x="519.6" y="340.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Workers</text>
+  <text x="519.6" y="358.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="105.9" y="154.0" width="232.3" height="108.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="builder-transaction-sender" data-view-id="component-rundler-builder" data-target-label="Builder Transaction Sender" />
+  <path d="M 106.9 176.0 L 106.9 166.0 Q 106.9 155.0 117.9 155.0 L 326.2 155.0 Q 337.2 155.0 337.2 166.0 L 337.2 176.0 Z" fill="#2c5d69" />
+  <text x="222.1" y="169.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="222.1" y="202.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Builder Transaction</text>
+  <text x="222.1" y="220.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Sender</text>
+  <text x="222.1" y="238.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="92.0" y="292.0" width="260.2" height="90.0" rx="12" fill="#244c57" stroke="#72aeb6" stroke-width="1.2" data-element-id="builder-signer-manager" data-view-id="component-rundler-builder" data-target-label="Builder Signer Manager" />
+  <path d="M 93.0 314.0 L 93.0 304.0 Q 93.0 293.0 104.0 293.0 L 340.2 293.0 Q 351.2 293.0 351.2 304.0 L 351.2 314.0 Z" fill="#2c5d69" />
+  <text x="222.1" y="307.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Component]</text>
+  <text x="222.1" y="340.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Builder Signer Manager</text>
+  <text x="222.1" y="358.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust</text>
+  <rect x="1052.5" y="176.0" width="228.3" height="90.0" rx="12" fill="#295164" stroke="#6ea2bb" stroke-width="1.2" data-element-id="rundler-pool" data-view-id="component-rundler-builder" data-target-label="Rundler Pool" />
+  <path d="M 1053.5 198.0 L 1053.5 188.0 Q 1053.5 177.0 1064.5 177.0 L 1268.7 177.0 Q 1279.7 177.0 1279.7 188.0 L 1279.7 198.0 Z" fill="#33667e" />
+  <text x="1166.6" y="191.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Container: Rust / tonic + tokio]</text>
+  <text x="1166.6" y="224.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Rundler Pool</text>
+  <text x="1166.6" y="242.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust / tonic + tokio</text>
+  <rect x="76.0" y="448.0" width="213.8" height="90.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="evm-json-rpc-node" data-view-id="component-rundler-builder" data-target-label="EVM JSON-RPC Node" />
+  <path d="M 77.0 470.0 L 77.0 460.0 Q 77.0 449.0 88.0 449.0 L 277.8 449.0 Q 288.8 449.0 288.8 460.0 L 288.8 470.0 Z" fill="#4a556a" />
+  <text x="182.9" y="463.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="182.9" y="496.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">EVM JSON-RPC Node</text>
+  <text x="182.9" y="514.0" text-anchor="middle" font-size="11" fill="#c5d3e8">JSON-RPC over HTTP(S)</text>
+  <rect x="325.8" y="448.0" width="232.3" height="108.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="private-transaction-relay" data-view-id="component-rundler-builder" data-target-label="Private Transaction Relay" />
+  <path d="M 326.8 470.0 L 326.8 460.0 Q 326.8 449.0 337.8 449.0 L 546.1 449.0 Q 557.1 449.0 557.1 460.0 L 557.1 470.0 Z" fill="#4a556a" />
+  <text x="441.9" y="463.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="441.9" y="496.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Private Transaction</text>
+  <text x="441.9" y="514.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Relay</text>
+  <text x="441.9" y="532.0" text-anchor="middle" font-size="11" fill="#c5d3e8">HTTPS</text>
+</svg>

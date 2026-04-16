@@ -1,0 +1,94 @@
+version: 2
+id: "sequence-bundle-construction-and-submission"
+type: "sequence"
+title: "Bundle Construction and Submission"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Explain how Builder turns pending operations into submitted bundle transactions."
+scope: "New-block driven Builder flow from Pool signal to submitted transaction"
+source_model: "architecture/model.yaml"
+participant_ids:
+  - "rundler-pool"
+  - "rundler-builder"
+  - "evm-json-rpc-node"
+  - "entrypoint-contract"
+steps:
+  - order: 1
+    source_id: "rundler-pool"
+    target_id: "rundler-builder"
+    relationship_id: "rundler-pool-publishes-to-rundler-builder"
+    label: "Publish new block or pool update signal"
+    sync_async: "async"
+    data_objects:
+      - "block_update_events"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-cli-node"
+      - "ev-builder-doc"
+  - order: 2
+    source_id: "rundler-builder"
+    target_id: "rundler-pool"
+    relationship_id: "rundler-builder-calls-rundler-pool"
+    label: "Fetch eligible operations and current pool state"
+    sync_async: "sync"
+    data_objects:
+      - "candidate_user_operations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-doc"
+      - "ev-cli-builder"
+  - order: 3
+    source_id: "rundler-builder"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "rundler-builder-calls-evm-json-rpc-node"
+    label: "Re-simulate and validate candidate bundles"
+    sync_async: "sync"
+    data_objects:
+      - "bundle_simulation_requests"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-doc"
+      - "ev-builder-proposer"
+  - order: 4
+    source_id: "rundler-builder"
+    target_id: "evm-json-rpc-node"
+    relationship_id: "rundler-builder-calls-evm-json-rpc-node"
+    label: "Submit signed bundle transaction"
+    sync_async: "sync"
+    data_objects:
+      - "bundle_transactions"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-doc"
+      - "ev-builder-bundle-sender"
+  - order: 5
+    source_id: "evm-json-rpc-node"
+    target_id: "entrypoint-contract"
+    label: "Execute the on-chain handleOps-style bundle transaction"
+    sync_async: "async"
+    data_objects:
+      - "bundle_transactions"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-proto"
+      - "ev-chain-types"
+  - order: 6
+    source_id: "rundler-builder"
+    target_id: "rundler-pool"
+    relationship_id: "rundler-builder-calls-rundler-pool"
+    label: "Report invalidated or failed operations back to Pool"
+    sync_async: "sync"
+    data_objects:
+      - "rejected_user_operations"
+    confidence: "confirmed"
+    evidence_ids:
+      - "ev-builder-doc"
+      - "ev-cli-builder"
+assumptions:
+  - text: "This sequence uses the baseline raw node submission path; private relay senders remain an optional alternative transport."
+    confidence: "confirmed"
+unknowns:
+  - "Which sender backend is used for a given chain depends on deployment configuration."
+notes:
+  - "KMS signing and Redis key leasing are optional pre-submit steps and are therefore not shown in the baseline sequence."

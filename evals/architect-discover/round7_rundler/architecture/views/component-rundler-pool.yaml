@@ -1,0 +1,31 @@
+version: 2
+id: "component-rundler-pool"
+type: "component"
+title: "Rundler Pool Components"
+audience:
+  - "new_hires"
+  - "senior_architects"
+purpose: "Show where Pool owns user operation lifecycle state and how chain tracking updates that state."
+scope: "Internal modules inside Rundler Pool plus direct dependencies needed for context"
+source_model: "architecture/model.yaml"
+parent_container_id: "rundler-pool"
+element_ids:
+  - "pool-server"
+  - "pool-chain-tracker"
+  - "pool-mempool"
+  - "pool-reputation-manager"
+  - "pool-paymaster-tracker"
+  - "evm-json-rpc-node"
+relationship_ids:
+  - "pool-server-calls-pool-mempool"
+  - "pool-mempool-calls-pool-reputation-manager"
+  - "pool-mempool-calls-pool-paymaster-tracker"
+  - "pool-chain-tracker-calls-evm-json-rpc-node"
+  - "pool-chain-tracker-updates-pool-mempool"
+assumptions:
+  - text: "Simulation logic is cross-cutting across RPC, Pool, and Builder, but Pool is the strongest ownership boundary for the persisted user operation lifecycle state."
+    confidence: "strong_inference"
+unknowns:
+  - "The repo does not define a durable backing store for the mempool, reputation, or paymaster state."
+notes:
+  - "Pool server may be local or remote, but the mempool state it fronts remains the same logical ownership boundary."

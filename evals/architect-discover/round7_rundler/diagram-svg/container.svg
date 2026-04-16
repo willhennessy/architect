@@ -1,0 +1,139 @@
+<svg viewBox="0 0 1151 732" width="1151" height="732" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#90a7cf" />
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1151" height="732" fill="#0b1020" />
+  <rect x="366.6" y="130.0" width="420.0" height="532.0" rx="14" fill="rgba(20, 31, 54, 0.26)" stroke="#506385" stroke-dasharray="5 4" />
+  <text x="382.6" y="152.0" font-size="11" fill="#99aecb" font-weight="700">Rundler [System Boundary]</text>
+  
+  <path d="M 298.6 185.7 L 367.0 185.7 Q 371.9 185.7 371.9 190.6 L 371.9 190.6 Q 371.9 195.5 376.7 195.5 L 405.1 195.5" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 298.6 185.7 L 367.0 185.7 Q 371.9 185.7 371.9 190.6 L 371.9 190.6 Q 371.9 195.5 376.7 195.5 L 405.1 195.5" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="dapp-user-calls-rundler-rpc" data-view-id="container" data-target-label="Calls eth_ and rundler_ JSON-RPC methods" />
+  <text x="335.2" y="193.7" transform="rotate(0.0 335.2 193.7)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Calls eth_ and rundler_ JSON-RPC me…</text>
+  
+  <path d="M 298.6 265.3 L 321.9 265.3 Q 331.9 265.3 331.9 255.3 L 331.9 244.8 Q 331.9 234.8 341.9 234.8 L 405.1 234.8" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 298.6 265.3 L 321.9 265.3 Q 331.9 265.3 331.9 255.3 L 331.9 244.8 Q 331.9 234.8 341.9 234.8 L 405.1 234.8" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="bundler-operator-calls-rundler-rpc" data-view-id="container" data-target-label="Calls debug_ and admin_ endpoints" />
+  <text x="368.5" y="242.8" transform="rotate(0.0 368.5 242.8)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Calls debug_ and admin_ endpoints</text>
+  
+  <path d="M 508.8 250.0 L 508.8 269.5 Q 508.8 270.0 508.8 270.0 L 508.8 270.0 Q 508.8 270.0 508.8 270.5 L 508.8 290.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 508.8 250.0 L 508.8 269.5 Q 508.8 270.0 508.8 270.0 L 508.8 270.0 Q 508.8 270.0 508.8 270.5 L 508.8 290.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-rpc-calls-rundler-pool" data-view-id="container" data-target-label="Forwards user operation submission and state queries" />
+  <text x="500.8" y="260.0" transform="rotate(90.0 500.8 260.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Forwards user operation submission …</text>
+  
+  <path d="M 508.8 250.0 L 508.8 344.5 Q 508.8 345.0 508.8 345.0 L 508.8 345.0 Q 508.8 345.0 508.8 345.5 L 508.8 420.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 508.8 250.0 L 508.8 344.5 Q 508.8 345.0 508.8 345.0 L 508.8 345.0 Q 508.8 345.0 508.8 345.5 L 508.8 420.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-rpc-calls-rundler-builder" data-view-id="container" data-target-label="Triggers debug bundling and builder control paths" />
+  <text x="500.8" y="297.5" transform="rotate(90.0 500.8 297.5)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Triggers debug bundling and builder…</text>
+  
+  <path d="M 612.5 213.2 L 733.9 213.2 Q 743.5 213.2 743.5 222.9 L 743.5 222.9 Q 743.5 232.5 753.2 232.5 L 854.6 232.5" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 612.5 213.2 L 733.9 213.2 Q 743.5 213.2 743.5 222.9 L 743.5 222.9 Q 743.5 232.5 753.2 232.5 L 854.6 232.5" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-rpc-calls-evm-json-rpc-node" data-view-id="container" data-target-label="Runs gas estimation and receipt lookups against chain data" />
+  <text x="678.0" y="221.2" transform="rotate(0.0 678.0 221.2)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Runs gas estimation and receipt loo…</text>
+  
+  <path d="M 622.9 311.3 L 708.8 311.3 Q 718.8 311.3 718.8 301.3 L 718.8 273.2 Q 718.8 263.2 728.8 263.2 L 854.6 263.2" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 622.9 311.3 L 708.8 311.3 Q 718.8 311.3 718.8 301.3 L 718.8 273.2 Q 718.8 263.2 728.8 263.2 L 854.6 263.2" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-pool-calls-evm-json-rpc-node" data-view-id="container" data-target-label="Simulates operations and tracks chain updates" />
+  <text x="786.7" y="271.2" transform="rotate(0.0 786.7 271.2)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Simulates operations and tracks cha…</text>
+  
+  <path d="M 508.8 420.0 L 508.8 380.5 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 508.8 420.0 L 508.8 380.5 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-builder-calls-rundler-pool" data-view-id="container" data-target-label="Fetches eligible operations and reports failures" />
+  <text x="516.8" y="400.0" transform="rotate(-90.0 516.8 400.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Fetches eligible operations and rep…</text>
+  
+  <path d="M 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.5 L 508.8 420.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.0 L 508.8 380.0 Q 508.8 380.0 508.8 380.5 L 508.8 420.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-pool-publishes-to-rundler-builder" data-view-id="container" data-target-label="Publishes new block and mempool update signals" />
+  <text x="500.8" y="400.0" transform="rotate(90.0 500.8 400.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Publishes new block and mempool upd…</text>
+  
+  <path d="M 599.7 420.0 L 715.1 420.0 Q 725.1 420.0 725.1 410.0 L 725.1 296.0 Q 725.1 286.0 735.1 286.0 L 870.6 286.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 599.7 420.0 L 715.1 420.0 Q 725.1 420.0 725.1 410.0 L 725.1 296.0 Q 725.1 286.0 735.1 286.0 L 870.6 286.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-builder-calls-evm-json-rpc-node" data-view-id="container" data-target-label="Re-simulates bundles and submits transactions" />
+  <text x="797.9" y="294.0" transform="rotate(0.0 797.9 294.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Re-simulates bundles and submits tr…</text>
+  
+  <path d="M 622.9 440.3 L 718.8 440.3 Q 728.8 440.3 728.8 430.3 L 728.8 400.1 Q 728.8 390.1 738.8 390.1 L 854.6 390.1" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 622.9 440.3 L 718.8 440.3 Q 728.8 440.3 728.8 430.3 L 728.8 400.1 Q 728.8 390.1 738.8 390.1 L 854.6 390.1" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-builder-submits-bundles-to-entrypoint-contract" data-view-id="container" data-target-label="Submits bundle transactions that execute EntryPoint logic" />
+  <text x="791.7" y="398.1" transform="rotate(0.0 791.7 398.1)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Submits bundle transactions that ex…</text>
+  
+  <path d="M 622.9 473.2 L 740.5 473.2 Q 748.8 473.2 748.8 481.4 L 748.8 481.4 Q 748.8 489.7 757.0 489.7 L 854.6 489.7" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 622.9 473.2 L 740.5 473.2 Q 748.8 473.2 748.8 481.4 L 748.8 481.4 Q 748.8 489.7 757.0 489.7 L 854.6 489.7" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-builder-calls-private-transaction-relay" data-view-id="container" data-target-label="Uses private transaction sender implementations when configured" />
+  <text x="685.8" y="481.2" transform="rotate(0.0 685.8 481.2)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Uses private transaction sender imp…</text>
+  
+  <path d="M 622.9 508.5 L 718.8 508.5 Q 728.8 508.5 728.8 518.5 L 728.8 586.7 Q 728.8 596.7 738.8 596.7 L 854.6 596.7" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 622.9 508.5 L 718.8 508.5 Q 728.8 508.5 728.8 518.5 L 728.8 586.7 Q 728.8 596.7 738.8 596.7 L 854.6 596.7" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-builder-calls-aws-kms" data-view-id="container" data-target-label="Uses KMS-backed signer implementations when enabled" />
+  <text x="791.7" y="604.7" transform="rotate(0.0 791.7 604.7)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Uses KMS-backed signer implementati…</text>
+  
+  <path d="M 504.1 510.0 L 504.1 511.0 Q 504.1 512.0 503.1 512.0 L 502.8 512.0 Q 501.6 512.0 501.6 513.3 L 501.6 534.0" stroke="#90a7cf" stroke-width="1.15" fill="none" marker-end="url(#arrow)" />
+  <path d="M 504.1 510.0 L 504.1 511.0 Q 504.1 512.0 503.1 512.0 L 502.8 512.0 Q 501.6 512.0 501.6 513.3 L 501.6 534.0" stroke="transparent" stroke-width="14" fill="none"
+        data-relationship-id="rundler-builder-calls-redis-lock-store" data-view-id="container" data-target-label="Leases KMS keys to signer workers" />
+  <text x="493.6" y="523.0" transform="rotate(90.0 493.6 523.0)" text-anchor="middle"
+        font-size="9" fill="#95a9c9">Leases KMS keys to signer workers</text>
+  <rect x="64.0" y="130.0" width="234.6" height="90.0" rx="12" fill="#31466b" stroke="#7d98c2" stroke-width="1.2" data-element-id="dapp-user" data-view-id="container" data-target-label="DApp / Wallet User" />
+  <path d="M 65.0 152.0 L 65.0 142.0 Q 65.0 131.0 76.0 131.0 L 286.6 131.0 Q 297.6 131.0 297.6 142.0 L 297.6 152.0 Z" fill="#3a527c" />
+  <text x="181.3" y="145.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Person]</text>
+  <text x="181.3" y="178.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">DApp / Wallet User</text>
+  <text x="181.3" y="196.0" text-anchor="middle" font-size="11" fill="#c5d3e8">External client that submit…</text>
+  <rect x="64.0" y="254.0" width="234.6" height="90.0" rx="12" fill="#31466b" stroke="#7d98c2" stroke-width="1.2" data-element-id="bundler-operator" data-view-id="container" data-target-label="Bundler Operator" />
+  <path d="M 65.0 276.0 L 65.0 266.0 Q 65.0 255.0 76.0 255.0 L 286.6 255.0 Q 297.6 255.0 297.6 266.0 L 297.6 276.0 Z" fill="#3a527c" />
+  <text x="181.3" y="269.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Person]</text>
+  <text x="181.3" y="302.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Bundler Operator</text>
+  <text x="181.3" y="320.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Human operator running, con…</text>
+  <rect x="405.1" y="160.0" width="207.4" height="90.0" rx="12" fill="#295164" stroke="#6ea2bb" stroke-width="1.2" data-element-id="rundler-rpc" data-view-id="container" data-target-label="Rundler RPC" />
+  <path d="M 406.1 182.0 L 406.1 172.0 Q 406.1 161.0 417.1 161.0 L 600.5 161.0 Q 611.5 161.0 611.5 172.0 L 611.5 182.0 Z" fill="#33667e" />
+  <text x="508.8" y="175.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Container: Rust / jsonrpsee]</text>
+  <text x="508.8" y="208.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Rundler RPC</text>
+  <text x="508.8" y="226.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust / jsonrpsee</text>
+  <rect x="394.6" y="290.0" width="228.3" height="90.0" rx="12" fill="#295164" stroke="#6ea2bb" stroke-width="1.2" data-element-id="rundler-pool" data-view-id="container" data-target-label="Rundler Pool" />
+  <path d="M 395.6 312.0 L 395.6 302.0 Q 395.6 291.0 406.6 291.0 L 610.9 291.0 Q 621.9 291.0 621.9 302.0 L 621.9 312.0 Z" fill="#33667e" />
+  <text x="508.8" y="305.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Container: Rust / tonic + tokio]</text>
+  <text x="508.8" y="338.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Rundler Pool</text>
+  <text x="508.8" y="356.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust / tonic + tokio</text>
+  <rect x="394.6" y="420.0" width="228.3" height="90.0" rx="12" fill="#295164" stroke="#6ea2bb" stroke-width="1.2" data-element-id="rundler-builder" data-view-id="container" data-target-label="Rundler Builder" />
+  <path d="M 395.6 442.0 L 395.6 432.0 Q 395.6 421.0 406.6 421.0 L 610.9 421.0 Q 621.9 421.0 621.9 432.0 L 621.9 442.0 Z" fill="#33667e" />
+  <text x="508.8" y="435.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Container: Rust / tonic + tokio]</text>
+  <text x="508.8" y="468.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Rundler Builder</text>
+  <text x="508.8" y="486.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Rust / tonic + tokio</text>
+  <rect x="854.6" y="196.0" width="213.8" height="90.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="evm-json-rpc-node" data-view-id="container" data-target-label="EVM JSON-RPC Node" />
+  <path d="M 855.6 218.0 L 855.6 208.0 Q 855.6 197.0 866.6 197.0 L 1056.4 197.0 Q 1067.4 197.0 1067.4 208.0 L 1067.4 218.0 Z" fill="#4a556a" />
+  <text x="961.5" y="211.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="961.5" y="244.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">EVM JSON-RPC Node</text>
+  <text x="961.5" y="262.0" text-anchor="middle" font-size="11" fill="#c5d3e8">JSON-RPC over HTTP(S)</text>
+  <rect x="854.6" y="320.0" width="232.3" height="90.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="entrypoint-contract" data-view-id="container" data-target-label="EntryPoint Contract" />
+  <path d="M 855.6 342.0 L 855.6 332.0 Q 855.6 321.0 866.6 321.0 L 1075.0 321.0 Q 1086.0 321.0 1086.0 332.0 L 1086.0 342.0 Z" fill="#4a556a" />
+  <text x="970.8" y="335.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="970.8" y="368.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">EntryPoint Contract</text>
+  <text x="970.8" y="386.0" text-anchor="middle" font-size="11" fill="#c5d3e8">EVM smart contract</text>
+  <rect x="854.6" y="444.0" width="232.3" height="108.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="private-transaction-relay" data-view-id="container" data-target-label="Private Transaction Relay" />
+  <path d="M 855.6 466.0 L 855.6 456.0 Q 855.6 445.0 866.6 445.0 L 1075.0 445.0 Q 1086.0 445.0 1086.0 456.0 L 1086.0 466.0 Z" fill="#4a556a" />
+  <text x="970.8" y="459.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="970.8" y="492.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Private Transaction</text>
+  <text x="970.8" y="510.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Relay</text>
+  <text x="970.8" y="528.0" text-anchor="middle" font-size="11" fill="#c5d3e8">HTTPS</text>
+  <rect x="854.6" y="586.0" width="180.0" height="90.0" rx="12" fill="#3d4556" stroke="#8b98ae" stroke-width="1.2" data-element-id="aws-kms" data-view-id="container" data-target-label="AWS KMS" />
+  <path d="M 855.6 608.0 L 855.6 598.0 Q 855.6 587.0 866.6 587.0 L 1022.6 587.0 Q 1033.6 587.0 1033.6 598.0 L 1033.6 608.0 Z" fill="#4a556a" />
+  <text x="944.6" y="601.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[External System]</text>
+  <text x="944.6" y="634.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">AWS KMS</text>
+  <text x="944.6" y="652.0" text-anchor="middle" font-size="11" fill="#c5d3e8">AWS KMS API</text>
+  <rect x="394.6" y="534.0" width="204.5" height="90.0" rx="12" fill="#2d3445" stroke="#73839e" stroke-width="1.2" data-element-id="redis-lock-store" data-view-id="container" data-target-label="Redis Lock Store" />
+  <path d="M 395.6 556.0 L 395.6 546.0 Q 395.6 535.0 406.6 535.0 L 587.1 535.0 Q 598.1 535.0 598.1 546.0 L 598.1 556.0 Z" fill="#39455b" />
+  <text x="496.9" y="549.0" text-anchor="middle" font-size="9" font-weight="700" fill="#c7d8f2">[Container: Cache/Queue]</text>
+  <text x="496.9" y="582.0" text-anchor="middle" font-size="16" font-weight="700" fill="#e8f0ff">Redis Lock Store</text>
+  <text x="496.9" y="600.0" text-anchor="middle" font-size="11" fill="#c5d3e8">Redis</text>
+</svg>
