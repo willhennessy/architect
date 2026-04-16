@@ -133,7 +133,7 @@ def draw_node(
     header_fill: str,
 ) -> str:
     x, y, w, h = box["x"], box["y"], box["w"], box["h"]
-    hh = 19
+    hh = 22
     header = type_header(kind, technology)
 
     lines = []
@@ -145,7 +145,7 @@ def draw_node(
         f"<path d=\"M {x+1} {y+hh} L {x+1} {y+12} Q {x+1} {y+1} {x+12} {y+1} L {x+w-12} {y+1} Q {x+w-1} {y+1} {x+w-1} {y+12} L {x+w-1} {y+hh} Z\" fill=\"{header_fill}\" />"
     )
     lines.append(
-        f"<text x=\"{x + w/2:.1f}\" y=\"{y + 13:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">{esc(header)}</text>"
+        f"<text x=\"{x + w/2:.1f}\" y=\"{y + 15:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">{esc(header)}</text>"
     )
     lines.append(
         f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 2:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
