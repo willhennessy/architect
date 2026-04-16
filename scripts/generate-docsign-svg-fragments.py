@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate SVG fragments for DocSign test runs.
 
-This creates per-view SVG fragments under <output-root>/diagram-svg so the renderer
+Creates per-view SVG fragments under <output-root>/diagram-svg so the renderer
 can run in --demo-mode without fallback.
 """
 
@@ -30,8 +30,33 @@ def esc(s: str) -> str:
     )
 
 
+def short_tech(tech: str, max_len: int = 24) -> str:
+    t = " ".join(str(tech or "").replace("\n", " ").split())
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 1] + "…"
+
+
+def type_header(kind: str, technology: str) -> str:
+    k = (kind or "").lower()
+    tech = short_tech(technology)
+
+    if k == "person":
+        return "[Person]"
+    if k == "external_system":
+        return "[External System]"
+    if k in {"software_system", "system"}:
+        return "[Software System]"
+    if k == "database":
+        return "[Container: Database]"
+    if k in {"queue", "cache"}:
+        return "[Container: Cache/Queue]"
+    if k == "container" and tech:
+        return f"[Container: {tech}]"
+    return "[Container]"
+
+
 def anchor_point(src: Dict[str, float], dst: Dict[str, float]) -> Tuple[float, float]:
-    # perimeter anchor from src rect toward dst center
     sx, sy, sw, sh = src["x"], src["y"], src["w"], src["h"]
     cx, cy = sx + sw / 2.0, sy + sh / 2.0
     dx, dy = dst["x"] + dst["w"] / 2.0 - cx, dst["y"] + dst["h"] / 2.0 - cy
@@ -39,7 +64,6 @@ def anchor_point(src: Dict[str, float], dst: Dict[str, float]) -> Tuple[float, f
     if dx == 0 and dy == 0:
         return cx, cy
 
-    # scale vector to hit rectangle border
     tx = (sw / 2.0) / abs(dx) if dx != 0 else float("inf")
     ty = (sh / 2.0) / abs(dy) if dy != 0 else float("inf")
     t = min(tx, ty)
@@ -58,17 +82,15 @@ def draw_edge(
     x2, y2 = anchor_point(dst_box, src_box)
 
     dx, dy = x2 - x1, y2 - y1
-    length = math.hypot(dx, dy)
-    if length == 0:
-        length = 1.0
+    length = math.hypot(dx, dy) or 1.0
 
-    # Graceful curved edge with deterministic side selection (low complexity, cheap compute).
+    # Graceful curved edge with deterministic side selection.
     nx, ny = (-(dy) / length, dx / length)
     side = -1 if (sum(ord(c) for c in rel_id) % 2) else 1
     curve = min(110.0, max(28.0, length * 0.16)) * side
     cx, cy = (x1 + x2) / 2.0 + nx * curve, (y1 + y2) / 2.0 + ny * curve
 
-    # Label position/tangent on bezier near midpoint.
+    # Label near bezier midpoint.
     t = 0.56
     omt = 1.0 - t
     lx = omt * omt * x1 + 2 * omt * t * cx + t * t * x2
@@ -78,8 +100,6 @@ def draw_edge(
     ty = 2 * omt * (cy - y1) + 2 * t * (y2 - cy)
     tlen = math.hypot(tx, ty) or 1.0
     tnx, tny = -ty / tlen, tx / tlen
-
-    # Small padding from line so label hugs path but stays readable.
     lx += tnx * 7.0
     ly += tny * 7.0
 
@@ -100,40 +120,56 @@ def draw_edge(
 """.rstrip()
 
 
-def draw_node(node_id: str, name: str, subtitle: str, box: Dict[str, float], view_id: str, fill: str, stroke: str = "#c7d7ff") -> str:
+def draw_node(
+    node_id: str,
+    name: str,
+    subtitle: str,
+    kind: str,
+    technology: str,
+    box: Dict[str, float],
+    view_id: str,
+    fill: str,
+    stroke: str,
+    header_fill: str,
+) -> str:
     x, y, w, h = box["x"], box["y"], box["w"], box["h"]
+    hh = 19
+    header = type_header(kind, technology)
+
     lines = []
     lines.append(
         f"<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" rx=\"12\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"1.2\" "
         f"data-element-id=\"{esc(node_id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(name)}\" />"
     )
     lines.append(
-        f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 - 6:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
+        f"<path d=\"M {x+1} {y+hh} L {x+1} {y+12} Q {x+1} {y+1} {x+12} {y+1} L {x+w-12} {y+1} Q {x+w-1} {y+1} {x+w-1} {y+12} L {x+w-1} {y+hh} Z\" fill=\"{header_fill}\" />"
+    )
+    lines.append(
+        f"<text x=\"{x + w/2:.1f}\" y=\"{y + 13:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">{esc(header)}</text>"
+    )
+    lines.append(
+        f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 2:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
     )
     if subtitle:
         lines.append(
-            f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 16:.1f}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">{esc(subtitle)}</text>"
+            f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 24:.1f}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">{esc(short_tech(subtitle, 30))}</text>"
         )
     return "\n  ".join(lines)
 
 
 def element_label(e: Dict[str, Any]) -> Tuple[str, str]:
     name = str(e.get("name", e.get("id", "")))
-    kind = str(e.get("kind", ""))
     tech = str(e.get("technology", ""))
-    if kind == "person":
-        return name, "[Person]"
-    if kind == "external_system":
-        return name, tech
     return name, tech
 
 
 def find(elements: Dict[str, Dict[str, Any]], key: str) -> str:
     if key in elements:
         return key
+    key_l = key.lower()
     for eid, e in elements.items():
         n = str(e.get("name", "")).lower()
-        if key.lower() in eid.lower() or key.lower() in n:
+        if key_l in eid.lower() or key_l in n:
             return eid
     raise KeyError(f"Missing element for key: {key}")
 
@@ -162,7 +198,6 @@ def context_label(rel_id: str, source_id: str, target_id: str, raw_label: str) -
         return "sends emails via provider"
     if "storage" in tid or "s3" in tid:
         return "stores/retrieves PDFs"
-
     if "magic-link" in raw_label.lower():
         return "signs via magic link"
 
@@ -175,10 +210,24 @@ def map_context_endpoint(eid: str, boxes: Dict[str, Dict[str, float]], model_ele
     e = model_elements.get(eid)
     if not e:
         return eid
-    # For context rendering, collapse internal endpoints to system box.
     if not is_external_element(e):
         return system_id
     return eid
+
+
+def kind_colors(kind: str) -> Tuple[str, str, str]:
+    k = (kind or "").lower()
+    if k == "person":
+        return "#31466b", "#7d98c2", "#3a527c"
+    if k == "external_system":
+        return "#3d4556", "#8b98ae", "#4a556a"
+    if k in {"database", "queue", "cache"}:
+        if k == "queue":
+            return "#363345", "#8b7ca8", "#443d58"
+        return "#2d3445", "#73839e", "#39455b"
+    if k in {"software_system", "system"}:
+        return "#2c4c78", "#73a0d8", "#365f95"
+    return "#295164", "#6ea2bb", "#33667e"
 
 
 def render_view_fragment(
@@ -189,9 +238,7 @@ def render_view_fragment(
 ) -> None:
     vid = str(view.get("id", "view"))
 
-    # Manual placements tuned for DocSign prompt artifacts
     if vid == "system-context":
-        # Left -> center -> right flow: persons, platform, external services.
         boxes = {
             find(model_elements, "person-doc-sender"): {"x": 80, "y": 70, "w": 220, "h": 80},
             find(model_elements, "person-document-signer"): {"x": 80, "y": 220, "w": 220, "h": 80},
@@ -202,7 +249,10 @@ def render_view_fragment(
             find(model_elements, "ext-object-storage"): {"x": 1080, "y": 370, "w": 270, "h": 82},
         }
         width, height = 1440, 520
-        boundary = '<rect x="450" y="145" width="500" height="220" rx="14" fill="rgba(24,34,58,0.25)" stroke="#4f617f" stroke-dasharray="5 4" />\n  <text x="466" y="167" font-size="11" fill="#9bb0ce" font-weight="700">DocSign Platform</text>'
+        boundary = (
+            '<rect x="450" y="145" width="500" height="220" rx="14" fill="rgba(24,34,58,0.25)" stroke="#4f617f" stroke-dasharray="5 4" />\n'
+            '  <text x="466" y="167" font-size="11" fill="#9bb0ce" font-weight="700">DocSign Platform</text>'
+        )
     elif vid == "container":
         boxes = {
             find(model_elements, "person-doc-sender"): {"x": 60, "y": 120, "w": 200, "h": 76},
@@ -232,13 +282,16 @@ def render_view_fragment(
     element_ids = [eid for eid in (view.get("element_ids") or []) if isinstance(eid, str)]
     relationship_ids = [rid for rid in (view.get("relationship_ids") or []) if isinstance(rid, str)]
 
-    lines: List[str] = []
-    seen_edges: set[tuple[str, str, str]] = set()
+    edges: List[str] = []
+    seen: set[Tuple[str, str, str]] = set()
+
     for rid in relationship_ids:
         rel = rels.get(rid)
         if not rel:
             continue
-        sid, tid = rel.get("source_id"), rel.get("target_id")
+
+        sid = rel.get("source_id")
+        tid = rel.get("target_id")
         if not isinstance(sid, str) or not isinstance(tid, str):
             continue
 
@@ -247,10 +300,7 @@ def render_view_fragment(
             sid = map_context_endpoint(sid, boxes, model_elements, system_id)
             tid = map_context_endpoint(tid, boxes, model_elements, system_id)
 
-        if sid not in boxes or tid not in boxes:
-            continue
-        if sid == tid:
-            # collapsed internal->internal context relationships; skip self-loop clutter
+        if sid not in boxes or tid not in boxes or sid == tid:
             continue
 
         label = str(rel.get("label", ""))
@@ -258,11 +308,11 @@ def render_view_fragment(
             label = context_label(rid, sid, tid, label)
 
         key = (sid, tid, label)
-        if key in seen_edges:
+        if key in seen:
             continue
-        seen_edges.add(key)
+        seen.add(key)
 
-        lines.append(draw_edge(rid, label, boxes[sid], boxes[tid], vid))
+        edges.append(draw_edge(rid, label, boxes[sid], boxes[tid], vid))
 
     nodes: List[str] = []
     for eid in element_ids:
@@ -271,28 +321,24 @@ def render_view_fragment(
         e = model_elements.get(eid)
         if not e:
             continue
+
         name, subtitle = element_label(e)
-        kind = str(e.get("kind", "")).lower()
-        stroke = "#7085a8"
-        if kind == "person":
-            fill = "#31466b"
-            stroke = "#7d98c2"
-        elif kind == "external_system":
-            fill = "#3d4556"
-            stroke = "#8b98ae"
-        elif kind in {"database", "queue", "cache"}:
-            fill = "#2d3445"
-            stroke = "#73839e"
-            if kind == "queue":
-                fill = "#363345"
-                stroke = "#8b7ca8"
-        elif kind in {"software_system", "system"}:
-            fill = "#2c4c78"
-            stroke = "#73a0d8"
-        else:
-            fill = "#295164"
-            stroke = "#6ea2bb"
-        nodes.append(draw_node(eid, name, subtitle, boxes[eid], vid, fill, stroke))
+        kind = str(e.get("kind", ""))
+        fill, stroke, header_fill = kind_colors(kind)
+        nodes.append(
+            draw_node(
+                node_id=eid,
+                name=name,
+                subtitle=subtitle,
+                kind=kind,
+                technology=str(e.get("technology", "")),
+                box=boxes[eid],
+                view_id=vid,
+                fill=fill,
+                stroke=stroke,
+                header_fill=header_fill,
+            )
+        )
 
     svg = f"""<svg viewBox=\"0 0 {width} {height}\" width=\"{width}\" height=\"{height}\" xmlns=\"http://www.w3.org/2000/svg\">
   <defs>
@@ -302,10 +348,11 @@ def render_view_fragment(
   </defs>
   <rect x=\"0\" y=\"0\" width=\"{width}\" height=\"{height}\" fill=\"#0b1020\" />
   {boundary}
-  {'\n  '.join(lines)}
+  {'\n  '.join(edges)}
   {'\n  '.join(nodes)}
 </svg>
 """
+
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(svg, encoding="utf-8")
 
@@ -322,15 +369,24 @@ def main() -> int:
     out_dir = root / "diagram-svg"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    elements = {e.get("id"): e for e in (model.get("elements") or []) if isinstance(e, dict) and e.get("id")}
-    rels = {r.get("id"): r for r in (model.get("relationships") or []) if isinstance(r, dict) and r.get("id")}
+    elements = {
+        e.get("id"): e
+        for e in (model.get("elements") or [])
+        if isinstance(e, dict) and e.get("id")
+    }
+    rels = {
+        r.get("id"): r
+        for r in (model.get("relationships") or [])
+        if isinstance(r, dict) and r.get("id")
+    }
 
     for vf in sorted(views_dir.glob("*.y*ml")):
         view = load_yaml(vf)
-        vid = view.get("id") or vf.stem
         if str(view.get("type", "")).lower() == "sequence":
-            # Optional: leave sequence to built-in renderer.
+            # Optional: sequence can use built-in renderer.
             continue
+        vid = view.get("id") or vf.stem
+        view["id"] = vid
         render_view_fragment(view, elements, rels, out_dir / f"{vid}.svg")
 
     print(str(out_dir))
