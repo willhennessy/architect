@@ -39,6 +39,9 @@ Before finishing:
 - `diagram.html` is self-contained.
 - diagram metadata attributes are present for interactive targets.
 - comment export is JSON and includes `view_id`, `element_id`, `relationship_id`, `comment`.
+- person/actor nodes are rendered as padded rectangular cards rather than avatar-style pictograms.
+- person/actor title and subtype text are contained within the node box.
+- visible relationship arrows use lighter strokes than node borders while retaining large invisible hit targets.
 - `skills/architect-diagram/scripts/validate-diagram-html.sh <output-root>/diagram.html` passes.
 
 If `diagram-prompt.md` was requested:

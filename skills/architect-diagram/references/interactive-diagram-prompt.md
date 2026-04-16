@@ -26,3 +26,7 @@ Used by `architect-diagram-prompt` to build `diagram-prompt.md`.
 - include target metadata for comments
 - edge hit targets with `data-relationship-id`
 - no confidence labels on diagram canvas (confidence in details panel only)
+- person/actor nodes should be rendered as padded rectangular cards, not large pictogram silhouettes
+- title and subtype text must stay inside the node box
+- if a person/actor subtype label is shown, prefer compact inline copy like `[👤 User]`
+- visible relationship strokes should be subtle and slightly thinner than node borders, with separate oversized invisible hit targets for interaction

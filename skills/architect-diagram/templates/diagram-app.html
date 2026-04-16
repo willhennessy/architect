@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="diagram-render-mode" content="__DIAGRAM_MODE__" />
   <title>Claude Architect</title>
   <style>
     :root {
@@ -75,6 +76,7 @@
     }
 
     .mode-badge {
+      display: none;
       font-size: 10px;
       letter-spacing: .04em;
       text-transform: uppercase;
@@ -153,7 +155,7 @@
       transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
     }
 
-    button:hover:not(:disabled) {
+    button:hover:not(:disabled):not(.comment-toggle.on) {
       border-color: rgba(249, 249, 247, 0.18);
       background: #323230;
     }
@@ -165,6 +167,12 @@
       border-color: transparent;
       background: linear-gradient(135deg, var(--warn), #9A7557);
       font-weight: 700;
+    }
+
+    .comment-toggle.on:hover:not(:disabled) {
+      color: var(--bg-primary);
+      border-color: transparent;
+      background: linear-gradient(135deg, #a78060, #8f6c51);
     }
 
     .workspace {
@@ -538,6 +546,8 @@ const edgeColor = mixHex(THEME.textSecondary, THEME.textPrimary, 0.14);
 const edgeDetailColor = mixHex(THEME.textSecondary, THEME.bgPrimary, 0.18);
 const drillStrokeColor = mixHex(THEME.purpleDusty, THEME.textPrimary, 0.16);
 const scaffoldStrokeColor = mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08);
+const relationshipStrokeWidth = 1.15;
+const relationshipStrokeWidthSelected = 1.75;
 
 const SVG_COLOR_REMAP = {
   '#0b1220': THEME.bgPrimary,
@@ -607,7 +617,7 @@ function currentView() { return viewsById.get(state.viewId); }
 function updateHeader() {
   const subtitle = DATA.system_subtitle || DATA.system_name || 'Architecture Diagram';
   $('systemSubtitle').textContent = subtitle;
-  $('modeBadge').textContent = MODE;
+  $('modeBadge').setAttribute('data-render-mode', MODE);
   $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
   $('commentToggle').className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
   document.body.classList.toggle('comment-mode-on', state.commentMode);
@@ -740,7 +750,106 @@ function isSecondaryNodeText(textEl, idx) {
   return isFinite(fontSize) && fontSize > 0 && fontSize <= 10;
 }
 
+function isPersonKind(kind) {
+  const normalized = String(kind || '').toLowerCase();
+  return normalized === 'person' || normalized === 'actor' || normalized === 'external_actor';
+}
+
+function personSubtitleText(kind) {
+  return '[👤 User]';
+}
+
+function isEmojiOnlyText(text) {
+  const cleaned = String(text || '').trim();
+  return cleaned === '👤' || cleaned === '👥' || cleaned === '🧑' || cleaned === '👨' || cleaned === '👩';
+}
+
+function estimateTextWidth(text, fontSize) {
+  return String(text || '').trim().length * Number(fontSize || 0) * 0.58;
+}
+
+function simplifyPersonNodeGroup(group, node) {
+  if (!group || !isPersonKind(node && node.kind)) return;
+
+  group.querySelectorAll('circle').forEach(function (circle) {
+    circle.remove();
+  });
+
+  const textEls = Array.from(group.querySelectorAll('text'));
+  textEls.forEach(function (textEl) {
+    if (isEmojiOnlyText(textEl.textContent || '')) {
+      textEl.remove();
+    }
+  });
+
+  let remainingTexts = Array.from(group.querySelectorAll('text'));
+  remainingTexts.forEach(function (textEl) {
+    const text = String(textEl.textContent || '').trim();
+    if (!text) return;
+    if (/^\[[^\]]*\]$/.test(text)) {
+      textEl.textContent = personSubtitleText(node && node.kind);
+    }
+  });
+
+  const rect = group.querySelector('rect');
+  const box = elementBBox(rect);
+  if (!rect || !box) return;
+
+  remainingTexts = Array.from(group.querySelectorAll('text'));
+  let titleText = null;
+  let subtitleText = null;
+
+  remainingTexts.forEach(function (textEl) {
+    const text = String(textEl.textContent || '').trim();
+    if (!text) return;
+    if (/^\[[^\]]*\]$/.test(text)) subtitleText = textEl;
+    else if (!titleText) titleText = textEl;
+  });
+
+  if (!subtitleText) {
+    subtitleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    subtitleText.textContent = personSubtitleText(node && node.kind);
+    group.appendChild(subtitleText);
+  }
+
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+  const titleFontSize = 12;
+  const subtitleFontSize = 9;
+  const titleWidth = titleText ? estimateTextWidth(titleText.textContent, titleFontSize) : 0;
+  const subtitleWidth = estimateTextWidth(subtitleText.textContent, subtitleFontSize);
+  const contentWidth = Math.max(titleWidth, subtitleWidth);
+  const targetWidth = Math.max(box.width, Math.ceil(contentWidth + 28));
+  const targetHeight = Math.max(box.height, 78);
+  const nextX = centerX - targetWidth / 2;
+  const nextY = centerY - targetHeight / 2;
+
+  rect.setAttribute('x', String(nextX));
+  rect.setAttribute('y', String(nextY));
+  rect.setAttribute('width', String(targetWidth));
+  rect.setAttribute('height', String(targetHeight));
+
+  if (titleText) {
+    titleText.setAttribute('x', String(centerX));
+    titleText.setAttribute('y', String(nextY + targetHeight / 2 - 10));
+    titleText.setAttribute('text-anchor', 'middle');
+    titleText.setAttribute('dominant-baseline', 'middle');
+    titleText.setAttribute('font-size', String(titleFontSize));
+    titleText.setAttribute('font-weight', '600');
+    titleText.setAttribute('pointer-events', 'none');
+  }
+
+  subtitleText.textContent = personSubtitleText(node && node.kind);
+  subtitleText.setAttribute('x', String(centerX));
+  subtitleText.setAttribute('y', String(nextY + targetHeight / 2 + 12));
+  subtitleText.setAttribute('text-anchor', 'middle');
+  subtitleText.setAttribute('dominant-baseline', 'middle');
+  subtitleText.setAttribute('font-size', String(subtitleFontSize));
+  subtitleText.setAttribute('pointer-events', 'none');
+}
+
 function applyNodeGroupTheme(group, node) {
+  simplifyPersonNodeGroup(group, node);
   const base = colorForKind(node && node.kind);
   const stroke = mixHex(base, THEME.textPrimary, 0.22);
 
@@ -759,11 +868,24 @@ function applyNodeGroupTheme(group, node) {
   });
 }
 
+function fallbackNodeSubtitle(node) {
+  if (!node) return '';
+  if (node.technology) return String(node.technology);
+  if (isPersonKind(node.kind)) return personSubtitleText(node.kind);
+  return '';
+}
+
 function applyRelationshipGroupTheme(group) {
   group.querySelectorAll('line,path,polyline,polygon').forEach(function (shape) {
     if (shape.closest('defs')) return;
     if (isVisiblePaint(shape.getAttribute('stroke'))) {
       shape.setAttribute('stroke', edgeColor);
+      const tag = String(shape.tagName || '').toLowerCase();
+      if (tag === 'line' || tag === 'path' || tag === 'polyline') {
+        const current = parseFloat(shape.getAttribute('stroke-width') || '');
+        const next = isFinite(current) ? Math.min(current, relationshipStrokeWidth) : relationshipStrokeWidth;
+        shape.setAttribute('stroke-width', String(next));
+      }
     }
     if (isVisiblePaint(shape.getAttribute('fill'))) {
       shape.setAttribute('fill', edgeColor);
@@ -1212,7 +1334,12 @@ function drawDiagramView(view) {
     line.setAttribute('x2', String(x2));
     line.setAttribute('y2', String(y2));
     line.setAttribute('stroke', edgeColor);
-    line.setAttribute('stroke-width', state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId) ? '2.2' : '1.4');
+    line.setAttribute(
+      'stroke-width',
+      state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
+        ? String(relationshipStrokeWidthSelected)
+        : String(relationshipStrokeWidth)
+    );
     line.setAttribute('opacity', '0.9');
     svg.appendChild(line);
 
@@ -1278,7 +1405,8 @@ function drawDiagramView(view) {
     text.textContent = truncate(node.name || node.id, MODE === 'fast' ? 24 : 34);
     g.appendChild(text);
 
-    if (MODE === 'rich' && node.technology) {
+    const subtitle = fallbackNodeSubtitle(node);
+    if (MODE === 'rich' && subtitle) {
       const sub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       sub.setAttribute('x', String(box.x + box.w / 2));
       sub.setAttribute('y', String(box.y + box.h / 2 + 11));
@@ -1287,7 +1415,7 @@ function drawDiagramView(view) {
       sub.setAttribute('font-size', '9');
       sub.setAttribute('fill', THEME.textDiagramSubtitle);
       sub.setAttribute('pointer-events', 'none');
-      sub.textContent = truncate(node.technology, 24);
+      sub.textContent = truncate(subtitle, 24);
       g.appendChild(sub);
     }
 
