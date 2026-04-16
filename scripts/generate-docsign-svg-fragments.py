@@ -147,8 +147,15 @@ def draw_node(
     lines.append(
         f"<text x=\"{x + w/2:.1f}\" y=\"{y + 15:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">{esc(header)}</text>"
     )
+    if subtitle:
+        name_y = y + h / 2 + 2
+    else:
+        body_h = h - hh
+        # vertically center single-line title inside body when subtitle is absent
+        name_y = y + hh + body_h / 2 + 6
+
     lines.append(
-        f"<text x=\"{x + w/2:.1f}\" y=\"{y + h/2 + 2:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
+        f"<text x=\"{x + w/2:.1f}\" y=\"{name_y:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(name)}</text>"
     )
     if subtitle:
         lines.append(
