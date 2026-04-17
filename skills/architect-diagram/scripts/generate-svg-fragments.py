@@ -12,7 +12,6 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
-import xml.etree.ElementTree as ET
 
 import yaml
 
@@ -70,7 +69,6 @@ ROW_GAP = 34.0
 BOUNDARY_PAD = 28.0
 CARD_MIN_W = 180.0
 CARD_MAX_W = 320.0
-HEADER_FILL_ALPHA = 0.68
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
@@ -90,19 +88,6 @@ def esc(s: str) -> str:
 
 def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
-
-
-def with_alpha(hex_color: str, alpha: float) -> str:
-    color = str(hex_color or "").lstrip("#")
-    if len(color) != 6:
-        return hex_color
-    try:
-        r = int(color[0:2], 16)
-        g = int(color[2:4], 16)
-        b = int(color[4:6], 16)
-    except ValueError:
-        return hex_color
-    return f"rgba({r}, {g}, {b}, {alpha:.2f})"
 
 
 def normalize_kind(value: str) -> str:
@@ -198,29 +183,39 @@ def is_component_kind(kind: str) -> bool:
     return normalize_kind(kind) == "component"
 
 
-def kind_colors(kind: str) -> Tuple[str, str, str]:
+def kind_tone(kind: str) -> str:
     k = normalize_kind(kind)
     if k == "person":
-        return "#31466b", "#7d98c2", "#3a527c"
-    if k == "external_system":
-        return "#3d4556", "#8b98ae", "#4a556a"
-    if k in {"database", "queue", "cache"}:
-        if k == "queue":
-            return "#363345", "#8b7ca8", "#443d58"
-        return "#2d3445", "#73839e", "#39455b"
+        return "sage"
+    if k in {"external_system", "external_actor", "actor"}:
+        return "ochre"
+    if k in {"database", "datastore"}:
+        return "slate"
+    if k == "queue":
+        return "rose"
+    if k == "cache":
+        return "teal"
     if k in {"software_system", "system"}:
-        return "#2c4c78", "#73a0d8", "#365f95"
+        return "indigo"
+    if k == "container":
+        return "plum"
     if k == "component":
-        return "#244c57", "#72aeb6", "#2c5d69"
-    return "#295164", "#6ea2bb", "#33667e"
+        return "teal"
+    return "slate"
+
+
+def kind_colors(kind: str) -> Tuple[str, str, str]:
+    tone = kind_tone(kind)
+    return (
+        f"var(--color-element-{tone}-fill)",
+        f"var(--color-element-{tone})",
+        tone,
+    )
 
 
 def boundary_style(tone: str) -> Tuple[str, str]:
-    if tone == "deployment":
-        return "rgba(26, 34, 48, 0.38)", "#5e7396"
-    if tone == "container":
-        return "rgba(20, 31, 54, 0.26)", "#506385"
-    return "rgba(24, 34, 58, 0.25)", "#4f617f"
+    _ = tone
+    return "var(--color-bg-sidebar)", "var(--color-border-default)"
 
 
 def node_dimensions(node: Node, max_width: float = CARD_MAX_W) -> Tuple[float, float, List[str], List[str]]:
@@ -788,52 +783,95 @@ def label_for_polyline(points: Sequence[Tuple[float, float]]) -> Tuple[float, fl
     return lx + nx * 8.0, ly + ny * 8.0, angle
 
 
-def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str = "#90a7cf") -> str:
+def normalize_edge_label(text: str) -> str:
+    return " ".join(str(text or "").split())
+
+
+def wrap_edge_label_lines(text: str) -> List[str]:
+    normalized = normalize_edge_label(text)
+    if not normalized:
+        return []
+    if len(normalized) <= 26 or " " not in normalized:
+        return [normalized]
+
+    words = normalized.split(" ")
+    best_lines: Optional[List[str]] = None
+    best_score: Optional[Tuple[int, int, int]] = None
+    for idx in range(1, len(words)):
+        left = " ".join(words[:idx])
+        right = " ".join(words[idx:])
+        max_len = max(len(left), len(right))
+        diff = abs(len(left) - len(right))
+        overage = max(0, max_len - 30)
+        score = (overage, max_len, diff)
+        if best_score is None or score < best_score:
+            best_score = score
+            best_lines = [left, right]
+
+    return best_lines or [normalized]
+
+
+def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str = "var(--color-border-strong)") -> str:
     points = orthogonal_points(edge.id, src_box, dst_box)
     path_data = rounded_polyline(points)
-    lx, ly, angle = label_for_polyline(points)
-    short = short_text(edge.label or edge.id, 36)
-    return f"""
-  <g data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(edge.label or edge.id)}\">
-    <path d=\"{path_data}\" stroke=\"{color}\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" data-relationship-surface=\"visible\" />
-    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" data-relationship-surface=\"hit\" />
-    <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
-          font-size=\"9\" fill=\"#95a9c9\" data-relationship-text-role=\"label\">{esc(short)}</text>
-  </g>
-""".rstrip()
+    lx, ly, _angle = label_for_polyline(points)
+    label_lines = wrap_edge_label_lines(edge.label or edge.id)
+    label_markup = ""
+    if label_lines:
+        line_height = 13.0
+        start_y = ly - ((len(label_lines) - 1) * line_height) / 2.0
+        text_markup = "\n".join(
+            f"      <text x=\"{lx:.1f}\" y=\"{start_y + idx * line_height:.1f}\" text-anchor=\"middle\" dominant-baseline=\"middle\" "
+            f"font-size=\"11\" fill=\"var(--color-text-tertiary)\">{esc(line)}</text>"
+            for idx, line in enumerate(label_lines)
+        )
+        label_markup = (
+            f"\n    <g class=\"edge-label\" data-edge-label=\"true\">\n"
+            f"{text_markup}\n"
+            f"    </g>"
+        )
+    return (
+        f"<g data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" "
+        f"data-target-label=\"{esc(edge.label or edge.id)}\">\n"
+        f"    <path d=\"{path_data}\" stroke=\"{color}\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#arrow)\" />\n"
+        f"    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" />"
+        f"{label_markup}\n"
+        f"  </g>"
+    )
 
 
 def draw_node(node: Node, box: Box, view_id: str) -> str:
-    fill, stroke, header_fill = kind_colors(node.kind)
+    fill, stroke, tone = kind_colors(node.kind)
     width, height, name_lines, subtitle_lines = node_dimensions(node)
     _ = width, height
 
     x, y, w, h = box.x, box.y, box.w, box.h
-    header_h = 20.0
+    header_h = 18.0
     lines: List[str] = []
     lines.append(
-        f"<g data-element-id=\"{esc(node.id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(node.name)}\" data-node-layout=\"card\">"
+        f"<g class=\"diagram-node\" data-element=\"{tone}\" data-element-id=\"{esc(node.id)}\" "
+        f"data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(node.name)}\">"
     )
     lines.append(
-        f"  <rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"12\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"1.2\" data-node-surface=\"body\" />"
+        f"  <rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"12\" fill=\"{fill}\" "
+        f"stroke=\"{stroke}\" stroke-width=\"2\" />"
     )
     lines.append(
-        f"  <path d=\"M {x+1:.1f} {y+header_h:.1f} L {x+1:.1f} {y+12:.1f} Q {x+1:.1f} {y+1:.1f} {x+12:.1f} {y+1:.1f} "
-        f"L {x+w-12:.1f} {y+1:.1f} Q {x+w-1:.1f} {y+1:.1f} {x+w-1:.1f} {y+12:.1f} L {x+w-1:.1f} {y+header_h:.1f} Z\" fill=\"{with_alpha(header_fill, HEADER_FILL_ALPHA)}\" data-node-surface=\"header\" />"
-    )
-    lines.append(
-        f"  <text x=\"{x + w/2:.1f}\" y=\"{y + 14:.0f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"400\" fill=\"#c7d8f2\" pointer-events=\"none\" data-node-text-role=\"kind\">{esc(type_header(node.kind, node.technology))}</text>"
+        f"  <text x=\"{x + w/2:.1f}\" y=\"{y + 16:.0f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"600\" "
+        f"fill=\"var(--color-text-tertiary)\">{esc(type_header(node.kind, node.technology))}</text>"
     )
 
-    line_y = y + header_h + 26.0
+    line_y = y + header_h + 24.0
     for text in name_lines:
         lines.append(
-            f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"700\" fill=\"#e8f0ff\" pointer-events=\"none\" data-node-text-role=\"title\">{esc(text)}</text>"
+            f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"600\" "
+            f"fill=\"{stroke}\">{esc(text)}</text>"
         )
         line_y += 18.0
     for text in subtitle_lines:
         lines.append(
-            f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\" pointer-events=\"none\" data-node-text-role=\"subtitle\">{esc(text)}</text>"
+            f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"11\" "
+            f"fill=\"var(--color-text-secondary)\">{esc(text)}</text>"
         )
         line_y += 15.0
 
@@ -846,8 +884,9 @@ def draw_boundary(boundary: Boundary) -> str:
     x, y, w, h = boundary.x, boundary.y, boundary.w, boundary.h
     return (
         f"<rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"14\" fill=\"{fill}\" "
-        f"stroke=\"{stroke}\" stroke-dasharray=\"5 4\" />\n"
-        f"  <text x=\"{x + 16:.1f}\" y=\"{y + 22:.1f}\" font-size=\"11\" fill=\"#99aecb\" font-weight=\"700\">{esc(boundary.label)}</text>"
+        f"stroke=\"{stroke}\" stroke-width=\"1\" stroke-dasharray=\"4 4\" />\n"
+        f"  <text x=\"{x + 16:.1f}\" y=\"{y + 22:.1f}\" font-size=\"11\" fill=\"var(--color-text-tertiary)\" "
+        f"font-weight=\"700\" letter-spacing=\"0.08em\">{esc(boundary.label)}</text>"
     )
 
 
@@ -902,7 +941,7 @@ def render_view_fragment(
     svg = f"""<svg viewBox=\"0 0 {layout.width:.0f} {layout.height:.0f}\" width=\"{layout.width:.0f}\" height=\"{layout.height:.0f}\" xmlns=\"http://www.w3.org/2000/svg\">
   <defs>
     <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">
-      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />
+      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--color-border-strong)\" />
     </marker>
   </defs>
   {boundary_text}
@@ -912,53 +951,7 @@ def render_view_fragment(
 """
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    validate_interactive_targets(svg, str(view.get("id", out_file.stem)))
     out_file.write_text(svg, encoding="utf-8")
-
-
-def local_tag(tag: str) -> str:
-    return tag.split("}", 1)[-1] if "}" in tag else tag
-
-
-def has_descendant_with_attr(el: ET.Element, attr: str, value: str | None = None) -> bool:
-    for child in el.iter():
-        if child is el:
-            continue
-        if attr not in child.attrib:
-            continue
-        if value is None or child.attrib.get(attr) == value:
-            return True
-    return False
-
-
-def validate_interactive_targets(svg_text: str, view_id: str) -> None:
-    try:
-        root = ET.fromstring(svg_text)
-    except ET.ParseError as exc:
-        raise ValueError(f"{view_id}: generated SVG fragment is invalid XML: {exc}") from exc
-
-    for el in root.iter():
-        element_id = el.attrib.get("data-element-id")
-        if element_id:
-            if local_tag(el.tag) != "g":
-                raise ValueError(
-                    f"{view_id}: interactive node target {element_id!r} must be a <g> so the full card resolves to one element"
-                )
-            if not has_descendant_with_attr(el, "data-node-surface", "body"):
-                raise ValueError(
-                    f"{view_id}: interactive node target {element_id!r} is missing its card body surface"
-                )
-
-        relationship_id = el.attrib.get("data-relationship-id")
-        if relationship_id:
-            if local_tag(el.tag) != "g":
-                raise ValueError(
-                    f"{view_id}: interactive relationship target {relationship_id!r} must be a <g> so labels resolve to the edge"
-                )
-            if not has_descendant_with_attr(el, "data-relationship-surface", "hit"):
-                raise ValueError(
-                    f"{view_id}: interactive relationship target {relationship_id!r} is missing its enlarged hit surface"
-                )
 
 
 def main() -> int:

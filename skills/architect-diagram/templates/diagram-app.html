@@ -5,30 +5,160 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="diagram-render-mode" content="__DIAGRAM_MODE__" />
   <title>Claude Architect</title>
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const storageKey = 'theme';
+      let theme = null;
+
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored === 'light' || stored === 'dark') theme = stored;
+      } catch (_err) {
+        // ignore storage failures in restricted environments
+      }
+
+      if (!theme) {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = prefersDark ? 'dark' : 'light';
+      }
+
+      root.setAttribute('data-theme', theme);
+    })();
+  </script>
   <style>
+    :root,
+    [data-theme="light"] {
+      --color-bg-app: #FCFCF8;
+      --color-bg-sidebar: #F6F5F0;
+      --color-bg-surface: #FFFFFF;
+      --color-bg-surface-raised: #FFFFFF;
+      --color-bg-surface-elevated: #FFFFFF;
+      --color-bg-dotted-pattern: #F2F2EE;
+
+      --color-border-default: #E4E3DE;
+      --color-border-subtle: #EDECE6;
+      --color-border-strong: #D9D9D9;
+      --color-border-input: #DADADA;
+
+      --color-text-primary: #121210;
+      --color-text-secondary: #383836;
+      --color-text-tertiary: #6B6B68;
+      --color-text-muted: #969694;
+      --color-text-placeholder: #A8A8A5;
+      --color-text-inverse: #FFFFFF;
+
+      --color-brand: #C99A5B;
+      --color-brand-hover: #B8883F;
+      --color-signal: #4A9C95;
+      --color-signal-hover: #3A8780;
+      --color-status-success: #6B9A5F;
+      --color-status-error: #B55A4A;
+      --color-modal-scrim: rgba(30, 25, 15, 0.35);
+
+      --color-pill-active-bg: #EEEFEA;
+      --color-hover-bg: #EFEEE8;
+      --color-selected-bg: #E8E7E1;
+      --color-focus-ring: #4A9C95;
+
+      --color-icon-default: #383836;
+      --color-icon-muted: #8F8F8C;
+
+      --color-element-ochre: #C99A5B;
+      --color-element-teal: #4A9C95;
+      --color-element-sage: #8AA870;
+      --color-element-indigo: #6B7FC9;
+      --color-element-plum: #9B6B9E;
+      --color-element-rose: #C97085;
+      --color-element-slate: #6B8294;
+
+      --color-element-ochre-fill: #F3EADC;
+      --color-element-teal-fill: #DCEBE6;
+      --color-element-sage-fill: #E7EDE0;
+      --color-element-indigo-fill: #E2E6F0;
+      --color-element-plum-fill: #EBE2E8;
+      --color-element-rose-fill: #F3E3E3;
+      --color-element-slate-fill: #E2E6E6;
+    }
+
+    [data-theme="dark"] {
+      --color-bg-app: #1F1F1D;
+      --color-bg-sidebar: #262625;
+      --color-bg-surface: #2C2C2A;
+      --color-bg-surface-raised: #313130;
+      --color-bg-surface-elevated: #3D3D3C;
+      --color-bg-dotted-pattern: #2A2A28;
+
+      --color-border-default: #3A3A38;
+      --color-border-subtle: #2F2F2D;
+      --color-border-strong: #575651;
+      --color-border-input: #575651;
+
+      --color-text-primary: #C2C2B8;
+      --color-text-secondary: #A8A8A0;
+      --color-text-tertiary: #8A8A85;
+      --color-text-muted: #7E7E7C;
+      --color-text-placeholder: #6B6B68;
+      --color-text-inverse: #121210;
+
+      --color-brand: #C99A5B;
+      --color-brand-hover: #D8AB6E;
+      --color-signal: #5FB3AB;
+      --color-signal-hover: #72C2BA;
+      --color-status-success: #7FAE73;
+      --color-status-error: #C97060;
+      --color-modal-scrim: rgba(0, 0, 0, 0.6);
+
+      --color-pill-active-bg: #3D3D3C;
+      --color-hover-bg: #313130;
+      --color-selected-bg: #3D3D3C;
+      --color-focus-ring: #5FB3AB;
+
+      --color-icon-default: #A8A8A0;
+      --color-icon-muted: #7E7E7C;
+
+      --color-element-ochre: #C99A5B;
+      --color-element-teal: #5FB3AB;
+      --color-element-sage: #9AB880;
+      --color-element-indigo: #8093D4;
+      --color-element-plum: #AE7FB2;
+      --color-element-rose: #D68396;
+      --color-element-slate: #8197A8;
+
+      --color-element-ochre-fill: #443A2B;
+      --color-element-teal-fill: #2D403C;
+      --color-element-sage-fill: #3A4133;
+      --color-element-indigo-fill: #343945;
+      --color-element-plum-fill: #3E343E;
+      --color-element-rose-fill: #473538;
+      --color-element-slate-fill: #35393C;
+    }
+
     :root {
-      --bg-primary: #1F1F1E;
-      --bg-secondary: #262626;
-      --bg-tertiary: #2C2C2B;
-      --text-primary: #F9F9F7;
-      --text-secondary: #97958C;
-      --text-diagram-subtitle: #F9F9F7B3;
-      --line: #3A3937;
-      --line-strong: #4A4945;
-      --accent: #7A6FA6;
-      --accent-alt: #4F8F8B;
-      --warn: #B08968;
+      --color-traffic-light-close: #FF5C5C;
+      --color-traffic-light-minimize: #F8C800;
+      --color-traffic-light-maximize: #37C65A;
     }
 
     * { box-sizing: border-box; }
+    html {
+      background: var(--color-bg-app);
+      color-scheme: light;
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+    }
+
     body {
       margin: 0;
       font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background-color: var(--color-bg-app);
       background:
-        radial-gradient(circle at top, rgba(122, 111, 166, 0.14) 0%, rgba(122, 111, 166, 0) 26%),
-        radial-gradient(circle at 18% 0%, rgba(79, 143, 139, 0.12) 0%, rgba(79, 143, 139, 0) 24%),
-        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 22%, #171716 100%);
-      color: var(--text-primary);
+        radial-gradient(circle at top, color-mix(in srgb, var(--color-brand) 14%, transparent) 0%, transparent 28%),
+        radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--color-signal) 12%, transparent) 0%, transparent 24%),
+        linear-gradient(180deg, var(--color-bg-sidebar) 0%, var(--color-bg-app) 24%, var(--color-bg-app) 100%);
+      color: var(--color-text-primary);
       min-height: 100vh;
     }
 
@@ -46,12 +176,19 @@
       padding: 10px 14px;
       min-height: 44px;
       box-sizing: border-box;
-      border-bottom: 1px solid var(--line);
-      background: rgba(31, 31, 30, 0.92);
+      border-bottom: 1px solid var(--color-border-default);
+      background: color-mix(in srgb, var(--color-bg-sidebar) 94%, var(--color-bg-app));
       backdrop-filter: blur(8px);
       position: sticky;
       top: 0;
       z-index: 42;
+    }
+
+    .topbar-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     .brand {
@@ -64,13 +201,13 @@
     .title {
       font-weight: 800;
       font-size: 14px;
-      color: var(--text-primary);
+      color: var(--color-text-primary);
       white-space: nowrap;
     }
 
     .subtitle {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--color-text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -82,18 +219,31 @@
       font-size: 10px;
       letter-spacing: .04em;
       text-transform: uppercase;
-      color: var(--text-primary);
-      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      color: var(--color-brand);
+      border: 1px solid color-mix(in srgb, var(--color-brand) 34%, var(--color-border-default));
+      background: color-mix(in srgb, var(--color-brand) 12%, var(--color-bg-surface-elevated));
       padding: 3px 7px;
       border-radius: 999px;
       font-weight: 700;
       flex-shrink: 0;
     }
 
+    .theme-toggle {
+      min-width: 86px;
+      justify-content: center;
+      font-variant-numeric: tabular-nums;
+      background: transparent;
+      color: var(--color-text-primary);
+      border-color: var(--color-border-default);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-weight: 500;
+    }
+
     .tabbar {
       padding: 8px 14px;
-      border-bottom: 1px solid var(--line);
-      background: rgba(38, 38, 38, 0.90);
+      border-bottom: 1px solid var(--color-border-default);
+      background: color-mix(in srgb, var(--color-bg-sidebar) 96%, var(--color-bg-app));
       display: flex;
       align-items: center;
       gap: 6px;
@@ -105,40 +255,38 @@
     }
 
     .tab {
-      border: 1px solid var(--line-strong);
-      background: var(--bg-tertiary);
-      color: var(--text-secondary);
+      border: none;
+      background: transparent;
+      color: var(--color-text-secondary);
       padding: 6px 10px;
       font-size: 12px;
       border-radius: 999px;
       cursor: pointer;
       line-height: 1;
+      font-weight: 500;
     }
 
     .tab:hover {
-      border-color: rgba(249, 249, 247, 0.18);
-      color: var(--text-primary);
-      background: #323230;
+      color: var(--color-text-primary);
+      background: transparent;
     }
 
     .tab.active {
-      color: var(--text-primary);
-      border-color: rgba(122, 111, 166, 0.9);
-      box-shadow: inset 0 0 0 1px rgba(122, 111, 166, 0.28);
-      background: rgba(122, 111, 166, 0.18);
-      font-weight: 700;
+      color: var(--color-text-primary);
+      background: var(--color-pill-active-bg);
+      font-weight: 600;
     }
 
     .tab-sep {
-      color: var(--text-secondary);
+      color: var(--color-text-muted);
       font-size: 12px;
       user-select: none;
     }
 
     .toolbar {
       padding: 8px 14px;
-      border-bottom: 1px solid var(--line);
-      background: rgba(38, 38, 38, 0.90);
+      border-bottom: 1px solid var(--color-border-default);
+      background: color-mix(in srgb, var(--color-bg-sidebar) 96%, var(--color-bg-app));
       display: flex;
       gap: 8px;
       align-items: center;
@@ -175,9 +323,9 @@
       font-size: 11px;
       letter-spacing: .04em;
       text-transform: uppercase;
-      border: 1px solid var(--line-strong);
-      background: rgba(255,255,255,0.04);
-      color: var(--text-primary);
+      border: 1px solid var(--color-border-default);
+      background: var(--color-bg-surface-raised);
+      color: var(--color-text-primary);
       font-weight: 700;
       flex-shrink: 0;
     }
@@ -192,32 +340,32 @@
     }
 
     .statusbar.pending .status-pill {
-      color: #d6c29b;
-      border-color: rgba(176, 137, 104, 0.36);
-      background: rgba(176, 137, 104, 0.10);
+      color: var(--color-brand);
+      border-color: color-mix(in srgb, var(--color-brand) 34%, var(--color-border-default));
+      background: color-mix(in srgb, var(--color-brand) 12%, var(--color-bg-surface-raised));
     }
 
     .statusbar.success .status-pill {
-      color: #9fd4bf;
-      border-color: rgba(79, 143, 139, 0.36);
-      background: rgba(79, 143, 139, 0.10);
+      color: var(--color-status-success);
+      border-color: color-mix(in srgb, var(--color-status-success) 34%, var(--color-border-default));
+      background: color-mix(in srgb, var(--color-status-success) 12%, var(--color-bg-surface-raised));
     }
 
     .statusbar.info .status-pill {
-      color: #b8b4d6;
-      border-color: rgba(122, 111, 166, 0.36);
-      background: rgba(122, 111, 166, 0.10);
+      color: var(--color-signal);
+      border-color: color-mix(in srgb, var(--color-signal) 36%, var(--color-border-default));
+      background: color-mix(in srgb, var(--color-signal) 12%, var(--color-bg-surface-raised));
     }
 
     .statusbar.error .status-pill {
-      color: #d6a7a7;
-      border-color: rgba(160, 90, 90, 0.42);
-      background: rgba(160, 90, 90, 0.12);
+      color: var(--color-status-error);
+      border-color: color-mix(in srgb, var(--color-status-error) 36%, var(--color-border-default));
+      background: color-mix(in srgb, var(--color-status-error) 12%, var(--color-bg-surface-raised));
     }
 
     .status-message {
       font-size: 13px;
-      color: var(--text-primary);
+      color: var(--color-text-primary);
       min-width: 0;
       line-height: 1.35;
       max-height: calc(1.35em * 2);
@@ -230,9 +378,9 @@
     }
 
     button {
-      border: 1px solid var(--line-strong);
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
+      border: 1px solid var(--color-border-default);
+      background: var(--color-bg-surface);
+      color: var(--color-text-primary);
       border-radius: 9px;
       padding: 7px 10px;
       font-size: 12px;
@@ -240,24 +388,64 @@
       transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
     }
 
-    button:hover:not(:disabled):not(.comment-toggle.on) {
-      border-color: rgba(249, 249, 247, 0.18);
-      background: #323230;
+    .comment-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: transparent;
+    }
+
+    .comment-toggle-icon {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      color: currentColor;
+      opacity: 0.88;
+      transform: translateY(0.5px);
+    }
+
+    button:focus-visible,
+    .tab:focus-visible,
+    textarea:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--color-focus-ring);
+    }
+
+    button:hover:not(:disabled):not(.comment-toggle.on):not(.tab) {
+      border-color: var(--color-border-strong);
+      background: var(--color-hover-bg);
     }
 
     button:disabled { opacity: .5; cursor: default; }
 
+    .btn-primary,
     .comment-toggle.on {
-      color: var(--bg-primary);
+      background-color: var(--color-text-primary);
+      color: var(--color-text-inverse);
       border-color: transparent;
-      background: linear-gradient(135deg, var(--warn), #9A7557);
-      font-weight: 700;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-weight: 500;
+      font-size: 14px;
     }
 
+    .btn-primary:hover:not(:disabled),
     .comment-toggle.on:hover:not(:disabled) {
-      color: var(--bg-primary);
-      border-color: transparent;
-      background: linear-gradient(135deg, #a78060, #8f6c51);
+      opacity: 0.9;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.82;
+    }
+
+    .comment-toggle:hover:not(:disabled):not(.on),
+    .theme-toggle:hover:not(:disabled) {
+      border-color: var(--color-border-default);
+      background: var(--color-hover-bg);
+    }
+
+    .comment-toggle.on .comment-toggle-icon {
+      opacity: 1;
     }
 
     .workspace {
@@ -276,11 +464,11 @@
     .canvas-wrap {
       position: relative;
       min-height: 0;
-      border: 1px solid var(--line);
+      border: 1px solid var(--color-border-default);
       border-radius: 14px;
       background:
-        radial-gradient(circle at top, rgba(122, 111, 166, 0.08) 0%, rgba(122, 111, 166, 0) 34%),
-        linear-gradient(180deg, #2A2A29 0%, var(--bg-primary) 100%);
+        radial-gradient(circle at top, color-mix(in srgb, var(--color-brand) 8%, transparent) 0%, transparent 34%),
+        linear-gradient(180deg, var(--color-bg-surface) 0%, var(--color-bg-app) 100%);
       overflow: hidden;
     }
 
@@ -296,20 +484,32 @@
       left: 10px;
       top: 10px;
       font-size: 11px;
-      color: var(--text-primary);
-      background: rgba(176, 137, 104, 0.22);
-      border: 1px solid rgba(176, 137, 104, 0.48);
-      border-radius: 8px;
-      padding: 4px 8px;
+      color: var(--color-text-primary);
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 6px;
+      padding: 6px 12px;
       display: none;
+      align-items: center;
+      gap: 8px;
     }
 
-    .hint.show { display: block; }
+    .hint.show { display: inline-flex; }
+
+    .mode-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-signal);
+      vertical-align: middle;
+      flex: 0 0 auto;
+    }
 
     #details {
-      border: 1px solid var(--line);
+      border: 1px solid var(--color-border-default);
       border-radius: 14px;
-      background: var(--bg-secondary);
+      background: var(--color-bg-sidebar);
       overflow: hidden;
       font-size: 12px;
       display: none;
@@ -328,16 +528,16 @@
       justify-content: space-between;
       gap: 8px;
       padding: 10px 12px;
-      border-bottom: 1px solid var(--line);
-      background: #232322;
+      border-bottom: 1px solid var(--color-border-default);
+      background: var(--color-bg-surface-raised);
     }
 
     .details-title {
       font-size: 11px;
-      letter-spacing: .05em;
+      letter-spacing: .08em;
       text-transform: uppercase;
-      color: var(--text-secondary);
-      font-weight: 700;
+      color: var(--color-text-tertiary);
+      font-weight: 500;
     }
 
     #detailsBody {
@@ -352,11 +552,11 @@
       border-radius: 8px;
     }
 
-    .empty-note { color: var(--text-secondary); text-align: center; padding-top: 40px; }
+    .empty-note { color: var(--color-text-secondary); text-align: center; padding-top: 40px; }
 
     .meta-label {
       font-size: 10px;
-      color: var(--text-secondary);
+      color: var(--color-text-tertiary);
       letter-spacing: .04em;
       text-transform: uppercase;
       margin-top: 12px;
@@ -365,14 +565,14 @@
 
     .chip {
       display: inline-block;
-      border: 1px solid var(--line-strong);
+      border: 1px solid var(--color-border-default);
       border-radius: 999px;
       padding: 2px 7px;
       font-size: 10px;
       margin-right: 4px;
       margin-top: 3px;
-      color: var(--text-primary);
-      background: var(--bg-tertiary);
+      color: var(--color-text-primary);
+      background: var(--color-bg-surface);
     }
 
     .queue {
@@ -389,7 +589,7 @@
 
     .queue-label {
       font-size: 11px;
-      color: var(--text-primary);
+      color: var(--color-text-primary);
       font-weight: 700;
       white-space: nowrap;
     }
@@ -405,9 +605,9 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      border: 1px solid rgba(176, 137, 104, 0.48);
-      background: rgba(176, 137, 104, 0.14);
-      color: var(--text-primary);
+      border: 1px solid color-mix(in srgb, var(--color-brand) 42%, var(--color-border-default));
+      background: color-mix(in srgb, var(--color-brand) 14%, var(--color-bg-surface));
+      color: var(--color-text-primary);
       border-radius: 8px;
       padding: 4px 8px;
       font-size: 11px;
@@ -428,7 +628,7 @@
     .queue-remove {
       border: 0;
       background: transparent;
-      color: var(--text-secondary);
+      color: var(--color-text-secondary);
       border-radius: 999px;
       padding: 0;
       width: 16px;
@@ -443,14 +643,16 @@
     }
 
     .queue-remove:hover:not(:disabled) {
-      background: rgba(249, 249, 247, 0.08);
-      color: var(--text-primary);
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
     }
 
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(16, 16, 15, .62);
+      background: var(--color-modal-scrim);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -460,40 +662,72 @@
     .overlay.show { display: flex; }
 
     .dialog {
-      width: min(360px, 92vw);
+      width: min(480px, calc(100vw - 32px));
+      min-width: min(360px, calc(100vw - 32px));
       max-height: 86vh;
       overflow: auto;
-      border: 1px solid var(--line-strong);
+      border: 1px solid var(--color-border-default);
       border-radius: 12px;
-      background: var(--bg-secondary);
-      padding: 12px;
-      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.36);
+      background: var(--color-bg-surface);
+      padding: 20px 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
     }
 
-    textarea {
+    [data-theme="dark"] .dialog {
+      border-color: var(--color-border-strong);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      margin: 0 0 16px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .modal-helper {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin: 0 0 12px;
+    }
+
+    .modal-textarea {
       width: 100%;
-      min-height: 92px;
-      border-radius: 8px;
-      border: 1px solid var(--line-strong);
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      padding: 8px;
-      font-size: 13px;
+      min-height: 80px;
+      border-radius: 6px;
+      border: 1px solid var(--color-border-input);
+      background: var(--color-bg-surface);
+      color: var(--color-text-primary);
+      padding: 10px 12px;
+      font-size: 14px;
       font-family: inherit;
       resize: vertical;
+      margin-bottom: 16px;
     }
 
-    textarea::placeholder {
-      color: rgba(151, 149, 140, 0.78);
+    .modal-textarea::placeholder {
+      color: var(--color-text-placeholder);
+    }
+
+    .modal-textarea:focus,
+    .modal-textarea:focus-visible {
+      outline: none;
+      border-color: var(--color-signal);
+      box-shadow: 0 0 0 3px rgba(74, 156, 149, 0.15);
+    }
+
+    [data-theme="dark"] .modal-textarea:focus,
+    [data-theme="dark"] .modal-textarea:focus-visible {
+      box-shadow: 0 0 0 3px rgba(95, 179, 171, 0.18);
     }
 
     pre {
       margin: 8px 0;
       padding: 10px;
       border-radius: 8px;
-      border: 1px solid var(--line);
-      background: #1B1B1A;
-      color: var(--text-primary);
+      border: 1px solid var(--color-border-subtle);
+      background: var(--color-bg-app);
+      color: var(--color-text-primary);
       font-size: 11px;
       line-height: 1.45;
       overflow: auto;
@@ -502,31 +736,36 @@
 
     .dialog-actions {
       display: flex;
-      gap: 8px;
       justify-content: flex-end;
-      margin-top: 8px;
+      gap: 8px;
+      margin-top: 0;
     }
 
-    .dialog-primary {
-      color: var(--bg-primary);
-      border-color: transparent;
-      background: linear-gradient(135deg, var(--warn), #9A7557);
-      font-weight: 700;
+    .btn-secondary {
+      background: transparent;
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border-default);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 14px;
     }
 
-    .dialog-primary:hover:not(:disabled) {
-      color: var(--bg-primary);
-      border-color: transparent;
-      background: linear-gradient(135deg, #a78060, #8f6c51);
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--color-hover-bg);
+      border-color: var(--color-border-default);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
     }
 
     svg text { user-select: none; }
     svg [data-element-id] { cursor: pointer; }
     .comment-mode-on svg [data-element-id],
     .comment-mode-on svg [data-relationship-id] { cursor: crosshair; }
-    svg [data-element-id][data-selected='true'] {
-      filter: drop-shadow(0 0 7px rgba(176, 137, 104, 0.45));
-    }
   </style>
 </head>
 <body>
@@ -536,12 +775,15 @@
       <div class="title">Claude Architect</div>
       <div class="subtitle" id="systemSubtitle"></div>
     </div>
-    <span class="mode-badge" id="modeBadge"></span>
+    <div class="topbar-actions">
+      <span class="mode-badge" id="modeBadge"></span>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle color theme">Theme: Light</button>
+    </div>
   </div>
   <div class="tabbar" id="tabs" aria-label="View navigation"></div>
   <div class="toolbar">
-    <button id="commentToggle" class="comment-toggle">Comment (C)</button>
-    <button id="submitBtn" disabled>Submit comments</button>
+    <button id="commentToggle" class="comment-toggle"><svg class="comment-toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12.0169 0.00106239C10.4432 0.00106239 8.88501 0.311438 7.43115 0.914468C5.97729 1.5175 4.65628 2.40137 3.54355 3.51563C1.29628 5.76596 0.0337749 8.81807 0.0337749 12.0005C0.0232991 14.7714 -1.73892 17.5005 0.0216443 19.6382L0.0337749 22.0011C-0.1325 22.1698 0.0664242 22.3791 0.0216384 22.6119C-0.0231475 22.8447 0.00192435 23.0855 0.0936904 23.304C0.19322 23.5199 0.354568 23.7014 0.557253 23.8253C0.759939 23.9492 0.994821 24.01 1.23209 24H12.0169C15.195 24 18.243 22.7358 20.4902 20.4854C22.7375 18.2351 24 15.183 24 12.0005C24 8.81807 22.7375 5.76596 20.4902 3.51563C18.243 1.26529 15.195 0.00106239 12.0169 0.00106239ZM12.0169 21.6001H4.12002H3.49999C3.03125 21.6001 2.5 21.6001 2.5 21.6001C2.5 21.2831 2.49999 19.5011 2.46957 19.0011C2.49999 17.5011 2.5 15.5 2.46957 12.947C2.29106 10.8006 2.8042 8.51949 4.03521 6.67219C5.26621 4.82489 7.09877 3.46214 9.22065 2.81611C11.3425 2.17007 13.6225 2.28073 15.672 3.12922C17.7215 3.97771 19.4139 5.51155 20.4607 7.4694C21.5075 9.42725 21.8441 11.688 21.413 13.8665C20.9819 16.0449 19.8099 18.0063 18.0966 19.4165C16.3833 20.8267 14.2347 21.5984 12.0169 21.6001ZM15.6118 10.8006H13.2152V8.40069C13.2152 8.08244 13.0889 7.77723 12.8642 7.5522C12.6395 7.32717 12.3347 7.20074 12.0169 7.20074C11.6991 7.20074 11.3943 7.32717 11.1696 7.5522C10.9448 7.77723 10.8186 8.08244 10.8186 8.40069V10.8006H8.42195C8.10414 10.8006 7.79935 10.927 7.57462 11.152C7.34989 11.3771 7.22364 11.6823 7.22364 12.0005C7.22364 12.3188 7.34989 12.624 7.57462 12.849C7.79935 13.0741 8.10414 13.2005 8.42195 13.2005H10.8186V15.6004C10.8186 15.9186 10.9448 16.2238 11.1696 16.4489C11.3943 16.6739 11.6991 16.8003 12.0169 16.8003C12.3347 16.8003 12.6395 16.6739 12.8642 16.4489C13.0889 16.2238 13.2152 15.9186 13.2152 15.6004V13.2005H15.6118C15.9296 13.2005 16.2344 13.0741 16.4592 12.849C16.6839 12.624 16.8101 12.3188 16.8101 12.0005C16.8101 11.6823 16.6839 11.3771 16.4592 11.152C16.2344 10.927 15.9296 10.8006 15.6118 10.8006Z" fill="currentColor"/></svg><span>Comment (C)</span></button>
+    <button id="submitBtn" class="btn-primary" disabled>Submit comments</button>
     <div class="queue" id="queueBar">
       <span class="queue-label">Queued</span>
       <div class="queue-items" id="queueItems"></div>
@@ -555,7 +797,7 @@
   </div>
   <div class="workspace" id="workspace">
     <div class="canvas-wrap">
-      <div class="hint" id="commentHint">Comment mode: click any node or edge</div>
+      <div class="hint" id="commentHint"><span class="mode-indicator" aria-hidden="true"></span><span>Comment mode: click any node or edge</span></div>
       <div id="canvas"></div>
     </div>
     <aside id="details" aria-label="Details sidebar">
@@ -570,21 +812,21 @@
 
 <div class="overlay" id="commentDialogOverlay">
   <div class="dialog">
-    <h3 id="commentTitle" style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Comment</h3>
-    <textarea id="commentText" placeholder="Feedback for Claude..."></textarea>
-    <div class="dialog-actions">
-      <button id="commentCancel">Cancel</button>
-      <button id="commentAdd" class="dialog-primary">Add comment</button>
+    <h3 id="commentTitle" class="modal-header">Comment</h3>
+    <textarea id="commentText" class="modal-textarea" placeholder="Feedback for Claude..."></textarea>
+    <div class="dialog-actions modal-actions">
+      <button id="commentCancel" class="btn-secondary">Cancel</button>
+      <button id="commentAdd" class="dialog-primary btn-primary">Add comment</button>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="payloadOverlay">
   <div class="dialog">
-    <h3 id="payloadTitle" style="margin:0 0 8px;font-size:14px;color:var(--text-primary)">Comment payload (JSON)</h3>
-    <p id="payloadHelper" style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Copy this JSON and paste it into your coding agent.</p>
+    <h3 id="payloadTitle" class="modal-header">Comment payload (JSON)</h3>
+    <p id="payloadHelper" class="modal-helper">Copy this JSON and paste it into your coding agent.</p>
     <pre id="payloadPre"></pre>
-    <div class="dialog-actions">
+    <div class="dialog-actions modal-actions">
       <button id="payloadCopy">Copy</button>
       <button id="payloadClose">Close</button>
     </div>
@@ -596,29 +838,51 @@ const DATA = __DIAGRAM_DATA_JSON__;
 const MODE = "__DIAGRAM_MODE__";
 const HANDOFF = DATA.comment_handoff || {};
 
+const THEME_STORAGE_KEY = 'theme';
 const THEME = {
-  bgPrimary: '#1F1F1E',
-  bgSecondary: '#262626',
-  bgTertiary: '#2C2C2B',
-  textPrimary: '#F9F9F7',
-  textSecondary: '#97958C',
-  textDiagramSubtitle: '#F9F9F7B3',
-  blueMuted: '#4C78A8',
-  greenMuted: '#5A8F6A',
-  purpleDusty: '#7A6FA6',
-  amberWarm: '#B08968',
-  cyanMuted: '#4F8F8B',
-  redSoft: '#A05A5A',
-  slateNeutral: '#6B7280',
-  line: '#3A3937',
-  lineStrong: '#4A4945',
+  bgPrimary: 'var(--color-bg-app)',
+  bgSecondary: 'var(--color-bg-sidebar)',
+  bgTertiary: 'var(--color-bg-surface)',
+  bgSurfaceRaised: 'var(--color-bg-surface-raised)',
+  bgSurfaceElevated: 'var(--color-bg-surface-elevated)',
+  textPrimary: 'var(--color-text-primary)',
+  textSecondary: 'var(--color-text-secondary)',
+  textTertiary: 'var(--color-text-tertiary)',
+  textMuted: 'var(--color-text-muted)',
+  textPlaceholder: 'var(--color-text-placeholder)',
+  textInverse: 'var(--color-text-inverse)',
+  textDiagramSubtitle: 'var(--color-text-secondary)',
+  blueMuted: 'var(--color-element-sage)',
+  blueMutedFill: 'var(--color-element-sage-fill)',
+  greenMuted: 'var(--color-element-plum)',
+  greenMutedFill: 'var(--color-element-plum-fill)',
+  purpleDusty: 'var(--color-element-indigo)',
+  purpleDustyFill: 'var(--color-element-indigo-fill)',
+  amberWarm: 'var(--color-element-ochre)',
+  amberWarmFill: 'var(--color-element-ochre-fill)',
+  cyanMuted: 'var(--color-element-teal)',
+  cyanMutedFill: 'var(--color-element-teal-fill)',
+  redSoft: 'var(--color-element-rose)',
+  redSoftFill: 'var(--color-element-rose-fill)',
+  slateNeutral: 'var(--color-element-slate)',
+  slateNeutralFill: 'var(--color-element-slate-fill)',
+  line: 'var(--color-border-default)',
+  lineSubtle: 'var(--color-border-subtle)',
+  lineStrong: 'var(--color-border-strong)',
+  borderInput: 'var(--color-border-input)',
+  hoverBg: 'var(--color-hover-bg)',
+  selectedBg: 'var(--color-selected-bg)',
+  pillActiveBg: 'var(--color-pill-active-bg)',
+  brand: 'var(--color-brand)',
+  brandHover: 'var(--color-brand-hover)',
+  signal: 'var(--color-signal)',
+  signalHover: 'var(--color-signal-hover)',
 };
 
 const state = {
   viewId: DATA.initial_view_id,
   history: [],
   selectedId: null,
-  selectedRelationshipId: null,
   detailsOpen: false,
   commentMode: false,
   comments: [],
@@ -653,63 +917,54 @@ const kindColor = {
   cache: THEME.cyanMuted,
 };
 
-function hexToRgb(hex) {
-  const clean = String(hex || '').trim().replace('#', '');
-  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return null;
+const kindFillColor = {
+  person: THEME.blueMutedFill,
+  software_system: THEME.purpleDustyFill,
+  system: THEME.purpleDustyFill,
+  external_system: THEME.amberWarmFill,
+  external_actor: THEME.amberWarmFill,
+  actor: THEME.amberWarmFill,
+  container: THEME.greenMutedFill,
+  component: THEME.cyanMutedFill,
+  database: THEME.slateNeutralFill,
+  datastore: THEME.slateNeutralFill,
+  queue: THEME.redSoftFill,
+  cache: THEME.cyanMutedFill,
+};
+
+function paletteForKind(kind) {
+  const normalized = String(kind || '').toLowerCase();
   return {
-    r: parseInt(clean.slice(0, 2), 16),
-    g: parseInt(clean.slice(2, 4), 16),
-    b: parseInt(clean.slice(4, 6), 16),
+    color: kindColor[normalized] || THEME.slateNeutral,
+    fill: kindFillColor[normalized] || THEME.slateNeutralFill,
   };
 }
 
-function clampByte(n) {
-  return Math.max(0, Math.min(255, Math.round(n)));
-}
-
-function rgbToHex(rgb) {
-  if (!rgb) return '#000000';
-  return '#'
-    + clampByte(rgb.r).toString(16).padStart(2, '0')
-    + clampByte(rgb.g).toString(16).padStart(2, '0')
-    + clampByte(rgb.b).toString(16).padStart(2, '0');
-}
-
-function mixHex(baseHex, targetHex, targetWeight) {
-  const base = hexToRgb(baseHex);
-  const target = hexToRgb(targetHex);
-  if (!base || !target) return baseHex;
-  const w = Math.max(0, Math.min(1, Number(targetWeight) || 0));
-  return rgbToHex({
-    r: base.r * (1 - w) + target.r * w,
-    g: base.g * (1 - w) + target.g * w,
-    b: base.b * (1 - w) + target.b * w,
-  });
-}
-
-function hexToRgba(hex, alpha) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return 'rgba(0, 0, 0, ' + String(alpha) + ')';
-  return 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + String(alpha) + ')';
-}
-
 function colorForKind(kind) {
-  return kindColor[String(kind || '').toLowerCase()] || THEME.slateNeutral;
+  return paletteForKind(kind).color;
 }
 
-const edgeColor = mixHex(THEME.textSecondary, THEME.textPrimary, 0.14);
-const edgeDetailColor = mixHex(THEME.textSecondary, THEME.bgPrimary, 0.18);
-const drillStrokeColor = mixHex(THEME.purpleDusty, THEME.textPrimary, 0.16);
-const scaffoldStrokeColor = mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08);
-const relationshipStrokeWidth = 1.15;
-const relationshipStrokeWidthSelected = 1.75;
+function fillColorForKind(kind) {
+  return paletteForKind(kind).fill;
+}
+
+function kindChipHtml(kind) {
+  return '<span class="chip">' + esc(kind || 'unknown') + '</span>';
+}
+
+const edgeColor = THEME.lineStrong;
+const edgeDetailColor = THEME.textTertiary;
+const drillStrokeColor = THEME.signal;
+const scaffoldStrokeColor = THEME.line;
+const relationshipStrokeWidth = 1.5;
+const relationshipStrokeWidthSelected = 2;
 
 const SVG_COLOR_REMAP = {
   '#0b1220': THEME.bgPrimary,
   '#101a2f': THEME.bgSecondary,
   '#0d172a': THEME.bgSecondary,
   '#0a1324': THEME.bgTertiary,
-  '#081024': '#1B1B1A',
+  '#081024': THEME.bgSurfaceElevated,
   '#132449': THEME.bgSecondary,
   '#e6eeff': THEME.textPrimary,
   '#f0f9ff': THEME.textPrimary,
@@ -723,7 +978,7 @@ const SVG_COLOR_REMAP = {
   '#9fb8e4': THEME.textSecondary,
   '#abc0e5': THEME.textSecondary,
   '#a8bcdf': THEME.textSecondary,
-  '#9fc7ff': mixHex(THEME.purpleDusty, THEME.textPrimary, 0.16),
+  '#9fc7ff': THEME.signal,
   '#27406f': THEME.line,
   '#35558f': THEME.lineStrong,
   '#2a446f': THEME.lineStrong,
@@ -732,47 +987,107 @@ const SVG_COLOR_REMAP = {
   '#2d4f83': THEME.lineStrong,
   '#2c4a7a': THEME.lineStrong,
   '#4f6186': scaffoldStrokeColor,
-  '#1e3a5f': mixHex(THEME.blueMuted, THEME.bgPrimary, 0.26),
-  '#3b82f6': THEME.blueMuted,
-  '#60a5fa': mixHex(THEME.blueMuted, THEME.textPrimary, 0.22),
-  '#16a34a': THEME.greenMuted,
-  '#4ade80': mixHex(THEME.greenMuted, THEME.textPrimary, 0.18),
-  '#86efac': mixHex(THEME.greenMuted, THEME.textPrimary, 0.28),
-  '#0ea5e9': THEME.cyanMuted,
-  '#38bdf8': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.16),
-  '#7dd3fc': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.26),
-  '#8b5cf6': THEME.purpleDusty,
-  '#5f4aa0': mixHex(THEME.purpleDusty, THEME.textPrimary, 0.12),
-  '#a78bfa': mixHex(THEME.purpleDusty, THEME.textPrimary, 0.18),
-  '#f97316': THEME.amberWarm,
-  '#d97706': THEME.amberWarm,
-  '#b45309': THEME.redSoft,
-  '#8a5f23': mixHex(THEME.amberWarm, THEME.textPrimary, 0.12),
-  '#ffdca0': mixHex(THEME.amberWarm, THEME.textPrimary, 0.3),
-  '#ffbd59': THEME.amberWarm,
-  '#0f766e': THEME.cyanMuted,
-  '#2dd4bf': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.2),
-  '#5eead4': mixHex(THEME.cyanMuted, THEME.textPrimary, 0.3),
-  '#334155': THEME.slateNeutral,
-  '#64748b': mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08),
-  '#94a3b8': mixHex(THEME.slateNeutral, THEME.textPrimary, 0.24),
-  'rgba(20,52,105,0.22)': hexToRgba(THEME.blueMuted, 0.12),
-  'rgba(20,52,105,0.20)': hexToRgba(THEME.blueMuted, 0.11),
-  'rgba(45,20,89,0.20)': hexToRgba(THEME.purpleDusty, 0.12),
-  'rgba(120,45,8,0.16)': hexToRgba(THEME.amberWarm, 0.11),
-  'rgba(22,87,57,0.18)': hexToRgba(THEME.greenMuted, 0.12),
-  'rgba(18,66,51,0.18)': hexToRgba(THEME.greenMuted, 0.12),
-  'rgba(62,74,102,0.20)': hexToRgba(THEME.slateNeutral, 0.12),
+  '#1e3a5f': 'var(--color-element-indigo-fill)',
+  '#3b82f6': 'var(--color-element-indigo)',
+  '#60a5fa': 'var(--color-element-indigo)',
+  '#16a34a': 'var(--color-element-sage)',
+  '#4ade80': 'var(--color-element-sage)',
+  '#86efac': 'var(--color-element-sage)',
+  '#0ea5e9': 'var(--color-element-teal)',
+  '#38bdf8': 'var(--color-element-teal)',
+  '#7dd3fc': 'var(--color-element-teal)',
+  '#8b5cf6': 'var(--color-element-plum)',
+  '#5f4aa0': 'var(--color-element-plum)',
+  '#a78bfa': 'var(--color-element-plum)',
+  '#f97316': 'var(--color-element-ochre)',
+  '#d97706': 'var(--color-element-ochre)',
+  '#b45309': 'var(--color-element-rose)',
+  '#8a5f23': 'var(--color-element-ochre)',
+  '#ffdca0': 'var(--color-element-ochre-fill)',
+  '#ffbd59': 'var(--color-element-ochre)',
+  '#0f766e': 'var(--color-element-teal)',
+  '#2dd4bf': 'var(--color-element-teal)',
+  '#5eead4': 'var(--color-element-teal-fill)',
+  '#334155': 'var(--color-element-slate)',
+  '#64748b': 'var(--color-element-slate)',
+  '#94a3b8': 'var(--color-element-slate-fill)',
+  '#31466b': 'var(--color-element-sage-fill)',
+  '#7d98c2': 'var(--color-element-sage)',
+  '#3a527c': 'var(--color-element-sage)',
+  '#3d4556': 'var(--color-element-ochre-fill)',
+  '#8b98ae': 'var(--color-element-ochre)',
+  '#4a556a': 'var(--color-element-ochre)',
+  '#363345': 'var(--color-element-rose-fill)',
+  '#8b7ca8': 'var(--color-element-rose)',
+  '#443d58': 'var(--color-element-rose)',
+  '#2d3445': 'var(--color-element-slate-fill)',
+  '#73839e': 'var(--color-element-slate)',
+  '#39455b': 'var(--color-element-slate)',
+  '#2c4c78': 'var(--color-element-indigo-fill)',
+  '#73a0d8': 'var(--color-element-indigo)',
+  '#365f95': 'var(--color-element-indigo)',
+  '#244c57': 'var(--color-element-teal-fill)',
+  '#72aeb6': 'var(--color-element-teal)',
+  '#2c5d69': 'var(--color-element-teal)',
+  '#295164': 'var(--color-element-plum-fill)',
+  '#6ea2bb': 'var(--color-element-plum)',
+  '#33667e': 'var(--color-element-plum)',
+  '#c7d8f2': THEME.textTertiary,
+  '#e8f0ff': THEME.textPrimary,
+  '#c5d3e8': THEME.textSecondary,
+  '#99aecb': THEME.textTertiary,
+  '#95a9c9': THEME.textTertiary,
+  '#5e7396': scaffoldStrokeColor,
+  '#506385': scaffoldStrokeColor,
+  '#4f617f': scaffoldStrokeColor,
+  'rgba(20,52,105,0.22)': THEME.bgSecondary,
+  'rgba(20,52,105,0.20)': THEME.bgSecondary,
+  'rgba(45,20,89,0.20)': THEME.bgSecondary,
+  'rgba(120,45,8,0.16)': THEME.bgSecondary,
+  'rgba(22,87,57,0.18)': THEME.bgSecondary,
+  'rgba(18,66,51,0.18)': THEME.bgSecondary,
+  'rgba(62,74,102,0.20)': THEME.bgSecondary,
 };
 
 function $(id) { return document.getElementById(id); }
 
-function currentView() { return viewsById.get(state.viewId); }
-
-function clearSelection() {
-  state.selectedId = null;
-  state.selectedRelationshipId = null;
+function storedTheme() {
+  try {
+    const value = localStorage.getItem(THEME_STORAGE_KEY);
+    return value === 'light' || value === 'dark' ? value : null;
+  } catch (_err) {
+    return null;
+  }
 }
+
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function setTheme(theme, persist) {
+  const nextTheme = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', nextTheme);
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch (_err) {
+      // ignore storage failures in restricted environments
+    }
+  }
+  updateThemeToggle();
+}
+
+function updateThemeToggle() {
+  const toggle = $('themeToggle');
+  if (!toggle) return;
+  const theme = currentTheme();
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  toggle.textContent = 'Theme: ' + (theme === 'dark' ? 'Dark' : 'Light');
+  toggle.setAttribute('aria-label', 'Switch to ' + nextTheme + ' theme');
+  toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+}
+
+function currentView() { return viewsById.get(state.viewId); }
 
 function statusToneForState(jobState) {
   if (jobState === 'failed' || jobState === 'blocked') return 'error';
@@ -985,6 +1300,7 @@ function updateHeader() {
   $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
   commentToggle.className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
   commentToggle.disabled = commentHandlingInProgress;
+  updateThemeToggle();
   document.body.classList.toggle('comment-mode-on', state.commentMode);
 }
 
@@ -1022,7 +1338,7 @@ function updateTabs() {
     b.addEventListener('click', function () {
       state.history = [];
       state.viewId = view.id;
-      clearSelection();
+      state.selectedId = null;
       render();
     });
     tabs.appendChild(b);
@@ -1070,36 +1386,6 @@ function applyResponsiveSvgSizing(svg) {
   svg.style.height = 'auto';
   svg.style.maxWidth = '100%';
   svg.style.marginInline = 'auto';
-}
-
-function isInformativeField(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  return normalized !== '' && normalized !== 'n_a' && normalized !== 'blank' && normalized !== 'none' && normalized !== 'unknown' && normalized !== 'null';
-}
-
-function relationshipHasSidebarDetails(rel) {
-  if (!rel) return false;
-  if (typeof rel.detailable === 'boolean') return rel.detailable;
-  return isInformativeField(rel.interaction_type)
-    || isInformativeField(rel.directionality)
-    || isInformativeField(rel.sync_async)
-    || isInformativeField(rel.protocol)
-    || (Array.isArray(rel.data_objects) && rel.data_objects.some(function (item) { return String(item || '').trim(); }));
-}
-
-function nodeDisplayName(nodeId) {
-  const node = nodesById.get(nodeId);
-  return (node && node.name) || nodeId || '?';
-}
-
-function relationshipDisplayName(rel) {
-  if (!rel) return 'Relationship';
-  return rel.label || rel.id || 'Relationship';
-}
-
-function relationshipEndpointSummary(rel) {
-  if (!rel) return '? → ?';
-  return nodeDisplayName(rel.source_id) + ' → ' + nodeDisplayName(rel.target_id);
 }
 
 function isConfidenceTokenText(text) {
@@ -1155,18 +1441,44 @@ function remapSvgPalette(svg) {
   });
 }
 
-function isSecondaryNodeText(textEl) {
+function nodeTextRole(textEl) {
   const text = String(textEl.textContent || '').trim();
-  if (!text) return false;
+  if (!text) return 'body';
   const fontSize = parseFloat(textEl.getAttribute('font-size') || '0');
   const weight = String(textEl.getAttribute('font-weight') || '');
   const strong = weight === '700' || weight === '600';
-  if (strong) return false;
-  return isFinite(fontSize) && fontSize > 0 && fontSize <= 11;
+  if (!strong && isFinite(fontSize) && fontSize > 0 && fontSize <= 9.5) return 'eyebrow';
+  if (strong || (isFinite(fontSize) && fontSize >= 12)) return 'title';
+  return 'body';
 }
 
-function headerOverlayFill(base) {
-  return hexToRgba(mixHex(base, THEME.textPrimary, 0.18), 0.42);
+function nodeClusterElements(anchor) {
+  if (!anchor) return [];
+  const tag = String(anchor.tagName || '').toLowerCase();
+  if (tag === 'g') return Array.from(anchor.children);
+
+  const cluster = [anchor];
+  let cur = anchor.nextElementSibling;
+  while (cur) {
+    if (cur.hasAttribute('data-element-id') || cur.hasAttribute('data-relationship-id')) break;
+    const curTag = String(cur.tagName || '').toLowerCase();
+    if (!['path', 'text', 'circle', 'ellipse', 'polygon'].includes(curTag)) break;
+    cluster.push(cur);
+    cur = cur.nextElementSibling;
+  }
+  return cluster;
+}
+
+function nodeAnchorForLooseSibling(el) {
+  let cur = el ? el.previousElementSibling : null;
+  while (cur) {
+    if (cur.hasAttribute('data-element-id')) return cur;
+    if (cur.hasAttribute('data-relationship-id')) return null;
+    const tag = String(cur.tagName || '').toLowerCase();
+    if (!['path', 'text', 'circle', 'ellipse', 'polygon'].includes(tag)) return null;
+    cur = cur.previousElementSibling;
+  }
+  return null;
 }
 
 function isPersonKind(kind) {
@@ -1187,9 +1499,68 @@ function estimateTextWidth(text, fontSize) {
   return String(text || '').trim().length * Number(fontSize || 0) * 0.58;
 }
 
+function normalizeEdgeLabelText(text) {
+  return String(text || '').trim().replace(/\s+/g, ' ');
+}
+
+function wrapEdgeLabelLines(text) {
+  const normalized = normalizeEdgeLabelText(text);
+  if (!normalized) return [];
+  if (normalized.length <= 26 || normalized.indexOf(' ') === -1) return [normalized];
+
+  const words = normalized.split(' ');
+  let best = null;
+  for (let idx = 1; idx < words.length; idx += 1) {
+    const left = words.slice(0, idx).join(' ');
+    const right = words.slice(idx).join(' ');
+    const maxLen = Math.max(left.length, right.length);
+    const diff = Math.abs(left.length - right.length);
+    const overage = Math.max(0, maxLen - 30);
+    const score = overage * 100 + maxLen * 10 + diff;
+    if (!best || score < best.score) {
+      best = { lines: [left, right], score: score };
+    }
+  }
+  return best ? best.lines : [normalized];
+}
+
+function appendEdgeLabel(edgeGroup, tx, ty, labelText) {
+  const lines = wrapEdgeLabelLines(labelText);
+  if (!lines.length) return null;
+
+  const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  labelGroup.setAttribute('class', 'edge-label');
+  labelGroup.setAttribute('data-edge-label', 'true');
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', String(tx));
+  text.setAttribute('y', String(ty));
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('font-size', '11');
+  text.setAttribute('fill', THEME.textTertiary);
+
+  const lineHeight = 13;
+  const startY = ty - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach(function (line, idx) {
+    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    tspan.setAttribute('x', String(tx));
+    tspan.setAttribute('y', String(startY + idx * lineHeight));
+    tspan.setAttribute('dominant-baseline', 'middle');
+    tspan.textContent = line;
+    text.appendChild(tspan);
+  });
+
+  labelGroup.appendChild(text);
+  edgeGroup.appendChild(labelGroup);
+  return labelGroup;
+}
+
+function finalizeEdgeLabelMask(labelGroup) {
+  if (!labelGroup) return;
+}
+
 function simplifyPersonNodeGroup(group, node) {
   if (!group || !isPersonKind(node && node.kind)) return;
-  if (group.getAttribute('data-node-layout') === 'card') return;
 
   group.querySelectorAll('circle').forEach(function (circle) {
     circle.remove();
@@ -1270,35 +1641,34 @@ function simplifyPersonNodeGroup(group, node) {
 
 function applyNodeGroupTheme(group, node) {
   simplifyPersonNodeGroup(group, node);
-  const base = colorForKind(node && node.kind);
-  const stroke = mixHex(base, THEME.textPrimary, 0.22);
+  const palette = paletteForKind(node && node.kind);
+  const cluster = nodeClusterElements(group);
+  const elementId = group.getAttribute('data-element-id');
+  const selected = elementId && elementId === state.selectedId;
+  const drillable = elementId && isDrillable(elementId);
+  const stroke = selected || drillable ? THEME.signal : palette.color;
 
-  group.querySelectorAll('rect,circle,ellipse,path,polygon').forEach(function (shape) {
-    const surface = String(shape.getAttribute('data-node-surface') || '');
+  cluster.forEach(function (shape) {
+    const tag = String(shape.tagName || '').toLowerCase();
+    if (!['rect', 'circle', 'ellipse', 'path', 'polygon'].includes(tag)) return;
     if (isVisiblePaint(shape.getAttribute('fill'))) {
-      shape.setAttribute('fill', surface === 'header' ? headerOverlayFill(base) : base);
+      shape.setAttribute('fill', palette.fill);
     }
     if (isVisiblePaint(shape.getAttribute('stroke'))) {
       shape.setAttribute('stroke', stroke);
+      if (selected) shape.setAttribute('stroke-width', '2.4');
+      else if (drillable) shape.setAttribute('stroke-width', '2');
     }
   });
 
-  const texts = Array.from(group.querySelectorAll('text'));
-  texts.forEach(function (textEl, idx) {
-    const role = String(textEl.getAttribute('data-node-text-role') || '');
-    if (role === 'kind') {
-      textEl.setAttribute('fill', THEME.textPrimary);
-      return;
-    }
-    if (role === 'title') {
-      textEl.setAttribute('fill', THEME.textPrimary);
-      return;
-    }
-    if (role === 'subtitle') {
-      textEl.setAttribute('fill', THEME.textDiagramSubtitle);
-      return;
-    }
-    textEl.setAttribute('fill', isSecondaryNodeText(textEl) ? THEME.textDiagramSubtitle : THEME.textPrimary);
+  const texts = cluster.filter(function (el) {
+    return String(el.tagName || '').toLowerCase() === 'text';
+  });
+  texts.forEach(function (textEl) {
+    const role = nodeTextRole(textEl);
+    if (role === 'title') textEl.setAttribute('fill', palette.color);
+    else if (role === 'eyebrow') textEl.setAttribute('fill', THEME.textTertiary);
+    else textEl.setAttribute('fill', THEME.textSecondary);
   });
 }
 
@@ -1309,26 +1679,39 @@ function fallbackNodeSubtitle(node) {
   return '';
 }
 
+function relationshipClusterElements(anchor) {
+  if (!anchor) return [];
+  const tag = String(anchor.tagName || '').toLowerCase();
+  if (tag === 'g') return Array.from(anchor.querySelectorAll('*'));
+  return [anchor];
+}
+
 function applyRelationshipGroupTheme(group) {
-  group.querySelectorAll('line,path,polyline,polygon').forEach(function (shape) {
+  relationshipClusterElements(group).forEach(function (shape) {
     if (shape.closest('defs')) return;
-    if (isVisiblePaint(shape.getAttribute('stroke'))) {
-      shape.setAttribute('stroke', edgeColor);
-      const tag = String(shape.tagName || '').toLowerCase();
-      if (tag === 'line' || tag === 'path' || tag === 'polyline') {
-        const current = parseFloat(shape.getAttribute('stroke-width') || '');
-        const next = isFinite(current) ? Math.min(current, relationshipStrokeWidth) : relationshipStrokeWidth;
-        shape.setAttribute('stroke-width', String(next));
-      }
+    const tag = String(shape.tagName || '').toLowerCase();
+    if (tag === 'rect') {
+      shape.setAttribute('fill', 'transparent');
+      if (shape.hasAttribute('stroke')) shape.setAttribute('stroke', 'transparent');
+      return;
     }
-    if (isVisiblePaint(shape.getAttribute('fill'))) {
+    if ((tag === 'line' || tag === 'path' || tag === 'polyline') && isVisiblePaint(shape.getAttribute('stroke'))) {
+      shape.setAttribute('stroke', edgeColor);
+      const current = parseFloat(shape.getAttribute('stroke-width') || '');
+      const next = isFinite(current) ? Math.min(current, relationshipStrokeWidth) : relationshipStrokeWidth;
+      shape.setAttribute('stroke-width', String(next));
+    }
+    if (tag === 'polygon' && isVisiblePaint(shape.getAttribute('fill'))) {
+      shape.setAttribute('fill', edgeColor);
+      if (shape.hasAttribute('stroke')) shape.setAttribute('stroke', edgeColor);
+      return;
+    }
+    if (tag === 'path' && isVisiblePaint(shape.getAttribute('fill'))) {
       shape.setAttribute('fill', edgeColor);
     }
-  });
-
-  const texts = Array.from(group.querySelectorAll('text'));
-  texts.forEach(function (textEl, idx) {
-    textEl.setAttribute('fill', idx === 0 ? THEME.textSecondary : edgeDetailColor);
+    if (tag === 'text') {
+      shape.setAttribute('fill', edgeDetailColor);
+    }
   });
 }
 
@@ -1349,28 +1732,39 @@ function applyScaffoldTheme(svg) {
   });
 
   svg.querySelectorAll('text').forEach(function (textEl) {
-    if (textEl.closest('[data-element-id]') || textEl.closest('[data-relationship-id]')) return;
+    if (textEl.closest('[data-element-id]') || textEl.closest('[data-relationship-id]') || nodeAnchorForLooseSibling(textEl)) return;
     const weight = String(textEl.getAttribute('font-weight') || '');
     const strong = weight === '700' || weight === '600';
-    textEl.setAttribute('fill', strong ? THEME.textPrimary : THEME.textSecondary);
+    textEl.setAttribute('fill', strong ? THEME.textSecondary : THEME.textTertiary);
   });
 
   svg.querySelectorAll('rect,circle,ellipse,path,polygon,line,polyline').forEach(function (shape) {
-    if (shape.closest('[data-element-id]') || shape.closest('[data-relationship-id]') || shape.closest('defs')) return;
+    if (shape.hasAttribute('data-diagram-background')) {
+      shape.setAttribute('fill', 'transparent');
+      if (shape.hasAttribute('stroke')) shape.setAttribute('stroke', 'transparent');
+      return;
+    }
+
+    if (
+      shape.closest('[data-element-id]')
+      || shape.closest('[data-relationship-id]')
+      || shape.closest('defs')
+      || nodeAnchorForLooseSibling(shape)
+    ) return;
 
     if (String(shape.getAttribute('stroke-dasharray') || '').trim()) {
       if (isVisiblePaint(shape.getAttribute('fill'))) {
-        shape.setAttribute('fill', hexToRgba(THEME.purpleDusty, 0.08));
+        shape.setAttribute('fill', THEME.bgSecondary);
       }
       if (isVisiblePaint(shape.getAttribute('stroke'))) {
-        shape.setAttribute('stroke', THEME.purpleDusty);
+        shape.setAttribute('stroke', THEME.line);
       }
       return;
     }
 
     if (isLargeScaffoldShape(shape)) {
       if (isVisiblePaint(shape.getAttribute('fill'))) {
-        shape.setAttribute('fill', hexToRgba(THEME.slateNeutral, 0.08));
+        shape.setAttribute('fill', THEME.bgSecondary);
       }
       if (isVisiblePaint(shape.getAttribute('stroke'))) {
         shape.setAttribute('stroke', scaffoldStrokeColor);
@@ -1382,7 +1776,7 @@ function applyScaffoldTheme(svg) {
       shape.setAttribute('stroke', scaffoldStrokeColor);
     }
     if (isVisiblePaint(shape.getAttribute('fill'))) {
-      shape.setAttribute('fill', scaffoldStrokeColor);
+      shape.setAttribute('fill', THEME.bgSurfaceRaised);
     }
   });
 }
@@ -1431,7 +1825,7 @@ function legendColorForLabel(label) {
   if (normalized === 'external' || normalized === 'external system') {
     return {
       fill: THEME.amberWarm,
-      stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.18),
+      stroke: THEME.amberWarm,
     };
   }
   return null;
@@ -1446,8 +1840,8 @@ function applyLegendTheme(svg) {
         const width = parseFloat(child.getAttribute('width') || '0');
         const height = parseFloat(child.getAttribute('height') || '0');
         if (width > 100 || height > 20) {
-          child.setAttribute('fill', 'rgba(31, 31, 30, 0.84)');
-          child.setAttribute('stroke', THEME.lineStrong);
+          child.setAttribute('fill', THEME.bgSurfaceElevated);
+          child.setAttribute('stroke', THEME.line);
           return;
         }
 
@@ -1545,7 +1939,6 @@ function applyDrillabilityAffordances(svg) {
       const current = parseFloat(shape.getAttribute('stroke-width') || '1.2');
       shape.setAttribute('stroke-width', String(Math.max(1.8, current)));
     }
-
   });
 }
 
@@ -1566,51 +1959,12 @@ function wireSvgInteractions(svg, view) {
   });
 
   svg.querySelectorAll('[data-relationship-id]').forEach(function (el) {
-    const relId = el.getAttribute('data-relationship-id') || '';
-    const relData = relationshipsById.get(relId);
-    const detailable = relationshipHasSidebarDetails(relData);
-    const selected = relId === state.selectedRelationshipId;
-    const connectedToSelectedNode = Boolean(
-      !selected
-      && state.selectedId
-      && relData
-      && (relData.source_id === state.selectedId || relData.target_id === state.selectedId)
-    );
-
     if (!el.getAttribute('data-view-id')) {
       el.setAttribute('data-view-id', view.id);
     }
     if (!el.getAttribute('data-target-label')) {
       el.setAttribute('data-target-label', el.getAttribute('data-relationship-id') || 'relationship');
     }
-
-    el.setAttribute('data-detailable', detailable ? 'true' : 'false');
-    if (selected) {
-      el.setAttribute('data-selected', 'true');
-    } else {
-      el.removeAttribute('data-selected');
-    }
-    el.style.cursor = state.commentMode ? 'crosshair' : detailable ? 'pointer' : 'default';
-
-    const visibleStroke = selected
-      ? mixHex(edgeColor, THEME.textPrimary, 0.42)
-      : connectedToSelectedNode
-      ? mixHex(edgeColor, THEME.textPrimary, 0.24)
-      : edgeColor;
-    const visibleWidth = selected
-      ? relationshipStrokeWidthSelected
-      : connectedToSelectedNode
-      ? Math.max(relationshipStrokeWidth, 1.45)
-      : relationshipStrokeWidth;
-
-    el.querySelectorAll('[data-relationship-surface="visible"]').forEach(function (shape) {
-      shape.setAttribute('stroke', visibleStroke);
-      shape.setAttribute('stroke-width', String(visibleWidth));
-    });
-
-    el.querySelectorAll('text').forEach(function (textEl) {
-      textEl.setAttribute('fill', selected ? THEME.textPrimary : THEME.textSecondary);
-    });
   });
 
   applyDrillabilityAffordances(svg);
@@ -1645,37 +1999,25 @@ function wireSvgInteractions(svg, view) {
       return;
     }
 
-    if (element) {
-      const id = element.dataset.elementId;
-      const nextView = (DATA.drill_map || {})[id];
-      if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
-        state.history.push(state.viewId);
-        state.viewId = nextView;
-        clearSelection();
-        render();
-        return;
-      }
-
-      state.selectedId = id;
-      state.selectedRelationshipId = null;
-      state.detailsOpen = true;
-      updateDetails();
-      render();
-      return;
-    }
-
-    const relId = rel && rel.dataset ? (rel.dataset.relationshipId || '') : '';
-    const relData = relId ? relationshipsById.get(relId) : null;
-    if (relData && relationshipHasSidebarDetails(relData)) {
-      state.selectedRelationshipId = relId;
+    if (!element) {
       state.selectedId = null;
-      state.detailsOpen = true;
       updateDetails();
       render();
       return;
     }
 
-    clearSelection();
+    const id = element.dataset.elementId;
+    const nextView = (DATA.drill_map || {})[id];
+    if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
+      state.history.push(state.viewId);
+      state.viewId = nextView;
+      state.selectedId = null;
+      render();
+      return;
+    }
+
+    state.selectedId = id;
+    state.detailsOpen = true;
     updateDetails();
     render();
   });
@@ -1714,6 +2056,21 @@ function drawDiagramView(view) {
   applyResponsiveSvgSizing(svg);
   svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
 
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'arrow');
+  marker.setAttribute('markerWidth', '10');
+  marker.setAttribute('markerHeight', '10');
+  marker.setAttribute('refX', '8');
+  marker.setAttribute('refY', '5');
+  marker.setAttribute('orient', 'auto');
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrow.setAttribute('d', 'M0,0 L10,5 L0,10 z');
+  arrow.setAttribute('fill', edgeColor);
+  marker.appendChild(arrow);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
   (layout.lanes || []).forEach(function (lane) {
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -1723,10 +2080,10 @@ function drawDiagramView(view) {
     rect.setAttribute('width', String(lane.w));
     rect.setAttribute('height', String(lane.h));
     rect.setAttribute('rx', '12');
-    rect.setAttribute('fill', lane.fill || hexToRgba(THEME.slateNeutral, 0.08));
+    rect.setAttribute('fill', lane.fill || THEME.bgSecondary);
     rect.setAttribute('stroke', lane.stroke || scaffoldStrokeColor);
     rect.setAttribute('stroke-width', '1');
-    rect.setAttribute('stroke-dasharray', lane.dash || '');
+    rect.setAttribute('stroke-dasharray', lane.dash || '4 4');
     g.appendChild(rect);
 
     if (lane.label) {
@@ -1735,7 +2092,7 @@ function drawDiagramView(view) {
       text.setAttribute('y', String(lane.y + 14));
       text.setAttribute('font-size', '10');
       text.setAttribute('font-weight', '700');
-      text.setAttribute('fill', lane.labelColor || THEME.textSecondary);
+      text.setAttribute('fill', lane.labelColor || THEME.textTertiary);
       text.textContent = lane.label;
       g.appendChild(text);
     }
@@ -1754,11 +2111,10 @@ function drawDiagramView(view) {
     const x2 = b.x + b.w / 2;
     const y2 = b.y + b.h / 2;
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('data-relationship-id', edge.id || '');
-    g.setAttribute('data-view-id', view.id);
-    g.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
-    g.style.cursor = state.commentMode ? 'crosshair' : edge.detailable ? 'pointer' : 'default';
+    const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    edgeGroup.setAttribute('data-relationship-id', edge.id || '');
+    edgeGroup.setAttribute('data-view-id', view.id);
+    edgeGroup.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
 
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', String(x1));
@@ -1768,15 +2124,13 @@ function drawDiagramView(view) {
     line.setAttribute('stroke', edgeColor);
     line.setAttribute(
       'stroke-width',
-      state.selectedRelationshipId === edge.id
-        ? String(relationshipStrokeWidthSelected)
-        : state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
+      state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
         ? String(relationshipStrokeWidthSelected)
         : String(relationshipStrokeWidth)
     );
     line.setAttribute('opacity', '0.9');
-    line.setAttribute('data-relationship-surface', 'visible');
-    g.appendChild(line);
+    line.setAttribute('marker-end', 'url(#arrow)');
+    edgeGroup.appendChild(line);
 
     const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     hit.setAttribute('x1', String(x1));
@@ -1786,25 +2140,15 @@ function drawDiagramView(view) {
     hit.setAttribute('stroke', state.commentMode ? 'transparent' : 'transparent');
     hit.setAttribute('stroke-width', '14');
     hit.setAttribute('fill', 'none');
-    hit.setAttribute('data-relationship-surface', 'hit');
-    g.appendChild(hit);
+    edgeGroup.appendChild(hit);
 
+    svg.appendChild(edgeGroup);
     if (MODE === 'rich' && edge.label) {
       const tx = (x1 + x2) / 2;
       const ty = (y1 + y2) / 2;
-      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      text.setAttribute('x', String(tx));
-      text.setAttribute('y', String(ty));
-      text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('dominant-baseline', 'middle');
-      text.setAttribute('font-size', '10');
-      text.setAttribute('fill', THEME.textSecondary);
-      text.setAttribute('data-relationship-text-role', 'label');
-      text.textContent = edge.label.length > 42 ? edge.label.slice(0, 42) + '…' : edge.label;
-      g.appendChild(text);
+      const labelGroup = appendEdgeLabel(edgeGroup, tx, ty, edge.label);
+      finalizeEdgeLabelMask(labelGroup);
     }
-
-    svg.appendChild(g);
   });
 
   // nodes
@@ -1816,7 +2160,6 @@ function drawDiagramView(view) {
     g.setAttribute('data-element-id', node.id);
     g.setAttribute('data-view-id', view.id);
     g.setAttribute('data-target-label', node.name || node.id);
-    g.setAttribute('data-node-layout', 'card');
     g.style.cursor = state.commentMode ? 'crosshair' : 'pointer';
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1825,10 +2168,9 @@ function drawDiagramView(view) {
     rect.setAttribute('width', String(box.w));
     rect.setAttribute('height', String(box.h));
     rect.setAttribute('rx', '10');
-    rect.setAttribute('fill', state.selectedId === node.id ? mixHex(colorForKind(node.kind), THEME.textPrimary, 0.12) : colorForKind(node.kind));
-    rect.setAttribute('stroke', state.selectedId === node.id ? THEME.textPrimary : mixHex(colorForKind(node.kind), THEME.textPrimary, 0.24));
+    rect.setAttribute('fill', fillColorForKind(node.kind));
+    rect.setAttribute('stroke', state.selectedId === node.id ? THEME.signal : colorForKind(node.kind));
     rect.setAttribute('stroke-width', state.selectedId === node.id ? '2.2' : '1.1');
-    rect.setAttribute('data-node-surface', 'body');
     g.appendChild(rect);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1838,9 +2180,8 @@ function drawDiagramView(view) {
     text.setAttribute('dominant-baseline', 'middle');
     text.setAttribute('font-size', '12');
     text.setAttribute('font-weight', '600');
-    text.setAttribute('fill', THEME.textPrimary);
+    text.setAttribute('fill', colorForKind(node.kind));
     text.setAttribute('pointer-events', 'none');
-    text.setAttribute('data-node-text-role', 'title');
     text.textContent = truncate(node.name || node.id, MODE === 'fast' ? 24 : 34);
     g.appendChild(text);
 
@@ -1852,9 +2193,8 @@ function drawDiagramView(view) {
       sub.setAttribute('text-anchor', 'middle');
       sub.setAttribute('dominant-baseline', 'middle');
       sub.setAttribute('font-size', '9');
-      sub.setAttribute('fill', THEME.textDiagramSubtitle);
+      sub.setAttribute('fill', THEME.textSecondary);
       sub.setAttribute('pointer-events', 'none');
-      sub.setAttribute('data-node-text-role', 'subtitle');
       sub.textContent = truncate(subtitle, 24);
       g.appendChild(sub);
     }
@@ -1912,7 +2252,7 @@ function drawSequenceView(view) {
     row.style.borderRadius = '8px';
     row.style.padding = '8px';
     row.style.marginBottom = '6px';
-    row.style.background = THEME.bgSecondary;
+    row.style.background = THEME.bgTertiary;
     row.style.fontSize = '12px';
 
     const step = document.createElement('div');
@@ -2004,9 +2344,9 @@ function layoutNodes(nodes, edges, viewType) {
     });
 
     lanes.push(
-      { x: 14, y: 14, w: 250, h: height - 28, label: 'External actors', fill: hexToRgba(THEME.blueMuted, 0.12), stroke: mixHex(THEME.blueMuted, THEME.textPrimary, 0.12), labelColor: THEME.textPrimary },
-      { x: centerX - 20, y: 14, w: cardW + 66, h: height - 28, label: 'System', fill: hexToRgba(THEME.purpleDusty, 0.12), stroke: mixHex(THEME.purpleDusty, THEME.textPrimary, 0.12), labelColor: THEME.textPrimary },
-      { x: width - 264, y: 14, w: 250, h: height - 28, label: 'External systems', fill: hexToRgba(THEME.amberWarm, 0.11), stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.12), labelColor: THEME.textPrimary }
+      { x: 14, y: 14, w: 250, h: height - 28, label: 'External actors', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary },
+      { x: centerX - 20, y: 14, w: cardW + 66, h: height - 28, label: 'System', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary },
+      { x: width - 264, y: 14, w: 250, h: height - 28, label: 'External systems', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary }
     );
 
     return { byId: byId, width: width, height: height, lanes: lanes };
@@ -2045,9 +2385,9 @@ function layoutNodes(nodes, edges, viewType) {
     const height = Math.max(560, storageY + cardH + 44);
 
     lanes.push(
-      { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: hexToRgba(THEME.amberWarm, 0.10), stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
-      { x: 14, y: intStartY - 16, w: width - 28, h: intHeight + 30, label: 'Application', fill: hexToRgba(THEME.greenMuted, 0.12), stroke: mixHex(THEME.greenMuted, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
-      { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: hexToRgba(THEME.slateNeutral, 0.12), stroke: mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary }
+      { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary },
+      { x: 14, y: intStartY - 16, w: width - 28, h: intHeight + 30, label: 'Application', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary },
+      { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary }
     );
 
     return { byId: byId, width: width, height: height, lanes: lanes };
@@ -2162,9 +2502,9 @@ function layoutNodes(nodes, edges, viewType) {
   }
 
   lanes.push(
-    { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: hexToRgba(THEME.amberWarm, 0.10), stroke: mixHex(THEME.amberWarm, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
-    { x: 14, y: intY - 16, w: width - 28, h: internalContentH + 34, label: 'Application graph (layered)', fill: hexToRgba(THEME.greenMuted, 0.12), stroke: mixHex(THEME.greenMuted, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary },
-    { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: hexToRgba(THEME.slateNeutral, 0.12), stroke: mixHex(THEME.slateNeutral, THEME.textPrimary, 0.08), labelColor: THEME.textPrimary }
+    { x: 14, y: extY - 16, w: width - 28, h: cardH + 36, label: 'External', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary },
+    { x: 14, y: intY - 16, w: width - 28, h: internalContentH + 34, label: 'Application graph (layered)', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary },
+    { x: 14, y: storageY - 16, w: width - 28, h: cardH + 36, label: 'Data & Messaging', fill: THEME.bgSecondary, stroke: THEME.line, labelColor: THEME.textTertiary }
   );
 
   return { byId: byId, width: width, height: height, lanes: lanes };
@@ -2172,35 +2512,8 @@ function layoutNodes(nodes, edges, viewType) {
 
 function updateDetails() {
   const pane = $('detailsBody');
-  if (state.selectedRelationshipId) {
-    const rel = relationshipsById.get(state.selectedRelationshipId);
-    if (!rel) {
-      pane.innerHTML = '<div class="empty-note">Selected relationship missing from model</div>';
-      return;
-    }
-
-    const html = [];
-    html.push('<div style="font-size:15px;font-weight:700;color:' + THEME.textPrimary + '">' + esc(relationshipDisplayName(rel)) + '</div>');
-    html.push('<div class="meta-label">From / To</div><div>' + esc(relationshipEndpointSummary(rel)) + '</div>');
-
-    if (isInformativeField(rel.interaction_type)) html.push('<div class="meta-label">Interaction</div><div class="chip">' + esc(rel.interaction_type) + '</div>');
-    if (isInformativeField(rel.sync_async)) html.push('<div class="meta-label">Timing</div><div class="chip">' + esc(rel.sync_async) + '</div>');
-    if (isInformativeField(rel.directionality)) html.push('<div class="meta-label">Direction</div><div class="chip">' + esc(rel.directionality) + '</div>');
-    if (isInformativeField(rel.protocol)) html.push('<div class="meta-label">Protocol</div><div class="chip">' + esc(rel.protocol) + '</div>');
-    if (Array.isArray(rel.data_objects) && rel.data_objects.length) {
-      html.push('<div class="meta-label">Data Objects</div>');
-      rel.data_objects.forEach(function (item) {
-        html.push('<span class="chip">' + esc(item) + '</span>');
-      });
-    }
-    if (rel.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(rel.confidence) + '</div>');
-
-    pane.innerHTML = html.join('');
-    return;
-  }
-
   if (!state.selectedId) {
-    pane.innerHTML = '<div class="empty-note">Click a node or informative edge to inspect details</div>';
+    pane.innerHTML = '<div class="empty-note">Click a node to inspect details</div>';
     return;
   }
   const node = nodesById.get(state.selectedId);
@@ -2220,7 +2533,7 @@ function updateDetails() {
   html.push('<div style="font-size:15px;font-weight:700;color:' + THEME.textPrimary + '">' + esc(node.name || node.id) + '</div>');
 
   if (node.description) html.push('<div class="meta-label">Description</div><div>' + esc(node.description) + '</div>');
-  html.push('<div class="meta-label">Kind</div><div class="chip">' + esc(node.kind || 'unknown') + '</div>');
+  html.push('<div class="meta-label">Kind</div>' + kindChipHtml(node.kind));
   if (node.technology) html.push('<div class="meta-label">Technology</div><div>' + esc(node.technology) + '</div>');
   if (node.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(node.confidence) + '</div>');
 
@@ -2233,8 +2546,8 @@ function updateDetails() {
     html.push('<div class="meta-label">Relationships</div>');
     rels.slice(0, 20).forEach(function (r) {
       html.push('<div style="margin-bottom:6px;border:1px solid ' + THEME.line + ';border-radius:8px;padding:6px;background:' + THEME.bgTertiary + '">'
-        + '<div style="color:' + THEME.textSecondary + ';font-size:11px">' + esc(relationshipEndpointSummary(r)) + '</div>'
-        + '<div>' + esc(relationshipDisplayName(r)) + '</div>'
+        + '<div style="color:' + THEME.textSecondary + ';font-size:11px">' + esc(r.source_id) + ' → ' + esc(r.target_id) + '</div>'
+        + '<div>' + esc(r.label || r.id || '') + '</div>'
         + '</div>');
     });
   }
@@ -2435,8 +2748,12 @@ $('commentToggle').addEventListener('click', function () {
 
 $('detailsCollapseBtn').addEventListener('click', function () {
   state.detailsOpen = false;
-  clearSelection();
+  state.selectedId = null;
   render();
+});
+
+$('themeToggle').addEventListener('click', function () {
+  setTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
 });
 
 $('submitBtn').addEventListener('click', submitPayload);
@@ -2484,6 +2801,17 @@ document.addEventListener('keydown', function (e) {
   }
 });
 
+if (window.matchMedia) {
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  const syncSystemTheme = function (event) {
+    if (storedTheme()) return;
+    setTheme(event.matches ? 'dark' : 'light', false);
+  };
+  if (typeof media.addEventListener === 'function') media.addEventListener('change', syncSystemTheme);
+  else if (typeof media.addListener === 'function') media.addListener(syncSystemTheme);
+}
+
+updateThemeToggle();
 render();
 hydrateLatestStatus();
 </script>

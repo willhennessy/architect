@@ -1,5 +1,16 @@
 # DECISIONS
 
+### Warm-Neutral Diagram Theme Tokens — 2026-04-17
+
+**Context**
+`diagram-app.html` and `generate-svg-fragments.py` were still anchored to a hard-coded dark palette. That made every visual change expensive, blocked a clean light mode, and forced the browser-side remap layer to do too much work after render.
+
+**Decision**
+Adopt one warm-neutral light/dark token system on `html[data-theme]`, add a header toggle that persists to `localStorage`, and emit production SVG fragments with neutral chrome plus category-based element tokens directly. The stable kind-to-token mapping is: people -> Sage, software systems -> Indigo, containers -> Plum, components/caches -> Teal, external systems -> Ochre, databases -> Slate, queues -> Rose.
+
+**Consequences**
+Theme switching now works without regenerating the page, future styling work should extend token usage instead of reintroducing hex values, and diagrams stay visually consistent between production fragments and the template's fallback renderer.
+
 ### Auto-render diagram after discovery — 2026-04-16
 
 **Context**  
