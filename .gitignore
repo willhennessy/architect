@@ -7,3 +7,4 @@
 !.claude/skills/**
 .vscode/
 private/
+evals/manual-docsign-tests/
