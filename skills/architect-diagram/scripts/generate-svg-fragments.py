@@ -69,6 +69,8 @@ ROW_GAP = 34.0
 BOUNDARY_PAD = 28.0
 CARD_MIN_W = 180.0
 CARD_MAX_W = 320.0
+NODE_HEADER_BAND_H = 19.0
+NODE_HEADER_TEXT_NUDGE_Y = 0.75
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
@@ -331,6 +333,23 @@ def pick_system_boundary_label(nodes: Sequence[Node]) -> str:
     return "System Boundary"
 
 
+def format_boundary_label(base_label: str, suffix: str) -> str:
+    base = " ".join(str(base_label or "").split())
+    qualifier = " ".join(str(suffix or "").split())
+    if not qualifier:
+        return base
+
+    base_lower = base.lower()
+    qualifier_lower = qualifier.lower()
+    bracketed_qualifier = f"[{qualifier_lower}]"
+
+    if not base:
+        return qualifier
+    if base_lower == qualifier_lower or base_lower.endswith(bracketed_qualifier):
+        return base
+    return f"{base} [{qualifier}]"
+
+
 def classify_component_role(node: Node) -> str:
     text = " ".join(
         [
@@ -502,7 +521,7 @@ def container_layout(nodes: Sequence[Node]) -> LayoutResult:
                 y=VIEW_MARGIN_Y + 74.0,
                 w=boundary_w,
                 h=max(boundary_h, max((box.y + box.h for box in internal_boxes.values()), default=0.0) - (VIEW_MARGIN_Y + 74.0) + BOUNDARY_PAD),
-                label=f"{boundary_label} [System Boundary]",
+                label=format_boundary_label(boundary_label, "System Boundary"),
                 tone="container",
             )
         )
@@ -594,7 +613,7 @@ def component_layout(nodes: Sequence[Node], parent_container_id: str | None, all
             y=VIEW_MARGIN_Y + 74.0,
             w=boundary_w,
             h=boundary_h,
-            label=f"{boundary_label} [Container Boundary]",
+            label=format_boundary_label(boundary_label, "Container Boundary"),
             tone="container",
         )
     ] if internal_ids else []
@@ -840,13 +859,27 @@ def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str =
     )
 
 
+def top_header_band_path(x: float, y: float, width: float, height: float, radius: float = 12.0) -> str:
+    usable_height = max(height, 0.0)
+    usable_radius = min(radius, width / 2.0, usable_height)
+    return (
+        f"M {x + usable_radius:.1f} {y:.1f} "
+        f"H {x + width - usable_radius:.1f} "
+        f"Q {x + width:.1f} {y:.1f} {x + width:.1f} {y + usable_radius:.1f} "
+        f"V {y + usable_height:.1f} "
+        f"H {x:.1f} "
+        f"V {y + usable_radius:.1f} "
+        f"Q {x:.1f} {y:.1f} {x + usable_radius:.1f} {y:.1f} Z"
+    )
+
+
 def draw_node(node: Node, box: Box, view_id: str) -> str:
     fill, stroke, tone = kind_colors(node.kind)
     width, height, name_lines, subtitle_lines = node_dimensions(node)
     _ = width, height
 
     x, y, w, h = box.x, box.y, box.w, box.h
-    header_h = 18.0
+    header_h = NODE_HEADER_BAND_H
     lines: List[str] = []
     lines.append(
         f"<g class=\"diagram-node\" data-element=\"{tone}\" data-element-id=\"{esc(node.id)}\" "
@@ -857,15 +890,18 @@ def draw_node(node: Node, box: Box, view_id: str) -> str:
         f"stroke=\"{stroke}\" stroke-width=\"2\" />"
     )
     lines.append(
-        f"  <text x=\"{x + w/2:.1f}\" y=\"{y + 16:.0f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"600\" "
-        f"fill=\"var(--color-text-tertiary)\">{esc(type_header(node.kind, node.technology))}</text>"
+        f"  <path d=\"{top_header_band_path(x, y, w, header_h)}\" data-node-header=\"true\" fill=\"{stroke}\" fill-opacity=\"0.18\" />"
+    )
+    lines.append(
+        f"  <text x=\"{x + w/2:.1f}\" y=\"{y + header_h/2.0 + NODE_HEADER_TEXT_NUDGE_Y:.1f}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-size=\"9\" font-weight=\"600\" "
+        f"fill=\"var(--color-text-primary)\">{esc(type_header(node.kind, node.technology))}</text>"
     )
 
-    line_y = y + header_h + 24.0
+    line_y = y + 52.0
     for text in name_lines:
         lines.append(
             f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"600\" "
-            f"fill=\"{stroke}\">{esc(text)}</text>"
+            f"fill=\"var(--color-text-primary)\">{esc(text)}</text>"
         )
         line_y += 18.0
     for text in subtitle_lines:

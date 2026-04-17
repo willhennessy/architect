@@ -48,6 +48,7 @@ Claude Channels productization
 
 ## Completed
 
+- [x] Fixed the DocSign person-card label alignment regression in `diagram-app.html` and verified `diagram-2.html` in a browser screenshot
 - [x] Fixed the dark-mode Pattern C regression plus modal polish in `diagram-app.html`, and verified `diagram-20.html` with fresh light/dark screenshots
 - [x] Applied the warm-neutral light/dark design system to `diagram-app.html` and `generate-svg-fragments.py`, including a persisted theme toggle and tokenized SVG output
 - [x] Polished diagram rendering so authored SVGs stay bounded on large screens and header rows read lighter, tighter, and transparent
@@ -58,3 +59,4 @@ Claude Channels productization
 ## Notes for Next Session
 
 Claude handoff is now the primary documented mode and the deterministic worker is fallback. The blessed setup lives in `skills/architect-diagram/channels/architect-comments/README.md`: install the channel dependency, write `/tmp/architect-channel-mcp.json`, start the bridge with `--claude-channel-url ... --channel-handoff-only`, then start Claude with `--strict-mcp-config`, `--dangerously-load-development-channels server:architect-comments`, and `--permission-mode auto`. Do not also pass `--channels server:architect-comments`. `/mcp` is the real health check. Claude may still print a misleading startup warning about `no MCP server configured with that name`; if `/mcp` shows `architect-comments` connected, the session is healthy. The channel server provides `update_feedback_status` and `finalize_feedback_update`; a real manual run validated both tools end to end. `validate-feedback-update.py` is intentionally opinionated but follows real Architect artifact conventions where the written contract is narrower than current output practice. The diagram UI now uses a tokenized warm-neutral light/dark theme on `html[data-theme]`, the header has a persisted theme toggle, and production SVG fragments emit element/neutral CSS vars directly instead of a hard-coded dark palette. The latest visual regression artifact is `evals/manual-docsign-tests/diagram-20.html`, with verification screenshots in `evals/manual-docsign-tests/screenshots-diagram-20/`.
+The person-card runtime normalizer in `diagram-app.html` now preserves a top-aligned eyebrow/title/body stack instead of recentering `Person` into the middle of the card. The fresh DocSign verification artifact is `evals/manual-docsign-tests/diagram-2.html`, with a dark screenshot at `/tmp/architect-screens/diagram-2-dark.png`.

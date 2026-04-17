@@ -958,6 +958,8 @@ const drillStrokeColor = THEME.signal;
 const scaffoldStrokeColor = THEME.line;
 const relationshipStrokeWidth = 1.5;
 const relationshipStrokeWidthSelected = 2;
+const NODE_HEADER_BAND_HEIGHT = 19;
+const NODE_HEADER_TEXT_NUDGE_Y = 0.75;
 
 const SVG_COLOR_REMAP = {
   '#0b1220': THEME.bgPrimary,
@@ -1559,6 +1561,36 @@ function finalizeEdgeLabelMask(labelGroup) {
   if (!labelGroup) return;
 }
 
+function nodeHeaderBandPath(x, y, width, height, radius) {
+  const usableHeight = Math.max(Number(height) || 0, 0);
+  const usableRadius = Math.min(Number(radius) || 0, width / 2, usableHeight);
+  return [
+    'M', x + usableRadius, y,
+    'H', x + width - usableRadius,
+    'Q', x + width, y, x + width, y + usableRadius,
+    'V', y + usableHeight,
+    'H', x,
+    'V', y + usableRadius,
+    'Q', x, y, x + usableRadius, y,
+    'Z'
+  ].join(' ');
+}
+
+function ensureNodeHeaderShape(group, box) {
+  if (!group || !box) return null;
+  let header = group.querySelector('[data-node-header="true"]');
+  if (!header) {
+    header = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    header.setAttribute('data-node-header', 'true');
+    header.setAttribute('pointer-events', 'none');
+    const anchor = group.querySelector('text');
+    if (anchor) group.insertBefore(header, anchor);
+    else group.appendChild(header);
+  }
+  header.setAttribute('d', nodeHeaderBandPath(box.x, box.y, box.width, Math.min(NODE_HEADER_BAND_HEIGHT, box.height), 12));
+  return header;
+}
+
 function simplifyPersonNodeGroup(group, node) {
   if (!group || !isPersonKind(node && node.kind)) return;
 
@@ -1574,44 +1606,67 @@ function simplifyPersonNodeGroup(group, node) {
   });
 
   let remainingTexts = Array.from(group.querySelectorAll('text'));
+  let eyebrowText = null;
+  const titleTexts = [];
+  const bodyTexts = [];
+
   remainingTexts.forEach(function (textEl) {
     const text = String(textEl.textContent || '').trim();
     if (!text) return;
     if (text === 'Person' || text === 'User' || text === '👤 User') {
-      textEl.textContent = personSubtitleText(node && node.kind);
+      if (eyebrowText) {
+        textEl.remove();
+        return;
+      }
+      eyebrowText = textEl;
+      eyebrowText.textContent = personSubtitleText(node && node.kind);
+      return;
     }
+    if (nodeTextRole(textEl) === 'title') titleTexts.push(textEl);
+    else bodyTexts.push(textEl);
   });
+
+  if (!titleTexts.length && bodyTexts.length) {
+    titleTexts.push(bodyTexts.shift());
+  }
+
+  if (!eyebrowText) {
+    eyebrowText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    eyebrowText.textContent = personSubtitleText(node && node.kind);
+    const anchor = titleTexts[0] || bodyTexts[0] || null;
+    if (anchor) group.insertBefore(eyebrowText, anchor);
+    else group.appendChild(eyebrowText);
+  }
 
   const rect = group.querySelector('rect');
   const box = elementBBox(rect);
   if (!rect || !box) return;
 
-  remainingTexts = Array.from(group.querySelectorAll('text'));
-  let titleText = null;
-  let subtitleText = null;
+  const eyebrowFontSize = 9;
+  const titleFontSize = 14;
+  const bodyFontSize = 11;
+  const titleLineHeight = 18;
+  const bodyLineHeight = 15;
+  const eyebrowY = NODE_HEADER_BAND_HEIGHT / 2 + NODE_HEADER_TEXT_NUDGE_Y;
+  const titleStartY = 42;
+  const bodyStartY = titleStartY + titleTexts.length * titleLineHeight;
+  const titleBottomY = titleTexts.length ? titleStartY + (titleTexts.length - 1) * titleLineHeight : titleStartY;
+  const bodyBottomY = bodyTexts.length ? bodyStartY + (bodyTexts.length - 1) * bodyLineHeight : titleBottomY;
 
-  remainingTexts.forEach(function (textEl) {
-    const text = String(textEl.textContent || '').trim();
-    if (!text) return;
-    if (text === 'Person' || text === 'User' || text === '👤 User') subtitleText = textEl;
-    else if (!titleText) titleText = textEl;
-  });
+  const contentWidth = Math.max(
+    estimateTextWidth(eyebrowText.textContent, eyebrowFontSize),
+    titleTexts.reduce(function (maxWidth, textEl) {
+      return Math.max(maxWidth, estimateTextWidth(textEl.textContent, titleFontSize));
+    }, 0),
+    bodyTexts.reduce(function (maxWidth, textEl) {
+      return Math.max(maxWidth, estimateTextWidth(textEl.textContent, bodyFontSize));
+    }, 0)
+  );
 
-  if (!subtitleText) {
-    subtitleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    subtitleText.textContent = personSubtitleText(node && node.kind);
-    group.appendChild(subtitleText);
-  }
-
+  const targetWidth = Math.max(box.width, Math.ceil(contentWidth + 56), 180);
+  const targetHeight = Math.max(box.height, Math.ceil(bodyBottomY + 18));
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;
-  const titleFontSize = 12;
-  const subtitleFontSize = 9;
-  const titleWidth = titleText ? estimateTextWidth(titleText.textContent, titleFontSize) : 0;
-  const subtitleWidth = estimateTextWidth(subtitleText.textContent, subtitleFontSize);
-  const contentWidth = Math.max(titleWidth, subtitleWidth);
-  const targetWidth = Math.max(box.width, Math.ceil(contentWidth + 28));
-  const targetHeight = Math.max(box.height, 78);
   const nextX = centerX - targetWidth / 2;
   const nextY = centerY - targetHeight / 2;
 
@@ -1620,37 +1675,60 @@ function simplifyPersonNodeGroup(group, node) {
   rect.setAttribute('width', String(targetWidth));
   rect.setAttribute('height', String(targetHeight));
 
-  if (titleText) {
-    titleText.setAttribute('x', String(centerX));
-    titleText.setAttribute('y', String(nextY + targetHeight / 2 - 10));
-    titleText.setAttribute('text-anchor', 'middle');
-    titleText.setAttribute('dominant-baseline', 'middle');
-    titleText.setAttribute('font-size', String(titleFontSize));
-    titleText.setAttribute('font-weight', '600');
-    titleText.setAttribute('pointer-events', 'none');
-  }
+  eyebrowText.textContent = personSubtitleText(node && node.kind);
+  eyebrowText.setAttribute('x', String(centerX));
+  eyebrowText.setAttribute('y', String(nextY + eyebrowY));
+  eyebrowText.setAttribute('text-anchor', 'middle');
+  eyebrowText.setAttribute('dominant-baseline', 'middle');
+  eyebrowText.setAttribute('font-size', String(eyebrowFontSize));
+  eyebrowText.setAttribute('font-weight', '600');
+  eyebrowText.setAttribute('pointer-events', 'none');
+  eyebrowText.removeAttribute('alignment-baseline');
 
-  subtitleText.textContent = personSubtitleText(node && node.kind);
-  subtitleText.setAttribute('x', String(centerX));
-  subtitleText.setAttribute('y', String(nextY + targetHeight / 2 + 12));
-  subtitleText.setAttribute('text-anchor', 'middle');
-  subtitleText.setAttribute('dominant-baseline', 'middle');
-  subtitleText.setAttribute('font-size', String(subtitleFontSize));
-  subtitleText.setAttribute('pointer-events', 'none');
+  titleTexts.forEach(function (textEl, idx) {
+    textEl.setAttribute('x', String(centerX));
+    textEl.setAttribute('y', String(nextY + titleStartY + idx * titleLineHeight));
+    textEl.setAttribute('text-anchor', 'middle');
+    textEl.setAttribute('font-size', String(titleFontSize));
+    textEl.setAttribute('font-weight', '600');
+    textEl.setAttribute('pointer-events', 'none');
+    textEl.removeAttribute('dominant-baseline');
+    textEl.removeAttribute('alignment-baseline');
+  });
+
+  bodyTexts.forEach(function (textEl, idx) {
+    textEl.setAttribute('x', String(centerX));
+    textEl.setAttribute('y', String(nextY + bodyStartY + idx * bodyLineHeight));
+    textEl.setAttribute('text-anchor', 'middle');
+    textEl.setAttribute('font-size', String(bodyFontSize));
+    textEl.removeAttribute('font-weight');
+    textEl.setAttribute('pointer-events', 'none');
+    textEl.removeAttribute('dominant-baseline');
+    textEl.removeAttribute('alignment-baseline');
+  });
 }
 
 function applyNodeGroupTheme(group, node) {
   simplifyPersonNodeGroup(group, node);
   const palette = paletteForKind(node && node.kind);
-  const cluster = nodeClusterElements(group);
   const elementId = group.getAttribute('data-element-id');
   const selected = elementId && elementId === state.selectedId;
   const drillable = elementId && isDrillable(elementId);
   const stroke = selected || drillable ? THEME.signal : palette.color;
+  const rect = group.querySelector('rect');
+  const box = elementBBox(rect);
+  const headerShape = ensureNodeHeaderShape(group, box);
+  const cluster = nodeClusterElements(group);
 
   cluster.forEach(function (shape) {
     const tag = String(shape.tagName || '').toLowerCase();
     if (!['rect', 'circle', 'ellipse', 'path', 'polygon'].includes(tag)) return;
+    if (shape === headerShape || shape.getAttribute('data-node-header') === 'true') {
+      shape.setAttribute('fill', palette.color);
+      shape.setAttribute('fill-opacity', '0.18');
+      shape.removeAttribute('stroke');
+      return;
+    }
     if (isVisiblePaint(shape.getAttribute('fill'))) {
       shape.setAttribute('fill', palette.fill);
     }
@@ -1666,8 +1744,8 @@ function applyNodeGroupTheme(group, node) {
   });
   texts.forEach(function (textEl) {
     const role = nodeTextRole(textEl);
-    if (role === 'title') textEl.setAttribute('fill', palette.color);
-    else if (role === 'eyebrow') textEl.setAttribute('fill', THEME.textTertiary);
+    if (role === 'title') textEl.setAttribute('fill', THEME.textPrimary);
+    else if (role === 'eyebrow') textEl.setAttribute('fill', THEME.textPrimary);
     else textEl.setAttribute('fill', THEME.textSecondary);
   });
 }

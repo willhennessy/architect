@@ -49,6 +49,7 @@ Optional debug output:
 - Do not render person nodes as oversized head-and-body pictograms or circle-over-rectangle figures.
 - When a person/actor subtype label is shown inside a node, prefer compact inline copy like `[👤 User]`.
 - Visible relationship arrows should use lighter strokes than node borders; keep the visual stroke subtle while preserving large invisible hit targets for comment-mode interaction.
+- Header-band geometry and person-card header positioning currently have two owners: authored SVG output in `scripts/generate-svg-fragments.py` and browser-side normalization in `templates/diagram-app.html`. If you adjust header band size, label alignment, or person-card header placement, update both paths.
 
 ## Rendering approach
 

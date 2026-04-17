@@ -92,6 +92,8 @@ Do not skip this step.
 ### Diagram quality checks
 - validate generated `diagram.html` with diagram validator before reporting success
 - keep interaction metadata intact (`data-element-id`, `data-relationship-id`)
+- node card header geometry is split across production SVG generation and browser-side normalization
+- if you change header band height, header label alignment, or person-card header layout, update both `skills/architect-diagram/scripts/generate-svg-fragments.py` and `skills/architect-diagram/templates/diagram-app.html` (`ensureNodeHeaderShape` / `simplifyPersonNodeGroup`) to avoid drift
 
 ---
 
