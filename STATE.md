@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 ## Current Objective
 
@@ -48,12 +48,13 @@ Claude Channels productization
 
 ## Completed
 
+- [x] Added relationship metadata to `diagram.html` and made informative edges selectable with edge details in the sidebar
+- [x] Fixed SVG fragment hit-target grouping so node header/text clicks and edge label clicks resolve to the underlying element/relationship instead of canvas
 - [x] Documented the blessed Claude handoff launch/setup path with the exact known-good commands and verification steps
 - [x] Added `validate-feedback-update.py` plus the `finalize_feedback_update` Claude MCP tool for deterministic validate-render-validate completion
 - [x] Added `POST /jobs/:id/status` plus the `update_feedback_status` Claude MCP tool for real-agent status updates
 - [x] Verified a real interactive Claude CLI session receives the Architect channel event and responds to the feedback batch end to end
-- [x] Replaced the hardcoded fragment generator with a generic scene/layout pipeline and verified rich fragment generation on arbitrary discovery outputs
 
 ## Notes for Next Session
 
-Claude handoff is now the primary documented mode and the deterministic worker is fallback. The blessed setup lives in `skills/architect-diagram/channels/architect-comments/README.md`: install the channel dependency, write `/tmp/architect-channel-mcp.json`, start the bridge with `--claude-channel-url ... --channel-handoff-only`, then start Claude with `--strict-mcp-config`, `--dangerously-load-development-channels server:architect-comments`, and `--permission-mode auto`. Do not also pass `--channels server:architect-comments`. `/mcp` is the real health check. Claude may still print a misleading startup warning about `no MCP server configured with that name`; if `/mcp` shows `architect-comments` connected, the session is healthy. The channel server provides `update_feedback_status` and `finalize_feedback_update`; a real manual run validated both tools end to end. `validate-feedback-update.py` is intentionally opinionated but follows real Architect artifact conventions where the written contract is narrower than current output practice. Upstream main also now includes the generic SVG fragment pipeline work for arbitrary discovery outputs, so the next likely iteration is product polish and host-support expansion rather than diagram-renderer unblocking.
+Claude handoff is now the primary documented mode and the deterministic worker is fallback. The blessed setup lives in `skills/architect-diagram/channels/architect-comments/README.md`: install the channel dependency, write `/tmp/architect-channel-mcp.json`, start the bridge with `--claude-channel-url ... --channel-handoff-only`, then start Claude with `--strict-mcp-config`, `--dangerously-load-development-channels server:architect-comments`, and `--permission-mode auto`. Do not also pass `--channels server:architect-comments`. `/mcp` is the real health check. Claude may still print a misleading startup warning about `no MCP server configured with that name`; if `/mcp` shows `architect-comments` connected, the session is healthy. The channel server provides `update_feedback_status` and `finalize_feedback_update`; a real manual run validated both tools end to end. `validate-feedback-update.py` is intentionally opinionated but follows real Architect artifact conventions where the written contract is narrower than current output practice. The diagram renderer also now wraps each node/edge in a single interactive SVG target group, so header bars, titles, subtitles, and edge labels resolve to the same artifact IDs in drilldown/comment mode. `render-diagram-html.py` now carries richer relationship fields (`interaction_type`, `directionality`, `sync_async`, `protocol`, `data_objects`, `confidence`) into `diagram.html`, and the client only opens edge details when the relationship has real structured metadata to show.

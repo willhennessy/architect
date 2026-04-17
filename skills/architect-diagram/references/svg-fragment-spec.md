@@ -22,12 +22,14 @@ Every clickable node must include:
 - `data-element-id="<artifact element id>"`
 - `data-view-id="<view-id>"` (recommended; injector can backfill)
 - `data-target-label="<human label>"` (recommended; injector can backfill)
+- The interactive node target should wrap the entire card as one group (for example `<g data-element-id="...">...</g>`) so body, header bar, and text all resolve to the same element.
 
 Every clickable edge target must include:
 
 - `data-relationship-id="<artifact relationship id>"`
 - `data-view-id="<view-id>"` (recommended; injector can backfill)
 - `data-target-label="<human label>"` (recommended; injector can backfill)
+- The interactive edge target should wrap both the visible stroke and its label as one group so label clicks resolve to the relationship rather than canvas.
 
 For thin edges/arrows, include enlarged invisible hit targets (`stroke-width >= 12`).
 Keep the visible relationship stroke itself light and diagram-secondary (typically about `1.0-1.25px`), separate from the oversized invisible hit target.

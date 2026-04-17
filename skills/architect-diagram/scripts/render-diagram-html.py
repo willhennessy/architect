@@ -145,14 +145,49 @@ def normalize_element(el: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def normalize_string_list(value: Any) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    items: List[str] = []
+    for item in value:
+        text = str(item or "").strip()
+        if text:
+            items.append(text)
+    return items
+
+
+def is_informative_value(value: Any) -> bool:
+    normalized = str(value or "").strip().lower()
+    return normalized not in {"", "n_a", "blank", "none", "unknown", "null"}
+
+
+def relationship_has_sidebar_details(rel: Dict[str, Any]) -> bool:
+    return any(
+        [
+            is_informative_value(rel.get("interaction_type")),
+            is_informative_value(rel.get("directionality")),
+            is_informative_value(rel.get("sync_async")),
+            is_informative_value(rel.get("protocol")),
+            bool(normalize_string_list(rel.get("data_objects"))),
+        ]
+    )
+
+
 def normalize_relationship(rel: Dict[str, Any]) -> Dict[str, Any]:
-    return {
+    normalized = {
         "id": rel.get("id"),
         "source_id": rel.get("source_id"),
         "target_id": rel.get("target_id"),
         "label": rel.get("label") or "",
+        "interaction_type": rel.get("interaction_type") or "",
+        "directionality": rel.get("directionality") or "",
+        "sync_async": rel.get("sync_async") or "",
         "protocol": rel.get("protocol") or "",
+        "data_objects": normalize_string_list(rel.get("data_objects")),
+        "confidence": rel.get("confidence") or "",
     }
+    normalized["detailable"] = relationship_has_sidebar_details(normalized)
+    return normalized
 
 
 def normalize_view(data: Dict[str, Any], source_path: Path) -> Dict[str, Any]:
@@ -325,7 +360,13 @@ def build_payload(
                     "source_id": r.get("source_id"),
                     "target_id": r.get("target_id"),
                     "label": r.get("label") or "",
+                    "interaction_type": r.get("interaction_type") or "",
+                    "directionality": r.get("directionality") or "",
+                    "sync_async": r.get("sync_async") or "",
                     "protocol": r.get("protocol") or "",
+                    "data_objects": r.get("data_objects") or [],
+                    "confidence": r.get("confidence") or "",
+                    "detailable": bool(r.get("detailable")),
                 }
             )
 

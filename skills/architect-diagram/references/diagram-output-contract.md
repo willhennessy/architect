@@ -16,6 +16,7 @@ Use this contract when producing diagram artifacts from architecture files.
 - Stable metadata attributes:
   - nodes: `data-element-id`, `data-view-id`
   - edges: `data-relationship-id`, `data-view-id`
+- Interactive node targets must cover the full rendered node card, including header bars and text, so clicks/comments never fall through to canvas.
 
 ## Rendering pipeline
 

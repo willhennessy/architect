@@ -12,6 +12,7 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
+import xml.etree.ElementTree as ET
 
 import yaml
 
@@ -780,11 +781,12 @@ def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str =
     lx, ly, angle = label_for_polyline(points)
     short = short_text(edge.label or edge.id, 36)
     return f"""
-  <path d=\"{path_data}\" stroke=\"{color}\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" />
-  <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\"
-        data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(edge.label or edge.id)}\" />
-  <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
-        font-size=\"9\" fill=\"#95a9c9\">{esc(short)}</text>
+  <g data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(edge.label or edge.id)}\">
+    <path d=\"{path_data}\" stroke=\"{color}\" stroke-width=\"1.15\" fill=\"none\" marker-end=\"url(#arrow)\" data-relationship-surface=\"visible\" />
+    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" data-relationship-surface=\"hit\" />
+    <text x=\"{lx:.1f}\" y=\"{ly:.1f}\" transform=\"rotate({angle:.1f} {lx:.1f} {ly:.1f})\" text-anchor=\"middle\"
+          font-size=\"9\" fill=\"#95a9c9\" data-relationship-text-role=\"label\">{esc(short)}</text>
+  </g>
 """.rstrip()
 
 
@@ -797,29 +799,32 @@ def draw_node(node: Node, box: Box, view_id: str) -> str:
     header_h = 22.0
     lines: List[str] = []
     lines.append(
-        f"<rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"12\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"1.2\" "
-        f"data-element-id=\"{esc(node.id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(node.name)}\" />"
+        f"<g data-element-id=\"{esc(node.id)}\" data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(node.name)}\" data-node-layout=\"card\">"
     )
     lines.append(
-        f"<path d=\"M {x+1:.1f} {y+header_h:.1f} L {x+1:.1f} {y+12:.1f} Q {x+1:.1f} {y+1:.1f} {x+12:.1f} {y+1:.1f} "
-        f"L {x+w-12:.1f} {y+1:.1f} Q {x+w-1:.1f} {y+1:.1f} {x+w-1:.1f} {y+12:.1f} L {x+w-1:.1f} {y+header_h:.1f} Z\" fill=\"{header_fill}\" />"
+        f"  <rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"12\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"1.2\" data-node-surface=\"body\" />"
     )
     lines.append(
-        f"<text x=\"{x + w/2:.1f}\" y=\"{y + 15:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">{esc(type_header(node.kind, node.technology))}</text>"
+        f"  <path d=\"M {x+1:.1f} {y+header_h:.1f} L {x+1:.1f} {y+12:.1f} Q {x+1:.1f} {y+1:.1f} {x+12:.1f} {y+1:.1f} "
+        f"L {x+w-12:.1f} {y+1:.1f} Q {x+w-1:.1f} {y+1:.1f} {x+w-1:.1f} {y+12:.1f} L {x+w-1:.1f} {y+header_h:.1f} Z\" fill=\"{header_fill}\" data-node-surface=\"header\" />"
+    )
+    lines.append(
+        f"  <text x=\"{x + w/2:.1f}\" y=\"{y + 15:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\" pointer-events=\"none\" data-node-text-role=\"kind\">{esc(type_header(node.kind, node.technology))}</text>"
     )
 
     line_y = y + header_h + 26.0
     for text in name_lines:
         lines.append(
-            f"<text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(text)}</text>"
+            f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\" pointer-events=\"none\" data-node-text-role=\"title\">{esc(text)}</text>"
         )
         line_y += 18.0
     for text in subtitle_lines:
         lines.append(
-            f"<text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\">{esc(text)}</text>"
+            f"  <text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#c5d3e8\" pointer-events=\"none\" data-node-text-role=\"subtitle\">{esc(text)}</text>"
         )
         line_y += 15.0
 
+    lines.append("</g>")
     return "\n  ".join(lines)
 
 
@@ -895,7 +900,53 @@ def render_view_fragment(
 """
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
+    validate_interactive_targets(svg, str(view.get("id", out_file.stem)))
     out_file.write_text(svg, encoding="utf-8")
+
+
+def local_tag(tag: str) -> str:
+    return tag.split("}", 1)[-1] if "}" in tag else tag
+
+
+def has_descendant_with_attr(el: ET.Element, attr: str, value: str | None = None) -> bool:
+    for child in el.iter():
+        if child is el:
+            continue
+        if attr not in child.attrib:
+            continue
+        if value is None or child.attrib.get(attr) == value:
+            return True
+    return False
+
+
+def validate_interactive_targets(svg_text: str, view_id: str) -> None:
+    try:
+        root = ET.fromstring(svg_text)
+    except ET.ParseError as exc:
+        raise ValueError(f"{view_id}: generated SVG fragment is invalid XML: {exc}") from exc
+
+    for el in root.iter():
+        element_id = el.attrib.get("data-element-id")
+        if element_id:
+            if local_tag(el.tag) != "g":
+                raise ValueError(
+                    f"{view_id}: interactive node target {element_id!r} must be a <g> so the full card resolves to one element"
+                )
+            if not has_descendant_with_attr(el, "data-node-surface", "body"):
+                raise ValueError(
+                    f"{view_id}: interactive node target {element_id!r} is missing its card body surface"
+                )
+
+        relationship_id = el.attrib.get("data-relationship-id")
+        if relationship_id:
+            if local_tag(el.tag) != "g":
+                raise ValueError(
+                    f"{view_id}: interactive relationship target {relationship_id!r} must be a <g> so labels resolve to the edge"
+                )
+            if not has_descendant_with_attr(el, "data-relationship-surface", "hit"):
+                raise ValueError(
+                    f"{view_id}: interactive relationship target {relationship_id!r} is missing its enlarged hit surface"
+                )
 
 
 def main() -> int:

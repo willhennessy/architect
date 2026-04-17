@@ -618,6 +618,7 @@ const state = {
   viewId: DATA.initial_view_id,
   history: [],
   selectedId: null,
+  selectedRelationshipId: null,
   detailsOpen: false,
   commentMode: false,
   comments: [],
@@ -767,6 +768,11 @@ const SVG_COLOR_REMAP = {
 function $(id) { return document.getElementById(id); }
 
 function currentView() { return viewsById.get(state.viewId); }
+
+function clearSelection() {
+  state.selectedId = null;
+  state.selectedRelationshipId = null;
+}
 
 function statusToneForState(jobState) {
   if (jobState === 'failed' || jobState === 'blocked') return 'error';
@@ -1016,7 +1022,7 @@ function updateTabs() {
     b.addEventListener('click', function () {
       state.history = [];
       state.viewId = view.id;
-      state.selectedId = null;
+      clearSelection();
       render();
     });
     tabs.appendChild(b);
@@ -1045,6 +1051,36 @@ function normalizeSvgFragment(fragment) {
   // Remove person-style emoji markers from injected diagrams.
   t = t.replace(/[👤👥🧑👨👩]/gu, '');
   return t;
+}
+
+function isInformativeField(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized !== '' && normalized !== 'n_a' && normalized !== 'blank' && normalized !== 'none' && normalized !== 'unknown' && normalized !== 'null';
+}
+
+function relationshipHasSidebarDetails(rel) {
+  if (!rel) return false;
+  if (typeof rel.detailable === 'boolean') return rel.detailable;
+  return isInformativeField(rel.interaction_type)
+    || isInformativeField(rel.directionality)
+    || isInformativeField(rel.sync_async)
+    || isInformativeField(rel.protocol)
+    || (Array.isArray(rel.data_objects) && rel.data_objects.some(function (item) { return String(item || '').trim(); }));
+}
+
+function nodeDisplayName(nodeId) {
+  const node = nodesById.get(nodeId);
+  return (node && node.name) || nodeId || '?';
+}
+
+function relationshipDisplayName(rel) {
+  if (!rel) return 'Relationship';
+  return rel.label || rel.id || 'Relationship';
+}
+
+function relationshipEndpointSummary(rel) {
+  if (!rel) return '? → ?';
+  return nodeDisplayName(rel.source_id) + ' → ' + nodeDisplayName(rel.target_id);
 }
 
 function isConfidenceTokenText(text) {
@@ -1129,6 +1165,7 @@ function estimateTextWidth(text, fontSize) {
 
 function simplifyPersonNodeGroup(group, node) {
   if (!group || !isPersonKind(node && node.kind)) return;
+  if (group.getAttribute('data-node-layout') === 'card') return;
 
   group.querySelectorAll('circle').forEach(function (circle) {
     circle.remove();
@@ -1211,10 +1248,13 @@ function applyNodeGroupTheme(group, node) {
   simplifyPersonNodeGroup(group, node);
   const base = colorForKind(node && node.kind);
   const stroke = mixHex(base, THEME.textPrimary, 0.22);
+  const headerFill = mixHex(base, THEME.bgSecondary, 0.34);
+  const headerText = mixHex(THEME.textSecondary, THEME.textPrimary, 0.24);
 
   group.querySelectorAll('rect,circle,ellipse,path,polygon').forEach(function (shape) {
+    const surface = String(shape.getAttribute('data-node-surface') || '');
     if (isVisiblePaint(shape.getAttribute('fill'))) {
-      shape.setAttribute('fill', base);
+      shape.setAttribute('fill', surface === 'header' ? headerFill : base);
     }
     if (isVisiblePaint(shape.getAttribute('stroke'))) {
       shape.setAttribute('stroke', stroke);
@@ -1223,6 +1263,19 @@ function applyNodeGroupTheme(group, node) {
 
   const texts = Array.from(group.querySelectorAll('text'));
   texts.forEach(function (textEl, idx) {
+    const role = String(textEl.getAttribute('data-node-text-role') || '');
+    if (role === 'kind') {
+      textEl.setAttribute('fill', headerText);
+      return;
+    }
+    if (role === 'title') {
+      textEl.setAttribute('fill', THEME.textPrimary);
+      return;
+    }
+    if (role === 'subtitle') {
+      textEl.setAttribute('fill', THEME.textDiagramSubtitle);
+      return;
+    }
     textEl.setAttribute('fill', isSecondaryNodeText(textEl, idx) ? THEME.textDiagramSubtitle : THEME.textPrimary);
   });
 }
@@ -1544,12 +1597,51 @@ function wireSvgInteractions(svg, view) {
   });
 
   svg.querySelectorAll('[data-relationship-id]').forEach(function (el) {
+    const relId = el.getAttribute('data-relationship-id') || '';
+    const relData = relationshipsById.get(relId);
+    const detailable = relationshipHasSidebarDetails(relData);
+    const selected = relId === state.selectedRelationshipId;
+    const connectedToSelectedNode = Boolean(
+      !selected
+      && state.selectedId
+      && relData
+      && (relData.source_id === state.selectedId || relData.target_id === state.selectedId)
+    );
+
     if (!el.getAttribute('data-view-id')) {
       el.setAttribute('data-view-id', view.id);
     }
     if (!el.getAttribute('data-target-label')) {
       el.setAttribute('data-target-label', el.getAttribute('data-relationship-id') || 'relationship');
     }
+
+    el.setAttribute('data-detailable', detailable ? 'true' : 'false');
+    if (selected) {
+      el.setAttribute('data-selected', 'true');
+    } else {
+      el.removeAttribute('data-selected');
+    }
+    el.style.cursor = state.commentMode ? 'crosshair' : detailable ? 'pointer' : 'default';
+
+    const visibleStroke = selected
+      ? mixHex(edgeColor, THEME.textPrimary, 0.42)
+      : connectedToSelectedNode
+      ? mixHex(edgeColor, THEME.textPrimary, 0.24)
+      : edgeColor;
+    const visibleWidth = selected
+      ? relationshipStrokeWidthSelected
+      : connectedToSelectedNode
+      ? Math.max(relationshipStrokeWidth, 1.45)
+      : relationshipStrokeWidth;
+
+    el.querySelectorAll('[data-relationship-surface="visible"]').forEach(function (shape) {
+      shape.setAttribute('stroke', visibleStroke);
+      shape.setAttribute('stroke-width', String(visibleWidth));
+    });
+
+    el.querySelectorAll('text').forEach(function (textEl) {
+      textEl.setAttribute('fill', selected ? THEME.textPrimary : THEME.textSecondary);
+    });
   });
 
   applyDrillabilityAffordances(svg);
@@ -1584,25 +1676,37 @@ function wireSvgInteractions(svg, view) {
       return;
     }
 
-    if (!element) {
-      state.selectedId = null;
+    if (element) {
+      const id = element.dataset.elementId;
+      const nextView = (DATA.drill_map || {})[id];
+      if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
+        state.history.push(state.viewId);
+        state.viewId = nextView;
+        clearSelection();
+        render();
+        return;
+      }
+
+      state.selectedId = id;
+      state.selectedRelationshipId = null;
+      state.detailsOpen = true;
       updateDetails();
       render();
       return;
     }
 
-    const id = element.dataset.elementId;
-    const nextView = (DATA.drill_map || {})[id];
-    if (nextView && viewsById.has(nextView) && nextView !== state.viewId) {
-      state.history.push(state.viewId);
-      state.viewId = nextView;
+    const relId = rel && rel.dataset ? (rel.dataset.relationshipId || '') : '';
+    const relData = relId ? relationshipsById.get(relId) : null;
+    if (relData && relationshipHasSidebarDetails(relData)) {
+      state.selectedRelationshipId = relId;
       state.selectedId = null;
+      state.detailsOpen = true;
+      updateDetails();
       render();
       return;
     }
 
-    state.selectedId = id;
-    state.detailsOpen = true;
+    clearSelection();
     updateDetails();
     render();
   });
@@ -1687,6 +1791,12 @@ function drawDiagramView(view) {
     const x2 = b.x + b.w / 2;
     const y2 = b.y + b.h / 2;
 
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('data-relationship-id', edge.id || '');
+    g.setAttribute('data-view-id', view.id);
+    g.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
+    g.style.cursor = state.commentMode ? 'crosshair' : edge.detailable ? 'pointer' : 'default';
+
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', String(x1));
     line.setAttribute('y1', String(y1));
@@ -1695,12 +1805,15 @@ function drawDiagramView(view) {
     line.setAttribute('stroke', edgeColor);
     line.setAttribute(
       'stroke-width',
-      state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
+      state.selectedRelationshipId === edge.id
+        ? String(relationshipStrokeWidthSelected)
+        : state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
         ? String(relationshipStrokeWidthSelected)
         : String(relationshipStrokeWidth)
     );
     line.setAttribute('opacity', '0.9');
-    svg.appendChild(line);
+    line.setAttribute('data-relationship-surface', 'visible');
+    g.appendChild(line);
 
     const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     hit.setAttribute('x1', String(x1));
@@ -1710,10 +1823,8 @@ function drawDiagramView(view) {
     hit.setAttribute('stroke', state.commentMode ? 'transparent' : 'transparent');
     hit.setAttribute('stroke-width', '14');
     hit.setAttribute('fill', 'none');
-    hit.setAttribute('data-relationship-id', edge.id || '');
-    hit.setAttribute('data-view-id', view.id);
-    hit.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
-    svg.appendChild(hit);
+    hit.setAttribute('data-relationship-surface', 'hit');
+    g.appendChild(hit);
 
     if (MODE === 'rich' && edge.label) {
       const tx = (x1 + x2) / 2;
@@ -1725,9 +1836,12 @@ function drawDiagramView(view) {
       text.setAttribute('dominant-baseline', 'middle');
       text.setAttribute('font-size', '10');
       text.setAttribute('fill', THEME.textSecondary);
+      text.setAttribute('data-relationship-text-role', 'label');
       text.textContent = edge.label.length > 42 ? edge.label.slice(0, 42) + '…' : edge.label;
-      svg.appendChild(text);
+      g.appendChild(text);
     }
+
+    svg.appendChild(g);
   });
 
   // nodes
@@ -1739,6 +1853,7 @@ function drawDiagramView(view) {
     g.setAttribute('data-element-id', node.id);
     g.setAttribute('data-view-id', view.id);
     g.setAttribute('data-target-label', node.name || node.id);
+    g.setAttribute('data-node-layout', 'card');
     g.style.cursor = state.commentMode ? 'crosshair' : 'pointer';
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1750,6 +1865,7 @@ function drawDiagramView(view) {
     rect.setAttribute('fill', state.selectedId === node.id ? mixHex(colorForKind(node.kind), THEME.textPrimary, 0.12) : colorForKind(node.kind));
     rect.setAttribute('stroke', state.selectedId === node.id ? THEME.textPrimary : mixHex(colorForKind(node.kind), THEME.textPrimary, 0.24));
     rect.setAttribute('stroke-width', state.selectedId === node.id ? '2.2' : '1.1');
+    rect.setAttribute('data-node-surface', 'body');
     g.appendChild(rect);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1761,6 +1877,7 @@ function drawDiagramView(view) {
     text.setAttribute('font-weight', '600');
     text.setAttribute('fill', THEME.textPrimary);
     text.setAttribute('pointer-events', 'none');
+    text.setAttribute('data-node-text-role', 'title');
     text.textContent = truncate(node.name || node.id, MODE === 'fast' ? 24 : 34);
     g.appendChild(text);
 
@@ -1774,6 +1891,7 @@ function drawDiagramView(view) {
       sub.setAttribute('font-size', '9');
       sub.setAttribute('fill', THEME.textDiagramSubtitle);
       sub.setAttribute('pointer-events', 'none');
+      sub.setAttribute('data-node-text-role', 'subtitle');
       sub.textContent = truncate(subtitle, 24);
       g.appendChild(sub);
     }
@@ -2099,8 +2217,35 @@ function layoutNodes(nodes, edges, viewType) {
 
 function updateDetails() {
   const pane = $('detailsBody');
+  if (state.selectedRelationshipId) {
+    const rel = relationshipsById.get(state.selectedRelationshipId);
+    if (!rel) {
+      pane.innerHTML = '<div class="empty-note">Selected relationship missing from model</div>';
+      return;
+    }
+
+    const html = [];
+    html.push('<div style="font-size:15px;font-weight:700;color:' + THEME.textPrimary + '">' + esc(relationshipDisplayName(rel)) + '</div>');
+    html.push('<div class="meta-label">From / To</div><div>' + esc(relationshipEndpointSummary(rel)) + '</div>');
+
+    if (isInformativeField(rel.interaction_type)) html.push('<div class="meta-label">Interaction</div><div class="chip">' + esc(rel.interaction_type) + '</div>');
+    if (isInformativeField(rel.sync_async)) html.push('<div class="meta-label">Timing</div><div class="chip">' + esc(rel.sync_async) + '</div>');
+    if (isInformativeField(rel.directionality)) html.push('<div class="meta-label">Direction</div><div class="chip">' + esc(rel.directionality) + '</div>');
+    if (isInformativeField(rel.protocol)) html.push('<div class="meta-label">Protocol</div><div class="chip">' + esc(rel.protocol) + '</div>');
+    if (Array.isArray(rel.data_objects) && rel.data_objects.length) {
+      html.push('<div class="meta-label">Data Objects</div>');
+      rel.data_objects.forEach(function (item) {
+        html.push('<span class="chip">' + esc(item) + '</span>');
+      });
+    }
+    if (rel.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(rel.confidence) + '</div>');
+
+    pane.innerHTML = html.join('');
+    return;
+  }
+
   if (!state.selectedId) {
-    pane.innerHTML = '<div class="empty-note">Click a node to inspect details</div>';
+    pane.innerHTML = '<div class="empty-note">Click a node or informative edge to inspect details</div>';
     return;
   }
   const node = nodesById.get(state.selectedId);
@@ -2133,8 +2278,8 @@ function updateDetails() {
     html.push('<div class="meta-label">Relationships</div>');
     rels.slice(0, 20).forEach(function (r) {
       html.push('<div style="margin-bottom:6px;border:1px solid ' + THEME.line + ';border-radius:8px;padding:6px;background:' + THEME.bgTertiary + '">'
-        + '<div style="color:' + THEME.textSecondary + ';font-size:11px">' + esc(r.source_id) + ' → ' + esc(r.target_id) + '</div>'
-        + '<div>' + esc(r.label || r.id || '') + '</div>'
+        + '<div style="color:' + THEME.textSecondary + ';font-size:11px">' + esc(relationshipEndpointSummary(r)) + '</div>'
+        + '<div>' + esc(relationshipDisplayName(r)) + '</div>'
         + '</div>');
     });
   }
@@ -2335,7 +2480,7 @@ $('commentToggle').addEventListener('click', function () {
 
 $('detailsCollapseBtn').addEventListener('click', function () {
   state.detailsOpen = false;
-  state.selectedId = null;
+  clearSelection();
   render();
 });
 
