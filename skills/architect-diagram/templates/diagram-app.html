@@ -1053,6 +1053,25 @@ function normalizeSvgFragment(fragment) {
   return t;
 }
 
+function intrinsicSvgWidth(svg) {
+  if (!svg) return 0;
+  const widthAttr = Number(svg.getAttribute('width') || '');
+  if (Number.isFinite(widthAttr) && widthAttr > 0) return widthAttr;
+  const viewBox = svg.viewBox && svg.viewBox.baseVal;
+  if (viewBox && Number.isFinite(viewBox.width) && viewBox.width > 0) return viewBox.width;
+  return 0;
+}
+
+function applyResponsiveSvgSizing(svg) {
+  if (!svg) return;
+  const authoredWidth = intrinsicSvgWidth(svg);
+  svg.style.display = 'block';
+  svg.style.width = authoredWidth > 0 ? String(Math.round(authoredWidth)) + 'px' : 'auto';
+  svg.style.height = 'auto';
+  svg.style.maxWidth = '100%';
+  svg.style.marginInline = 'auto';
+}
+
 function isInformativeField(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized !== '' && normalized !== 'n_a' && normalized !== 'blank' && normalized !== 'none' && normalized !== 'unknown' && normalized !== 'null';
@@ -1136,13 +1155,18 @@ function remapSvgPalette(svg) {
   });
 }
 
-function isSecondaryNodeText(textEl, idx) {
+function isSecondaryNodeText(textEl) {
   const text = String(textEl.textContent || '').trim();
   if (!text) return false;
-  if (idx > 0) return true;
-  if (/^\[.*\]$/.test(text)) return true;
   const fontSize = parseFloat(textEl.getAttribute('font-size') || '0');
-  return isFinite(fontSize) && fontSize > 0 && fontSize <= 10;
+  const weight = String(textEl.getAttribute('font-weight') || '');
+  const strong = weight === '700' || weight === '600';
+  if (strong) return false;
+  return isFinite(fontSize) && fontSize > 0 && fontSize <= 11;
+}
+
+function headerOverlayFill(base) {
+  return hexToRgba(mixHex(base, THEME.textPrimary, 0.18), 0.42);
 }
 
 function isPersonKind(kind) {
@@ -1151,7 +1175,7 @@ function isPersonKind(kind) {
 }
 
 function personSubtitleText(kind) {
-  return '[👤 User]';
+  return 'Person';
 }
 
 function isEmojiOnlyText(text) {
@@ -1182,7 +1206,7 @@ function simplifyPersonNodeGroup(group, node) {
   remainingTexts.forEach(function (textEl) {
     const text = String(textEl.textContent || '').trim();
     if (!text) return;
-    if (/^\[[^\]]*\]$/.test(text)) {
+    if (text === 'Person' || text === 'User' || text === '👤 User') {
       textEl.textContent = personSubtitleText(node && node.kind);
     }
   });
@@ -1198,7 +1222,7 @@ function simplifyPersonNodeGroup(group, node) {
   remainingTexts.forEach(function (textEl) {
     const text = String(textEl.textContent || '').trim();
     if (!text) return;
-    if (/^\[[^\]]*\]$/.test(text)) subtitleText = textEl;
+    if (text === 'Person' || text === 'User' || text === '👤 User') subtitleText = textEl;
     else if (!titleText) titleText = textEl;
   });
 
@@ -1248,13 +1272,11 @@ function applyNodeGroupTheme(group, node) {
   simplifyPersonNodeGroup(group, node);
   const base = colorForKind(node && node.kind);
   const stroke = mixHex(base, THEME.textPrimary, 0.22);
-  const headerFill = mixHex(base, THEME.bgSecondary, 0.34);
-  const headerText = mixHex(THEME.textSecondary, THEME.textPrimary, 0.24);
 
   group.querySelectorAll('rect,circle,ellipse,path,polygon').forEach(function (shape) {
     const surface = String(shape.getAttribute('data-node-surface') || '');
     if (isVisiblePaint(shape.getAttribute('fill'))) {
-      shape.setAttribute('fill', surface === 'header' ? headerFill : base);
+      shape.setAttribute('fill', surface === 'header' ? headerOverlayFill(base) : base);
     }
     if (isVisiblePaint(shape.getAttribute('stroke'))) {
       shape.setAttribute('stroke', stroke);
@@ -1265,7 +1287,7 @@ function applyNodeGroupTheme(group, node) {
   texts.forEach(function (textEl, idx) {
     const role = String(textEl.getAttribute('data-node-text-role') || '');
     if (role === 'kind') {
-      textEl.setAttribute('fill', headerText);
+      textEl.setAttribute('fill', THEME.textPrimary);
       return;
     }
     if (role === 'title') {
@@ -1276,7 +1298,7 @@ function applyNodeGroupTheme(group, node) {
       textEl.setAttribute('fill', THEME.textDiagramSubtitle);
       return;
     }
-    textEl.setAttribute('fill', isSecondaryNodeText(textEl, idx) ? THEME.textDiagramSubtitle : THEME.textPrimary);
+    textEl.setAttribute('fill', isSecondaryNodeText(textEl) ? THEME.textDiagramSubtitle : THEME.textPrimary);
   });
 }
 
@@ -1472,44 +1494,6 @@ function isDrillable(elementId) {
   return Boolean((DATA.drill_map || {})[String(elementId || '')]);
 }
 
-function buildCornerBadge(x, y) {
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  g.setAttribute('transform', 'translate(' + x + ' ' + y + ')');
-  g.setAttribute('pointer-events', 'none');
-  g.setAttribute('data-drill-badge', 'true');
-
-  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  bg.setAttribute('cx', '0');
-  bg.setAttribute('cy', '0');
-  bg.setAttribute('r', '7');
-  bg.setAttribute('fill', THEME.bgTertiary);
-  bg.setAttribute('stroke', drillStrokeColor);
-  bg.setAttribute('stroke-width', '1.2');
-  g.appendChild(bg);
-
-  const plusH = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  plusH.setAttribute('x1', '-2.4');
-  plusH.setAttribute('y1', '0');
-  plusH.setAttribute('x2', '2.4');
-  plusH.setAttribute('y2', '0');
-  plusH.setAttribute('stroke', THEME.textPrimary);
-  plusH.setAttribute('stroke-width', '1.4');
-  plusH.setAttribute('stroke-linecap', 'round');
-  g.appendChild(plusH);
-
-  const plusV = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  plusV.setAttribute('x1', '0');
-  plusV.setAttribute('y1', '-2.4');
-  plusV.setAttribute('x2', '0');
-  plusV.setAttribute('y2', '2.4');
-  plusV.setAttribute('stroke', THEME.textPrimary);
-  plusV.setAttribute('stroke-width', '1.4');
-  plusV.setAttribute('stroke-linecap', 'round');
-  g.appendChild(plusV);
-
-  return g;
-}
-
 function elementBBox(el) {
   if (!el) return null;
 
@@ -1538,10 +1522,6 @@ function elementBBox(el) {
 function applyDrillabilityAffordances(svg) {
   if (!svg) return;
 
-  svg.querySelectorAll('[data-drill-badge="true"]').forEach(function (el) {
-    el.remove();
-  });
-
   const seen = new Set();
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
     const elementId = el.getAttribute('data-element-id');
@@ -1552,7 +1532,7 @@ function applyDrillabilityAffordances(svg) {
     el.setAttribute('data-drillable', drillable ? 'true' : 'false');
     if (!drillable) return;
 
-    // Border affordance (option 2)
+    // Drillable border affordance
     let shape = null;
     const tag = String(el.tagName || '').toLowerCase();
     if (tag === 'rect' || tag === 'path' || tag === 'polygon') {
@@ -1566,17 +1546,6 @@ function applyDrillabilityAffordances(svg) {
       shape.setAttribute('stroke-width', String(Math.max(1.8, current)));
     }
 
-    // Corner badge affordance (option 1)
-    const box = elementBBox(el);
-    if (!box || box.width < 8 || box.height < 8) return;
-    const bx = Number.isFinite(box.x) ? box.x : 0;
-    const by = Number.isFinite(box.y) ? box.y : 0;
-    const bw = Number.isFinite(box.width) ? box.width : 0;
-
-    const badgeInset = 14;
-    const badge = buildCornerBadge(bx + bw - badgeInset, by + badgeInset);
-    badge.setAttribute('data-drill-badge-for', elementId);
-    svg.appendChild(badge);
   });
 }
 
@@ -1722,10 +1691,7 @@ function drawDiagramView(view) {
     wrap.innerHTML = provided;
     const svg = wrap.querySelector('svg');
     if (svg) {
-      svg.style.display = 'block';
-      svg.style.width = '100%';
-      svg.style.height = 'auto';
-      svg.style.maxWidth = '100%';
+      applyResponsiveSvgSizing(svg);
       svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
@@ -1745,10 +1711,7 @@ function drawDiagramView(view) {
   svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
-  svg.style.display = 'block';
-  svg.style.width = '100%';
-  svg.style.height = 'auto';
-  svg.style.maxWidth = '100%';
+  applyResponsiveSvgSizing(svg);
   svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
 
   (layout.lanes || []).forEach(function (lane) {
@@ -1900,11 +1863,6 @@ function drawDiagramView(view) {
       rect.setAttribute('stroke', drillStrokeColor);
       rect.setAttribute('stroke-width', String(Math.max(1.8, parseFloat(rect.getAttribute('stroke-width') || '1.2'))));
       g.setAttribute('data-drillable', 'true');
-
-      const badgeInset = 14;
-      const badge = buildCornerBadge(box.x + box.w - badgeInset, box.y + badgeInset);
-      badge.setAttribute('data-drill-badge-for', node.id);
-      g.appendChild(badge);
     }
 
     svg.appendChild(g);
@@ -1924,10 +1882,7 @@ function drawSequenceView(view) {
     wrap.innerHTML = provided;
     const svg = wrap.querySelector('svg');
     if (svg) {
-      svg.style.display = 'block';
-      svg.style.width = '100%';
-      svg.style.height = 'auto';
-      svg.style.maxWidth = '100%';
+      applyResponsiveSvgSizing(svg);
       svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
