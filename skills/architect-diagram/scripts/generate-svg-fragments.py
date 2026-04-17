@@ -69,6 +69,7 @@ ROW_GAP = 34.0
 BOUNDARY_PAD = 28.0
 CARD_MIN_W = 180.0
 CARD_MAX_W = 320.0
+HEADER_FILL_ALPHA = 0.68
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
@@ -88,6 +89,19 @@ def esc(s: str) -> str:
 
 def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
+
+
+def with_alpha(hex_color: str, alpha: float) -> str:
+    color = str(hex_color or "").lstrip("#")
+    if len(color) != 6:
+        return hex_color
+    try:
+        r = int(color[0:2], 16)
+        g = int(color[2:4], 16)
+        b = int(color[4:6], 16)
+    except ValueError:
+        return hex_color
+    return f"rgba({r}, {g}, {b}, {alpha:.2f})"
 
 
 def normalize_kind(value: str) -> str:
@@ -137,27 +151,26 @@ def approx_text_width(text: str, font_size: float) -> float:
 
 def type_header(kind: str, technology: str) -> str:
     k = normalize_kind(kind)
-    tech = short_text(technology, 20)
 
     if k == "person":
-        return "[Person]"
+        return "Person"
     if k == "external_system":
-        return "[External System]"
+        return "External System"
     if k in {"software_system", "system"}:
-        return "[Software System]"
+        return "Software System"
     if k == "component":
-        return "[Component]"
+        return "Component"
     if k == "deployment_node":
-        return "[Deployment Node]"
+        return "Deployment Node"
     if k == "database":
-        return "[Container: Database]"
-    if k in {"queue", "cache"}:
-        return "[Container: Cache/Queue]"
-    if k == "container" and tech:
-        return f"[Container: {tech}]"
+        return "Database"
+    if k == "queue":
+        return "Queue"
+    if k == "cache":
+        return "Cache"
     if k == "container":
-        return "[Container]"
-    return f"[{kind or 'Element'}]"
+        return "Container"
+    return str(kind or "Element")
 
 
 def node_subtitle(node: Node) -> str:
@@ -217,7 +230,7 @@ def node_dimensions(node: Node, max_width: float = CARD_MAX_W) -> Tuple[float, f
 
     width_hint = max(
         approx_text_width(header, 9),
-        max((approx_text_width(line, 16) for line in name_lines), default=0.0),
+        max((approx_text_width(line, 14) for line in name_lines), default=0.0),
         max((approx_text_width(line, 11) for line in subtitle_lines), default=0.0),
     )
     width = clamp(width_hint + 56.0, CARD_MIN_W, max_width)
@@ -794,7 +807,7 @@ def draw_node(node: Node, box: Box, view_id: str) -> str:
     _ = width, height
 
     x, y, w, h = box.x, box.y, box.w, box.h
-    header_h = 22.0
+    header_h = 20.0
     lines: List[str] = []
     lines.append(
         f"<rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"12\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"1.2\" "
@@ -802,16 +815,16 @@ def draw_node(node: Node, box: Box, view_id: str) -> str:
     )
     lines.append(
         f"<path d=\"M {x+1:.1f} {y+header_h:.1f} L {x+1:.1f} {y+12:.1f} Q {x+1:.1f} {y+1:.1f} {x+12:.1f} {y+1:.1f} "
-        f"L {x+w-12:.1f} {y+1:.1f} Q {x+w-1:.1f} {y+1:.1f} {x+w-1:.1f} {y+12:.1f} L {x+w-1:.1f} {y+header_h:.1f} Z\" fill=\"{header_fill}\" />"
+        f"L {x+w-12:.1f} {y+1:.1f} Q {x+w-1:.1f} {y+1:.1f} {x+w-1:.1f} {y+12:.1f} L {x+w-1:.1f} {y+header_h:.1f} Z\" fill=\"{with_alpha(header_fill, HEADER_FILL_ALPHA)}\" />"
     )
     lines.append(
-        f"<text x=\"{x + w/2:.1f}\" y=\"{y + 15:.1f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"700\" fill=\"#c7d8f2\">{esc(type_header(node.kind, node.technology))}</text>"
+        f"<text x=\"{x + w/2:.1f}\" y=\"{y + 14:.0f}\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"400\" fill=\"#c7d8f2\">{esc(type_header(node.kind, node.technology))}</text>"
     )
 
     line_y = y + header_h + 26.0
     for text in name_lines:
         lines.append(
-            f"<text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(text)}</text>"
+            f"<text x=\"{x + w/2:.1f}\" y=\"{line_y:.1f}\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"700\" fill=\"#e8f0ff\">{esc(text)}</text>"
         )
         line_y += 18.0
     for text in subtitle_lines:
@@ -887,7 +900,6 @@ def render_view_fragment(
       <path d=\"M0,0 L10,5 L0,10 z\" fill=\"#90a7cf\" />
     </marker>
   </defs>
-  <rect x=\"0\" y=\"0\" width=\"{layout.width:.0f}\" height=\"{layout.height:.0f}\" fill=\"#0b1020\" />
   {boundary_text}
   {edge_text}
   {node_text}
