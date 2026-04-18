@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18
 
 ## Current Objective
 
@@ -8,50 +8,52 @@ Tighten the diagram review shell so Explore and Comment are explicit, mode-aware
 
 ## Current Phase
 
-Diagram comment UX refinement
+Inline comment popover polish
 
 ## Current Task
 
-- [x] Refactor `diagram.html` into explicit Explore and Comment modes
+- [x] Polish the inline comment popover so it behaves like a proper annotation UI
 
 ### Current Task Details
 
-- **Goal**: Replace the one-off comment toggle with a persisted two-mode shell and a sidebar that changes meaning with the active mode.
-- **Why now**: Review/commenting has outgrown the old top-toolbar toggle. The current chrome splits comment context across a banner, queue bar, and details panel, which makes the primary review flows feel muddled.
+- **Goal**: Keep the comment popover spatially tied to its target, make draft dismissal safer, and tighten the popover’s visual hierarchy in both light and dark mode.
+- **Why now**: The first floating composer solved the full-screen modal problem, but it still covered targets, lacked a clear target indicator, and behaved more like a generic modal than an inline annotation tool.
 - **Files in play**:
   - `STATE.md`
-  - `DECISIONS.md`
   - `skills/architect-diagram/templates/diagram-app.html`
 - **Constraints**:
-  - Use existing theme tokens only; do not introduce new hard-coded chrome colors
-  - Keep Explore and Comment keyboard-accessible (`V` / `C`) and persist mode in `localStorage`
+  - Do not add React; keep the implementation in the existing template JS/CSS
+  - Use existing theme tokens in both light and dark mode
+  - Keep the popover inside the diagram bounds instead of borrowing room from the sidebar
   - Preserve the production render/validate path by verifying with `./scripts/run-docsign-test.sh`
+  - Produce the requested verification screenshots from generated output
 - **Acceptance Criteria**:
-  - [x] Add a centered Explore/Comment segmented control with inline icons, active signal styling, and `V` / `C` shortcuts
-  - [x] Make the right sidebar mode-aware: component details in Explore, comment list plus sticky submit footer in Comment
-  - [x] Remove the old comment toggle/banner/queue chrome and verify the production HTML plus light/dark screenshot states
+  - [x] The popover sits adjacent to the target with a pointer tail and no longer obscures the commented node
+  - [x] The active target stays visually highlighted while the popover is open
+  - [x] The popover width is constrained and the footer is simplified to a single `Add` action with keyboard hint
+  - [x] Empty popovers dismiss immediately, draft popovers require a second dismissal action, clicking a different diagram element retargets the composer, and `Cmd/Ctrl+Enter` submits
+  - [x] Verified against `diagram-4.html` with four screenshots plus scripted behavior checks
 - **Status**: Ready for Review
 
 ## Blockers / Open Questions
 
-- The dedicated Explore icon is now wired in from `/Users/will/Downloads/location-arrow.svg`, but the final Comment-mode icon was not provided in this session. The toggle currently reuses the existing inline comment glyph.
-- Screenshot/interaction verification used generated driver HTML under `evals/manual-docsign-tests/` plus headless Chrome/CDP. Decide later whether that deserves a first-class reusable harness or should stay ad hoc.
+- None.
 
 ## Up Next
 
-- [ ] Swap in the dedicated Comment icon if design provides a new SVG
-- [ ] Decide whether mode-toggle screenshot automation should become a reusable UI regression harness
-- [ ] Polish the stacked/mobile sidebar behavior if diagram review on smaller screens becomes a priority
+- [ ] Decide whether relationship comments need a richer persistent target treatment than the current stroke highlight
+- [ ] Consider extracting the Playwright verification script into a reusable UI regression helper
+- [ ] If visual polish continues, evaluate whether the pointer tail wants a slightly softer shadow treatment
 
 ## Completed
 
-- [x] Refactored the Explore details sidebar so Kind renders as a color-mapped subtitle, Confidence is inline metadata, Tags stay chips, and relationships resolve to human names without duplicate cards
-- [x] Fixed the sidebar viewport-height regression by pinning `.workspace` to the final `1fr` grid row instead of letting hidden toolbar auto-placement collapse it
-- [x] Replaced the old `Comment (C)` toolbar toggle with persisted Explore/Comment modes, a mode-aware sidebar, and a sidebar-owned submit flow in `diagram-app.html`
-- [x] Fixed the dark-mode Pattern C regression plus modal polish in `diagram-app.html`, and verified `diagram-20.html` with fresh light/dark screenshots
-- [x] Applied the warm-neutral light/dark design system to `diagram-app.html` and `generate-svg-fragments.py`, including a persisted theme toggle and tokenized SVG output
-- [x] Polished diagram rendering so authored SVGs stay bounded on large screens and header rows read lighter, tighter, and transparent
+- [x] Swapped the Explore-mode shortcut from `V` to `E` in the UI and key handler, then verified `diagram-10.html`
+- [x] Simplified the popover header to the element name, renamed the primary action to `Add`, and set the empty-state input-to-button gap to 12px, then verified `diagram-9.html`
+- [x] Clicking a different diagram element while the comment popover is open now retargets the composer to that element, then verified `diagram-8.html`
+- [x] Fixed the inline comment popover tail so relationship comments anchor to the clicked segment and the pointer orientation follows the final on-screen geometry, then verified `diagram-7.html`
+- [x] Polished the inline comment popover with smart side-aware placement inside the diagram bounds, a pointer tail, target highlighting, safer draft dismissal, and keyboard-hinted `Comment` submit, then verified `diagram-4.html`
+- [x] Replaced the centered Comment Mode modal with a click-anchored floating composer for nodes and edges, then removed the anchor drift so the dialog opens at the actual click point and verified `diagram-2.html`
 
 ## Notes for Next Session
 
-`diagram-app.html` now treats review mode as first-class state via `localStorage['viewMode']`. Explore is the default, Comment is explicit, and the right sidebar is always present: component details in Explore, comment cards plus sticky submit footer in Comment. Inside the Explore sidebar, Kind is now a small color-mapped subtitle under the component title, Confidence is rendered as inline label/value metadata, Tags are the only remaining chip treatment, and relationship cards resolve source/target display names from the element model instead of showing raw slugs. Duplicate relationship cards caused by aggregating view-level edges were fixed by deduping against the canonical relationship map plus a signature-level sidebar filter. The viewport-height regression was fixed by pinning `.topbar`, `.tabbar`, `.toolbar`, and `.workspace` to explicit grid rows so `.workspace` always occupies the stretch row. Keep overwriting `evals/manual-docsign-tests/diagram-10.html` for iterative diagram tweaks; the current light/dark selected-component screenshots live under `evals/manual-docsign-tests/screenshots-diagram-10-details/`. The current Comment toggle uses the old inline comment icon until a dedicated asset arrives.
+`diagram-app.html` still owns the entire review shell without React, but the comment composer now behaves like an inline annotation popover instead of a click-point modal. Positioning is target-relative and constrained to the `.canvas-wrap` bounds, not the full viewport, so nodes near the right edge of the diagram flip the popover left instead of borrowing space from the sidebar. The popover now includes a small pointer tail, a narrowed 340px width, a header that shows only the element name, a single `Add` button with dynamic `⌘↵` / `Ctrl+↵` hint, an Explore shortcut of `E`, and an empty-state input-to-button gap controlled by a 12px footer margin instead of leftover textarea/hint spacing. Active node targets get an SVG ring overlay with a short pulse; relationship targets use a stroke highlight. Relationship-tail placement now anchors to the actual click point instead of the whole edge-group bounding box, and the pointer edge is derived from the final clamped popover geometry so it keeps facing the target after bounds adjustments. Clicking a different diagram element beneath the overlay now immediately retargets the composer to that element instead of being ignored. Latest production verification used `./scripts/run-docsign-test.sh`, which wrote `evals/manual-docsign-tests/diagram-10.html`; the earlier inline-comment screenshot set remains under `evals/manual-docsign-tests/screenshots-diagram-4-inline-comment-polish/` (`light-left-edge.png`, `light-right-edge.png`, `dark-ring-visible.png`, `dark-populated-shortcut.png`) with `verification.json`.
