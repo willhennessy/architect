@@ -16,6 +16,10 @@ Senior engineers need a new interface to review and steer system design before c
 
 ## Core thesis
 
+As coding agents continue to write better code at a faster pace, the engineering job will shift even more toward steering high leverage decisions. Namely, system design and architecture. 
+
+ at writing lines of code
+
 In a world of coding agents, the role of senior engineers is to make sound architecture decisions that direct agent behavior and set guardrails for ongoing development.
 
 Chat based coding agents hide many implicit architecture decisions. The engineer is left with a suboptimal design and an incomplete picture of the system.
