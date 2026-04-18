@@ -8,15 +8,15 @@ Claude Architect is a human-to-agent steering interface to develop more robust s
 
 Engineers have stopped writing code. They now direct coding agents through a chat interface and PRs are up 200% as a result.
 
-The problem is that coding agents implicitly hide core architectural decisions. The result is either (a) suboptimal architecture that would have benefitted from more steering by the engineer or (b) the engineer needs to parse chatbot conversations and lines of code.
+The problem is that coding agents often hide implicit architectural decisions. The result is either (a) suboptimal architecture that would have benefitted from more steering by the engineer or (b) the engineer needs to parse chatbot conversations and lines of code.
 
 This problem arises in both new project development and PRs to existing codebases.
 
-Senior engineers need a higher-level interface to steer and verify system evolution before costs compound in implementation, maintenance, and PR review.
+Senior engineers need a new interface to review and steer system design before costs compound in implementation, maintenance, and PR review.
 
 ## Core thesis
 
-In a world of coding agents, the primary value of senior engineers is to make sound architecture decisions that direct agent behavior and set guardrails for ongoing development.
+In a world of coding agents, the role of senior engineers is to make sound architecture decisions that direct agent behavior and set guardrails for ongoing development.
 
 Chat based coding agents hide many implicit architecture decisions. The engineer is left with a suboptimal design and an incomplete picture of the system.
 
