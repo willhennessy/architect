@@ -144,6 +144,7 @@
     html {
       background: var(--color-bg-app);
       color-scheme: light;
+      height: 100%;
     }
 
     html[data-theme="dark"] {
@@ -159,16 +160,26 @@
         radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--color-signal) 12%, transparent) 0%, transparent 24%),
         linear-gradient(180deg, var(--color-bg-sidebar) 0%, var(--color-bg-app) 24%, var(--color-bg-app) 100%);
       color: var(--color-text-primary);
+      height: 100%;
       min-height: 100vh;
     }
 
     #app {
+      height: 100vh;
       min-height: 100vh;
       display: grid;
       grid-template-rows: auto auto auto 1fr;
     }
 
+    @supports (height: 100dvh) {
+      #app {
+        height: 100dvh;
+        min-height: 100dvh;
+      }
+    }
+
     .topbar {
+      grid-row: 1;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -193,14 +204,14 @@
 
     .brand {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: 12px;
       min-width: 0;
     }
 
     .title {
       font-weight: 800;
-      font-size: 14px;
+      font-size: 16px;
       color: var(--color-text-primary);
       white-space: nowrap;
     }
@@ -212,20 +223,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: min(72vw, 980px);
-    }
-
-    .mode-badge {
-      display: none;
-      font-size: 10px;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      color: var(--color-brand);
-      border: 1px solid color-mix(in srgb, var(--color-brand) 34%, var(--color-border-default));
-      background: color-mix(in srgb, var(--color-brand) 12%, var(--color-bg-surface-elevated));
-      padding: 3px 7px;
-      border-radius: 999px;
-      font-weight: 700;
-      flex-shrink: 0;
     }
 
     .theme-toggle {
@@ -241,6 +238,7 @@
     }
 
     .tabbar {
+      grid-row: 2;
       padding: 8px 14px;
       border-bottom: 1px solid var(--color-border-default);
       background: color-mix(in srgb, var(--color-bg-sidebar) 96%, var(--color-bg-app));
@@ -284,16 +282,19 @@
     }
 
     .toolbar {
+      grid-row: 3;
+      display: none;
       padding: 8px 14px;
       border-bottom: 1px solid var(--color-border-default);
       background: color-mix(in srgb, var(--color-bg-sidebar) 96%, var(--color-bg-app));
-      display: flex;
-      gap: 8px;
       align-items: center;
-      flex-wrap: wrap;
       position: sticky;
       top: 82px;
       z-index: 40;
+    }
+
+    .toolbar.show {
+      display: flex;
     }
 
     .statusbar {
@@ -388,22 +389,6 @@
       transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
     }
 
-    .comment-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      background: transparent;
-    }
-
-    .comment-toggle-icon {
-      width: 16px;
-      height: 16px;
-      flex: 0 0 auto;
-      color: currentColor;
-      opacity: 0.88;
-      transform: translateY(0.5px);
-    }
-
     button:focus-visible,
     .tab:focus-visible,
     textarea:focus-visible {
@@ -411,15 +396,14 @@
       box-shadow: 0 0 0 2px var(--color-focus-ring);
     }
 
-    button:hover:not(:disabled):not(.comment-toggle.on):not(.tab) {
+    button:hover:not(:disabled):not(.btn-submit-comments):not(.mode-toggle-segment):not(.tab) {
       border-color: var(--color-border-strong);
       background: var(--color-hover-bg);
     }
 
     button:disabled { opacity: .5; cursor: default; }
 
-    .btn-primary,
-    .comment-toggle.on {
+    .btn-primary {
       background-color: var(--color-text-primary);
       color: var(--color-text-inverse);
       border-color: transparent;
@@ -430,7 +414,7 @@
     }
 
     .btn-primary:hover:not(:disabled),
-    .comment-toggle.on:hover:not(:disabled) {
+    .btn-submit-comments:hover:not(:disabled) {
       opacity: 0.9;
     }
 
@@ -438,32 +422,86 @@
       opacity: 0.82;
     }
 
-    .comment-toggle:hover:not(:disabled):not(.on),
     .theme-toggle:hover:not(:disabled) {
       border-color: var(--color-border-default);
       background: var(--color-hover-bg);
     }
 
-    .comment-toggle.on .comment-toggle-icon {
-      opacity: 1;
-    }
-
     .workspace {
+      grid-row: 4;
+      height: 100%;
       min-height: 0;
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+      gap: 12px;
       padding: 10px;
-      transition: grid-template-columns 140ms ease;
+      overflow: hidden;
+      align-items: stretch;
     }
 
-    .workspace.details-open {
-      grid-template-columns: 1fr 320px;
+    .diagram-panel {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mode-toggle {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="dark"] .mode-toggle {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .mode-toggle-segment {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--color-text-secondary);
+      border: none;
+      font-weight: 500;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .mode-toggle-segment:hover:not(.is-active) {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+
+    .mode-toggle-segment.is-active {
+      background: var(--color-signal);
+      color: var(--color-text-inverse);
+    }
+
+    .mode-toggle-segment .icon {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      color: currentColor;
     }
 
     .canvas-wrap {
       position: relative;
       min-height: 0;
+      flex: 1 1 auto;
       border: 1px solid var(--color-border-default);
       border-radius: 14px;
       background:
@@ -479,172 +517,317 @@
       padding: 6px;
     }
 
-    .hint {
-      position: absolute;
-      left: 10px;
-      top: 10px;
-      font-size: 11px;
-      color: var(--color-text-primary);
-      background: var(--color-bg-surface);
-      border: 1px solid var(--color-border-subtle);
-      border-radius: 6px;
-      padding: 6px 12px;
-      display: none;
-      align-items: center;
-      gap: 8px;
+    .canvas-content {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
-    .hint.show { display: inline-flex; }
-
-    .mode-indicator {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--color-signal);
-      vertical-align: middle;
+    .canvas-content > * {
       flex: 0 0 auto;
     }
 
-    #details {
-      border: 1px solid var(--color-border-default);
-      border-radius: 14px;
-      background: var(--color-bg-sidebar);
-      overflow: hidden;
-      font-size: 12px;
-      display: none;
-      min-width: 0;
-    }
-
-    .workspace.details-open #details {
+    .sidebar {
       display: flex;
       flex-direction: column;
       min-height: 0;
+      height: 100%;
+      background: var(--color-bg-sidebar);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 14px;
+      overflow: hidden;
     }
 
-    .details-header {
+    .sidebar-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--color-border-default);
-      background: var(--color-bg-surface-raised);
+      min-height: 52px;
+      box-sizing: border-box;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-border-subtle);
     }
 
-    .details-title {
+    .sidebar-title {
       font-size: 11px;
-      letter-spacing: .08em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--color-text-tertiary);
       font-weight: 500;
+      margin: 0;
     }
 
-    #detailsBody {
-      overflow: auto;
-      padding: 12px;
-      min-height: 0;
-    }
-
-    .details-collapse-btn {
-      padding: 4px 8px;
-      font-size: 11px;
-      border-radius: 8px;
-    }
-
-    .empty-note { color: var(--color-text-secondary); text-align: center; padding-top: 40px; }
-
-    .meta-label {
-      font-size: 10px;
-      color: var(--color-text-tertiary);
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      margin-top: 12px;
-      margin-bottom: 4px;
-    }
-
-    .chip {
-      display: inline-block;
-      border: 1px solid var(--color-border-default);
-      border-radius: 999px;
-      padding: 2px 7px;
-      font-size: 10px;
-      margin-right: 4px;
-      margin-top: 3px;
-      color: var(--color-text-primary);
-      background: var(--color-bg-surface);
-    }
-
-    .queue {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      flex: 1 1 320px;
-      min-width: 0;
-      margin-left: 4px;
-    }
-
-    .queue.show { display: flex; }
-
-    .queue-label {
-      font-size: 11px;
-      color: var(--color-text-primary);
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .queue-items {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      flex: 1;
-    }
-
-    .queue-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border: 1px solid color-mix(in srgb, var(--color-brand) 42%, var(--color-border-default));
-      background: color-mix(in srgb, var(--color-brand) 14%, var(--color-bg-surface));
-      color: var(--color-text-primary);
-      border-radius: 8px;
-      padding: 4px 8px;
-      font-size: 11px;
-      line-height: 1.2;
-      max-width: 260px;
-      min-height: 24px;
-      overflow: hidden;
-    }
-
-    .queue-item-text {
-      display: inline-flex;
-      align-items: center;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .queue-remove {
-      border: 0;
-      background: transparent;
-      color: var(--color-text-secondary);
-      border-radius: 999px;
-      padding: 0;
-      width: 16px;
-      height: 16px;
-      min-width: 16px;
-      display: inline-flex;
-      align-items: center;
-      align-self: center;
-      justify-content: center;
+    .sidebar-count {
+      color: var(--color-text-muted);
       font-size: 12px;
+      background: var(--color-bg-surface);
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .sidebar-body {
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .sidebar-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--color-border-subtle);
+      background: var(--color-bg-sidebar);
+      position: sticky;
+      bottom: 0;
+    }
+
+    .btn-submit-comments {
+      width: 100%;
+      background: var(--color-text-primary);
+      color: var(--color-text-inverse);
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-submit-comments:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .comment-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .comment-card {
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .comment-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .comment-card-target {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--color-border-subtle);
+      background: var(--color-selected-bg);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .comment-card-delete {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 120ms ease, color 120ms ease;
+      padding: 0 4px;
+      border-radius: 6px;
+    }
+
+    .comment-card:hover .comment-card-delete,
+    .comment-card:focus-within .comment-card-delete {
+      opacity: 1;
+    }
+
+    .comment-card-delete:hover,
+    .comment-card-delete:focus,
+    .comment-card-delete:focus-visible {
+      opacity: 1;
+      color: var(--color-text-primary);
+    }
+
+    .comment-card-body {
+      color: var(--color-text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0 0 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .comment-card-time {
+      color: var(--color-text-muted);
+      font-size: 11px;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--color-text-muted);
+    }
+
+    .sidebar[data-mode="comment"] .empty-state {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    .empty-state p {
+      margin: 0;
       line-height: 1;
     }
 
-    .queue-remove:hover:not(:disabled) {
-      background: var(--color-hover-bg);
+    .empty-state-hint {
+      font-size: 12px;
+    }
+
+    .empty-note {
+      color: var(--color-text-secondary);
+      text-align: center;
+      padding-top: 40px;
+    }
+
+    .component-header {
+      margin-bottom: 14px;
+    }
+
+    .component-title {
       color: var(--color-text-primary);
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+
+    .component-kind {
+      color: var(--color-text-tertiary);
+      font-size: 13px;
+      font-weight: 500;
+      margin: 0;
+    }
+
+    .component-kind[data-kind="person"] {
+      color: var(--color-element-sage);
+    }
+
+    .component-kind[data-kind="container"] {
+      color: var(--color-element-plum);
+    }
+
+    .component-kind[data-kind="software_system"] {
+      color: var(--color-element-indigo);
+    }
+
+    .component-kind[data-kind="external_system"] {
+      color: var(--color-element-ochre);
+    }
+
+    .component-kind[data-kind="database"] {
+      color: var(--color-element-slate);
+    }
+
+    .component-kind[data-kind="queue"] {
+      color: var(--color-element-rose);
+    }
+
+    .component-kind[data-kind="component"] {
+      color: var(--color-element-teal);
+    }
+
+    .field-group {
+      margin-bottom: 14px;
+    }
+
+    .field-label {
+      color: var(--color-text-tertiary);
+      font-size: 12px;
+      font-weight: 500;
+      margin: 0 0 4px;
+    }
+
+    .field-value {
+      color: var(--color-text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: transparent;
+      border: 1px solid var(--color-border-default);
+      color: var(--color-text-secondary);
+      font-size: 12px;
+    }
+
+    .relationship-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .relationship-card {
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .relationship-card-route {
+      color: var(--color-text-secondary);
+      font-size: 11px;
+      line-height: 1.4;
+      margin: 0 0 4px;
+    }
+
+    .relationship-card-body {
+      color: var(--color-text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .relationship-card-meta {
+      color: var(--color-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      margin: 4px 0 0;
+    }
+
+    @media (max-width: 1024px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        min-height: 320px;
+      }
     }
 
     .overlay {
@@ -776,18 +959,11 @@
       <div class="subtitle" id="systemSubtitle"></div>
     </div>
     <div class="topbar-actions">
-      <span class="mode-badge" id="modeBadge"></span>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle color theme">Theme: Light</button>
     </div>
   </div>
   <div class="tabbar" id="tabs" aria-label="View navigation"></div>
-  <div class="toolbar">
-    <button id="commentToggle" class="comment-toggle"><svg class="comment-toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12.0169 0.00106239C10.4432 0.00106239 8.88501 0.311438 7.43115 0.914468C5.97729 1.5175 4.65628 2.40137 3.54355 3.51563C1.29628 5.76596 0.0337749 8.81807 0.0337749 12.0005C0.0232991 14.7714 -1.73892 17.5005 0.0216443 19.6382L0.0337749 22.0011C-0.1325 22.1698 0.0664242 22.3791 0.0216384 22.6119C-0.0231475 22.8447 0.00192435 23.0855 0.0936904 23.304C0.19322 23.5199 0.354568 23.7014 0.557253 23.8253C0.759939 23.9492 0.994821 24.01 1.23209 24H12.0169C15.195 24 18.243 22.7358 20.4902 20.4854C22.7375 18.2351 24 15.183 24 12.0005C24 8.81807 22.7375 5.76596 20.4902 3.51563C18.243 1.26529 15.195 0.00106239 12.0169 0.00106239ZM12.0169 21.6001H4.12002H3.49999C3.03125 21.6001 2.5 21.6001 2.5 21.6001C2.5 21.2831 2.49999 19.5011 2.46957 19.0011C2.49999 17.5011 2.5 15.5 2.46957 12.947C2.29106 10.8006 2.8042 8.51949 4.03521 6.67219C5.26621 4.82489 7.09877 3.46214 9.22065 2.81611C11.3425 2.17007 13.6225 2.28073 15.672 3.12922C17.7215 3.97771 19.4139 5.51155 20.4607 7.4694C21.5075 9.42725 21.8441 11.688 21.413 13.8665C20.9819 16.0449 19.8099 18.0063 18.0966 19.4165C16.3833 20.8267 14.2347 21.5984 12.0169 21.6001ZM15.6118 10.8006H13.2152V8.40069C13.2152 8.08244 13.0889 7.77723 12.8642 7.5522C12.6395 7.32717 12.3347 7.20074 12.0169 7.20074C11.6991 7.20074 11.3943 7.32717 11.1696 7.5522C10.9448 7.77723 10.8186 8.08244 10.8186 8.40069V10.8006H8.42195C8.10414 10.8006 7.79935 10.927 7.57462 11.152C7.34989 11.3771 7.22364 11.6823 7.22364 12.0005C7.22364 12.3188 7.34989 12.624 7.57462 12.849C7.79935 13.0741 8.10414 13.2005 8.42195 13.2005H10.8186V15.6004C10.8186 15.9186 10.9448 16.2238 11.1696 16.4489C11.3943 16.6739 11.6991 16.8003 12.0169 16.8003C12.3347 16.8003 12.6395 16.6739 12.8642 16.4489C13.0889 16.2238 13.2152 15.9186 13.2152 15.6004V13.2005H15.6118C15.9296 13.2005 16.2344 13.0741 16.4592 12.849C16.6839 12.624 16.8101 12.3188 16.8101 12.0005C16.8101 11.6823 16.6839 11.3771 16.4592 11.152C16.2344 10.927 15.9296 10.8006 15.6118 10.8006Z" fill="currentColor"/></svg><span>Comment (C)</span></button>
-    <button id="submitBtn" class="btn-primary" disabled>Submit comments</button>
-    <div class="queue" id="queueBar">
-      <span class="queue-label">Queued</span>
-      <div class="queue-items" id="queueItems"></div>
-    </div>
+  <div class="toolbar" id="toolbar">
     <div class="statusbar" id="statusBar">
       <div class="statusbar-main">
         <span class="status-pill" id="statusPill">Idle</span>
@@ -796,16 +972,50 @@
     </div>
   </div>
   <div class="workspace" id="workspace">
-    <div class="canvas-wrap">
-      <div class="hint" id="commentHint"><span class="mode-indicator" aria-hidden="true"></span><span>Comment mode: click any node or edge</span></div>
-      <div id="canvas"></div>
-    </div>
-    <aside id="details" aria-label="Details sidebar">
-      <div class="details-header">
-        <div class="details-title">Details</div>
-        <button id="detailsCollapseBtn" class="details-collapse-btn" title="Collapse details sidebar">Collapse</button>
+    <div class="diagram-panel">
+      <div class="canvas-wrap">
+        <div class="mode-toggle" role="tablist" aria-label="View mode">
+          <button
+            id="modeExploreBtn"
+            class="mode-toggle-segment is-active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            data-mode="explore"
+            title="Explore (V)"
+          >
+            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M1.03902 1.02126C0.571834 1.47975 0.243922 2.06116 0.0931965 2.69826C-0.057529 3.33536 -0.0249111 4.00213 0.187279 4.62146L5.86153 21.6024C6.08562 22.2873 6.51671 22.8857 7.09527 23.315C7.67384 23.7443 8.37136 23.9834 9.09154 23.9992C9.81172 24.015 10.519 23.8067 11.1159 23.4032C11.7127 22.9997 12.1696 22.4208 12.4235 21.7464L14.8228 15.4581C14.8775 15.3149 14.9611 15.1845 15.0685 15.0751C15.1758 14.9657 15.3045 14.8795 15.4466 14.8221L21.7446 12.4219C22.4092 12.1776 22.9824 11.7342 23.3859 11.1523C23.7895 10.5703 24.0039 9.87801 23.9999 9.16972V9.08572C23.9868 8.36445 23.7484 7.66538 23.3182 7.08647C22.8879 6.50756 22.2874 6.07784 21.6007 5.85753L4.60192 0.181206C3.98883 -0.0252314 3.33024 -0.0559596 2.70061 0.092493C2.07097 0.240946 1.49542 0.562658 1.03902 1.02126V1.02126ZM3.84615 2.40133L20.8569 8.13766C21.0722 8.20427 21.2606 8.33805 21.3944 8.51944C21.5282 8.70082 21.6005 8.92028 21.6007 9.14572C21.6044 9.36983 21.5398 9.58975 21.4155 9.77625C21.2912 9.96274 21.1131 10.107 20.9049 10.1898L14.6068 12.5899C14.1492 12.7639 13.7333 13.0323 13.3861 13.3775C13.0389 13.7228 12.7681 14.1373 12.5915 14.594L10.1922 20.8944C10.1143 21.1069 9.97171 21.2896 9.78443 21.4167C9.59715 21.5437 9.37471 21.6087 9.14852 21.6024C8.92316 21.6023 8.70378 21.5299 8.52246 21.3961C8.34114 21.2622 8.20741 21.0738 8.14083 20.8584L2.46658 3.84142C2.38698 3.64604 2.36565 3.43179 2.40519 3.22455C2.44472 3.01731 2.54341 2.82596 2.68933 2.67364C2.83526 2.52132 3.02216 2.41454 3.22746 2.36621C3.43275 2.31789 3.64764 2.33009 3.84615 2.40133V2.40133Z" fill="currentColor"/>
+            </svg>
+            <span>Explore</span>
+          </button>
+          <button
+            id="modeCommentBtn"
+            class="mode-toggle-segment"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-mode="comment"
+            title="Comment (C)"
+          >
+            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12.0169 0.00106239C10.4432 0.00106239 8.88501 0.311438 7.43115 0.914468C5.97729 1.5175 4.65628 2.40137 3.54355 3.51563C1.29628 5.76596 0.0337749 8.81807 0.0337749 12.0005C0.0232991 14.7714 -1.73892 17.5005 0.0216443 19.6382L0.0337749 22.0011C-0.1325 22.1698 0.0664242 22.3791 0.0216384 22.6119C-0.0231475 22.8447 0.00192435 23.0855 0.0936904 23.304C0.19322 23.5199 0.354568 23.7014 0.557253 23.8253C0.759939 23.9492 0.994821 24.01 1.23209 24H12.0169C15.195 24 18.243 22.7358 20.4902 20.4854C22.7375 18.2351 24 15.183 24 12.0005C24 8.81807 22.7375 5.76596 20.4902 3.51563C18.243 1.26529 15.195 0.00106239 12.0169 0.00106239ZM12.0169 21.6001H4.12002H3.49999C3.03125 21.6001 2.5 21.6001 2.5 21.6001C2.5 21.2831 2.49999 19.5011 2.46957 19.0011C2.49999 17.5011 2.5 15.5 2.46957 12.947C2.29106 10.8006 2.8042 8.51949 4.03521 6.67219C5.26621 4.82489 7.09877 3.46214 9.22065 2.81611C11.3425 2.17007 13.6225 2.28073 15.672 3.12922C17.7215 3.97771 19.4139 5.51155 20.4607 7.4694C21.5075 9.42725 21.8441 11.688 21.413 13.8665C20.9819 16.0449 19.8099 18.0063 18.0966 19.4165C16.3833 20.8267 14.2347 21.5984 12.0169 21.6001ZM15.6118 10.8006H13.2152V8.40069C13.2152 8.08244 13.0889 7.77723 12.8642 7.5522C12.6395 7.32717 12.3347 7.20074 12.0169 7.20074C11.6991 7.20074 11.3943 7.32717 11.1696 7.5522C10.9448 7.77723 10.8186 8.08244 10.8186 8.40069V10.8006H8.42195C8.10414 10.8006 7.79935 10.927 7.57462 11.152C7.34989 11.3771 7.22364 11.6823 7.22364 12.0005C7.22364 12.3188 7.34989 12.624 7.57462 12.849C7.79935 13.0741 8.10414 13.2005 8.42195 13.2005H10.8186V15.6004C10.8186 15.9186 10.9448 16.2238 11.1696 16.4489C11.3943 16.6739 11.6991 16.8003 12.0169 16.8003C12.3347 16.8003 12.6395 16.6739 12.8642 16.4489C13.0889 16.2238 13.2152 15.9186 13.2152 15.6004V13.2005H15.6118C15.9296 13.2005 16.2344 13.0741 16.4592 12.849C16.6839 12.624 16.8101 12.3188 16.8101 12.0005C16.8101 11.6823 16.6839 11.3771 16.4592 11.152C16.2344 10.927 15.9296 10.8006 15.6118 10.8006Z" fill="currentColor"/>
+            </svg>
+            <span>Comment</span>
+          </button>
+        </div>
+        <div id="canvas"></div>
       </div>
-      <div id="detailsBody"><div class="empty-note">Click a node to inspect details</div></div>
+    </div>
+    <aside id="sidebar" class="sidebar" data-mode="explore" aria-label="Mode-aware sidebar">
+      <header class="sidebar-header">
+        <h2 id="sidebarTitle" class="sidebar-title">Component Details</h2>
+        <span id="sidebarCount" class="sidebar-count" hidden>0</span>
+      </header>
+      <div id="sidebarBody" class="sidebar-body"><div class="empty-state"><p>Click a component to inspect details</p></div></div>
+      <footer id="sidebarFooter" class="sidebar-footer" hidden>
+        <button id="submitBtn" class="btn-submit-comments" type="button" disabled>Submit 0 comments</button>
+      </footer>
     </aside>
   </div>
 </div>
@@ -839,6 +1049,7 @@ const MODE = "__DIAGRAM_MODE__";
 const HANDOFF = DATA.comment_handoff || {};
 
 const THEME_STORAGE_KEY = 'theme';
+const VIEW_MODE_STORAGE_KEY = 'viewMode';
 const THEME = {
   bgPrimary: 'var(--color-bg-app)',
   bgSecondary: 'var(--color-bg-sidebar)',
@@ -883,8 +1094,7 @@ const state = {
   viewId: DATA.initial_view_id,
   history: [],
   selectedId: null,
-  detailsOpen: false,
-  commentMode: false,
+  mode: 'explore',
   comments: [],
   pendingTarget: null,
   submitInFlight: false,
@@ -892,6 +1102,8 @@ const state = {
   eventSource: null,
   pollTimer: null,
 };
+
+state.mode = storedViewMode();
 
 const nodesById = new Map((DATA.elements || []).map(function (e) { return [e.id, e]; }));
 const viewsById = new Map((DATA.views || []).map(function (v) { return [v.id, v]; }));
@@ -932,8 +1144,12 @@ const kindFillColor = {
   cache: THEME.cyanMutedFill,
 };
 
+function normalizeKind(kind) {
+  return String(kind || '').toLowerCase();
+}
+
 function paletteForKind(kind) {
-  const normalized = String(kind || '').toLowerCase();
+  const normalized = normalizeKind(kind);
   return {
     color: kindColor[normalized] || THEME.slateNeutral,
     fill: kindFillColor[normalized] || THEME.slateNeutralFill,
@@ -948,8 +1164,82 @@ function fillColorForKind(kind) {
   return paletteForKind(kind).fill;
 }
 
-function kindChipHtml(kind) {
-  return '<span class="chip">' + esc(kind || 'unknown') + '</span>';
+function kindSubtitleHtml(kind) {
+  const normalized = normalizeKind(kind);
+  const attr = normalized ? ' data-kind="' + esc(normalized) + '"' : '';
+  return '<p class="component-kind"' + attr + '>' + esc(humanizeSlug(kind || 'unknown')) + '</p>';
+}
+
+function humanizeSlug(value) {
+  return String(value || '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, function (match) { return match.toUpperCase(); });
+}
+
+function displayNameForElementId(id) {
+  const element = nodesById.get(id);
+  return (element && element.name) || humanizeSlug(id || 'unknown');
+}
+
+function relationshipDedupSignature(rel) {
+  return [
+    rel.source_id || '',
+    rel.target_id || '',
+    rel.label || '',
+    rel.technology || '',
+    rel.protocol || '',
+    rel.interaction_type || '',
+    rel.sync_async || '',
+    (rel.data_objects || []).join('|'),
+    (rel.tags || []).join('|'),
+    rel.confidence || '',
+  ].join('::');
+}
+
+function relationshipsForNode(nodeId) {
+  const seen = new Set();
+  return Array.from(relationshipsById.values()).filter(function (rel) {
+    return rel.source_id === nodeId || rel.target_id === nodeId;
+  }).filter(function (rel) {
+    const sig = relationshipDedupSignature(rel);
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  });
+}
+
+function relationshipRouteText(rel) {
+  return displayNameForElementId(rel.source_id) + ' → ' + displayNameForElementId(rel.target_id);
+}
+
+function relationshipCollisionKey(rel) {
+  return [relationshipRouteText(rel), rel.label || ''].join('::');
+}
+
+function relationshipDetailParts(rel) {
+  const details = [];
+  if (rel.technology) details.push(rel.technology);
+  if (rel.protocol) details.push(String(rel.protocol).toUpperCase());
+  if (rel.interaction_type && rel.interaction_type !== 'calls') details.push(humanizeSlug(rel.interaction_type));
+  if (rel.sync_async && rel.sync_async !== 'human') details.push(humanizeSlug(rel.sync_async));
+  if ((rel.data_objects || []).length) details.push((rel.data_objects || []).join(', '));
+  return details;
+}
+
+function relationshipCardHtml(rel, showDifferentiator) {
+  const detailParts = relationshipDetailParts(rel);
+  const bodyText = rel.label || humanizeSlug(rel.id || 'relationship');
+  const html = [];
+  html.push('<div class="relationship-card">');
+  html.push('<p class="relationship-card-route">' + esc(relationshipRouteText(rel)) + '</p>');
+  html.push('<p class="relationship-card-body">' + esc(bodyText) + '</p>');
+  if (showDifferentiator && detailParts.length) {
+    html.push('<p class="relationship-card-meta">' + esc(detailParts.join(' • ')) + '</p>');
+  }
+  html.push('</div>');
+  return html.join('');
 }
 
 const edgeColor = THEME.lineStrong;
@@ -1060,6 +1350,26 @@ function storedTheme() {
   }
 }
 
+function normalizeViewMode(mode) {
+  return mode === 'comment' ? 'comment' : 'explore';
+}
+
+function storedViewMode() {
+  try {
+    return normalizeViewMode(localStorage.getItem(VIEW_MODE_STORAGE_KEY));
+  } catch (_err) {
+    return 'explore';
+  }
+}
+
+function persistViewMode(mode) {
+  try {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, normalizeViewMode(mode));
+  } catch (_err) {
+    // ignore storage failures in restricted environments
+  }
+}
+
 function currentTheme() {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
@@ -1088,6 +1398,20 @@ function updateThemeToggle() {
 }
 
 function currentView() { return viewsById.get(state.viewId); }
+
+function isCommentMode() {
+  return state.mode === 'comment';
+}
+
+function setMode(mode, shouldRender) {
+  const nextMode = normalizeViewMode(mode);
+  state.mode = nextMode;
+  if (nextMode !== 'comment') {
+    closeCommentDialog();
+  }
+  persistViewMode(nextMode);
+  if (shouldRender !== false) render();
+}
 
 function statusToneForState(jobState) {
   if (jobState === 'failed' || jobState === 'blocked') return 'error';
@@ -1154,7 +1478,7 @@ function buildCommentPayload() {
 function applyJobStatus(status) {
   if (!status || !status.state) return;
   state.activeJob = status;
-  updateQueue();
+  updateSubmitButton();
   updateStatusBar();
 
   if (status.state === 'completed' || status.state === 'failed' || status.state === 'blocked') {
@@ -1186,16 +1510,20 @@ function isJobHandlingInProgress(status) {
 }
 
 function updateStatusBar() {
+  const toolbar = $('toolbar');
   const bar = $('statusBar');
   const pill = $('statusPill');
   const message = $('statusMessage');
 
   if (!state.activeJob) {
+    toolbar.className = 'toolbar';
     bar.className = 'statusbar';
     message.textContent = '';
+    updateSubmitButton();
     return;
   }
 
+  toolbar.className = 'toolbar show';
   const tone = statusToneForState(state.activeJob.state);
   bar.className = 'statusbar show ' + tone;
   pill.textContent = statusLabelForState(state.activeJob.state);
@@ -1211,6 +1539,7 @@ function updateStatusBar() {
     }
   }
   message.textContent = statusText;
+  updateSubmitButton();
 }
 
 function startPollingJob(jobId, statusUrl) {
@@ -1292,16 +1621,20 @@ function hydrateLatestStatus() {
 }
 
 function updateHeader() {
-  const subtitle = DATA.system_subtitle || DATA.system_name || 'Architecture Diagram';
-  const commentToggle = $('commentToggle');
-  const commentHandlingInProgress = isJobHandlingInProgress(state.activeJob);
+  const subtitle = DATA.system_name || 'Architecture Diagram';
+  const activeMode = normalizeViewMode(state.mode);
   $('systemSubtitle').textContent = subtitle;
-  $('modeBadge').setAttribute('data-render-mode', MODE);
-  $('commentHint').className = state.commentMode ? 'hint show' : 'hint';
-  commentToggle.className = state.commentMode ? 'comment-toggle on' : 'comment-toggle';
-  commentToggle.disabled = commentHandlingInProgress;
+  ['modeExploreBtn', 'modeCommentBtn'].forEach(function (id) {
+    const button = $(id);
+    if (!button) return;
+    const isActive = button.getAttribute('data-mode') === activeMode;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    button.tabIndex = isActive ? 0 : -1;
+  });
+  $('sidebar').setAttribute('data-mode', activeMode);
   updateThemeToggle();
-  document.body.classList.toggle('comment-mode-on', state.commentMode);
+  document.body.classList.toggle('comment-mode-on', activeMode === 'comment');
 }
 
 function cleanedTitle(text) {
@@ -1386,6 +1719,13 @@ function applyResponsiveSvgSizing(svg) {
   svg.style.height = 'auto';
   svg.style.maxWidth = '100%';
   svg.style.marginInline = 'auto';
+}
+
+function createCanvasContent(host) {
+  const content = document.createElement('div');
+  content.className = 'canvas-content';
+  host.appendChild(content);
+  return content;
 }
 
 function isConfidenceTokenText(text) {
@@ -1644,7 +1984,7 @@ function applyNodeGroupTheme(group, node) {
   const palette = paletteForKind(node && node.kind);
   const cluster = nodeClusterElements(group);
   const elementId = group.getAttribute('data-element-id');
-  const selected = elementId && elementId === state.selectedId;
+  const selected = state.mode === 'explore' && elementId && elementId === state.selectedId;
   const drillable = elementId && isDrillable(elementId);
   const stroke = selected || drillable ? THEME.signal : palette.color;
 
@@ -1944,7 +2284,7 @@ function applyDrillabilityAffordances(svg) {
 
 function wireSvgInteractions(svg, view) {
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
-    if (el.getAttribute('data-element-id') === state.selectedId) {
+    if (state.mode === 'explore' && el.getAttribute('data-element-id') === state.selectedId) {
       el.setAttribute('data-selected', 'true');
     } else {
       el.removeAttribute('data-selected');
@@ -1973,7 +2313,7 @@ function wireSvgInteractions(svg, view) {
     const element = ev.target.closest('[data-element-id]');
     const rel = ev.target.closest('[data-relationship-id]');
 
-    if (state.commentMode) {
+    if (isCommentMode()) {
       ev.preventDefault();
       const target = element
         ? {
@@ -1989,12 +2329,8 @@ function wireSvgInteractions(svg, view) {
             relationship_id: rel.dataset.relationshipId || null,
             target_label: rel.dataset.targetLabel || rel.dataset.relationshipId || 'relationship',
           }
-        : {
-            view_id: view.id,
-            element_id: null,
-            relationship_id: null,
-            target_label: 'canvas',
-          };
+        : null;
+      if (!target) return;
       openCommentDialog(target);
       return;
     }
@@ -2017,8 +2353,6 @@ function wireSvgInteractions(svg, view) {
     }
 
     state.selectedId = id;
-    state.detailsOpen = true;
-    updateDetails();
     render();
   });
 }
@@ -2026,6 +2360,7 @@ function wireSvgInteractions(svg, view) {
 function drawDiagramView(view) {
   const host = $('canvas');
   host.innerHTML = '';
+  const content = createCanvasContent(host);
 
   const provided = normalizeSvgFragment(view.svg_fragment);
   if (provided) {
@@ -2034,14 +2369,14 @@ function drawDiagramView(view) {
     const svg = wrap.querySelector('svg');
     if (svg) {
       applyResponsiveSvgSizing(svg);
-      svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+      svg.style.cursor = isCommentMode() ? 'crosshair' : 'default';
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
       }
       stripConfidenceLabelsFromSvg(svg);
       applySvgTheme(svg, view);
       wireSvgInteractions(svg, view);
-      host.appendChild(svg);
+      content.appendChild(svg);
       return;
     }
   }
@@ -2054,7 +2389,7 @@ function drawDiagramView(view) {
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
   applyResponsiveSvgSizing(svg);
-  svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+  svg.style.cursor = isCommentMode() ? 'crosshair' : 'default';
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
   const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
@@ -2124,7 +2459,7 @@ function drawDiagramView(view) {
     line.setAttribute('stroke', edgeColor);
     line.setAttribute(
       'stroke-width',
-      state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
+      state.mode === 'explore' && state.selectedId && (edge.source_id === state.selectedId || edge.target_id === state.selectedId)
         ? String(relationshipStrokeWidthSelected)
         : String(relationshipStrokeWidth)
     );
@@ -2137,7 +2472,7 @@ function drawDiagramView(view) {
     hit.setAttribute('y1', String(y1));
     hit.setAttribute('x2', String(x2));
     hit.setAttribute('y2', String(y2));
-    hit.setAttribute('stroke', state.commentMode ? 'transparent' : 'transparent');
+    hit.setAttribute('stroke', 'transparent');
     hit.setAttribute('stroke-width', '14');
     hit.setAttribute('fill', 'none');
     edgeGroup.appendChild(hit);
@@ -2160,7 +2495,7 @@ function drawDiagramView(view) {
     g.setAttribute('data-element-id', node.id);
     g.setAttribute('data-view-id', view.id);
     g.setAttribute('data-target-label', node.name || node.id);
-    g.style.cursor = state.commentMode ? 'crosshair' : 'pointer';
+    g.style.cursor = isCommentMode() ? 'crosshair' : 'pointer';
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', String(box.x));
@@ -2169,8 +2504,9 @@ function drawDiagramView(view) {
     rect.setAttribute('height', String(box.h));
     rect.setAttribute('rx', '10');
     rect.setAttribute('fill', fillColorForKind(node.kind));
-    rect.setAttribute('stroke', state.selectedId === node.id ? THEME.signal : colorForKind(node.kind));
-    rect.setAttribute('stroke-width', state.selectedId === node.id ? '2.2' : '1.1');
+    const selected = state.mode === 'explore' && state.selectedId === node.id;
+    rect.setAttribute('stroke', selected ? THEME.signal : colorForKind(node.kind));
+    rect.setAttribute('stroke-width', selected ? '2.2' : '1.1');
     g.appendChild(rect);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -2209,12 +2545,13 @@ function drawDiagramView(view) {
   });
 
   wireSvgInteractions(svg, view);
-  host.appendChild(svg);
+  content.appendChild(svg);
 }
 
 function drawSequenceView(view) {
   const host = $('canvas');
   host.innerHTML = '';
+  const content = createCanvasContent(host);
 
   const provided = normalizeSvgFragment(view.svg_fragment);
   if (provided) {
@@ -2223,14 +2560,14 @@ function drawSequenceView(view) {
     const svg = wrap.querySelector('svg');
     if (svg) {
       applyResponsiveSvgSizing(svg);
-      svg.style.cursor = state.commentMode ? 'crosshair' : 'default';
+      svg.style.cursor = isCommentMode() ? 'crosshair' : 'default';
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
       }
       stripConfidenceLabelsFromSvg(svg);
       applySvgTheme(svg, view);
       wireSvgInteractions(svg, view);
-      host.appendChild(svg);
+      content.appendChild(svg);
       return;
     }
   }
@@ -2270,7 +2607,7 @@ function drawSequenceView(view) {
     list.appendChild(row);
   });
   box.appendChild(list);
-  host.appendChild(box);
+  content.appendChild(box);
 }
 
 function nodeLane(node) {
@@ -2511,9 +2848,9 @@ function layoutNodes(nodes, edges, viewType) {
 }
 
 function updateDetails() {
-  const pane = $('detailsBody');
+  const pane = $('sidebarBody');
   if (!state.selectedId) {
-    pane.innerHTML = '<div class="empty-note">Click a node to inspect details</div>';
+    pane.innerHTML = '<div class="empty-state"><p>Click a component to inspect details</p></div>';
     return;
   }
   const node = nodesById.get(state.selectedId);
@@ -2522,86 +2859,170 @@ function updateDetails() {
     return;
   }
 
-  const rels = [];
-  (DATA.views || []).forEach(function (v) {
-    (v.edges || []).forEach(function (e) {
-      if (e.source_id === node.id || e.target_id === node.id) rels.push(e);
-    });
+  const rels = relationshipsForNode(node.id);
+  const relationshipCollisionCounts = new Map();
+  rels.forEach(function (rel) {
+    const key = relationshipCollisionKey(rel);
+    relationshipCollisionCounts.set(key, (relationshipCollisionCounts.get(key) || 0) + 1);
   });
 
   const html = [];
-  html.push('<div style="font-size:15px;font-weight:700;color:' + THEME.textPrimary + '">' + esc(node.name || node.id) + '</div>');
+  html.push('<header class="component-header">'
+    + '<h3 class="component-title">' + esc(node.name || node.id) + '</h3>'
+    + kindSubtitleHtml(node.kind)
+    + '</header>');
 
-  if (node.description) html.push('<div class="meta-label">Description</div><div>' + esc(node.description) + '</div>');
-  html.push('<div class="meta-label">Kind</div>' + kindChipHtml(node.kind));
-  if (node.technology) html.push('<div class="meta-label">Technology</div><div>' + esc(node.technology) + '</div>');
-  if (node.confidence) html.push('<div class="meta-label">Confidence</div><div class="chip">' + esc(node.confidence) + '</div>');
+  if (node.description) {
+    html.push('<section class="field-group">'
+      + '<h3 class="field-label">Description</h3>'
+      + '<p class="field-value">' + esc(node.description) + '</p>'
+      + '</section>');
+  }
 
-  if ((node.tags || []).length) {
-    html.push('<div class="meta-label">Tags</div>');
-    node.tags.forEach(function (t) { html.push('<span class="chip">' + esc(t) + '</span>'); });
+  if (node.technology) {
+    html.push('<section class="field-group">'
+      + '<h3 class="field-label">Technology</h3>'
+      + '<p class="field-value">' + esc(node.technology) + '</p>'
+      + '</section>');
   }
 
   if (rels.length) {
-    html.push('<div class="meta-label">Relationships</div>');
-    rels.slice(0, 20).forEach(function (r) {
-      html.push('<div style="margin-bottom:6px;border:1px solid ' + THEME.line + ';border-radius:8px;padding:6px;background:' + THEME.bgTertiary + '">'
-        + '<div style="color:' + THEME.textSecondary + ';font-size:11px">' + esc(r.source_id) + ' → ' + esc(r.target_id) + '</div>'
-        + '<div>' + esc(r.label || r.id || '') + '</div>'
-        + '</div>');
+    html.push('<section class="field-group"><h3 class="field-label">Relationships</h3><div class="relationship-list">');
+    rels.slice(0, 20).forEach(function (rel) {
+      const showDifferentiator = (relationshipCollisionCounts.get(relationshipCollisionKey(rel)) || 0) > 1;
+      html.push(relationshipCardHtml(rel, showDifferentiator));
     });
+    html.push('</div></section>');
+  }
+
+  if (node.confidence) {
+    html.push('<section class="field-group">'
+      + '<h3 class="field-label">Confidence</h3>'
+      + '<p class="field-value">' + esc(humanizeSlug(node.confidence)) + '</p>'
+      + '</section>');
+  }
+
+  if ((node.tags || []).length) {
+    html.push('<section class="field-group"><h3 class="field-label">Tags</h3><div class="chip-list">');
+    node.tags.forEach(function (tag) {
+      html.push('<span class="chip">' + esc(tag) + '</span>');
+    });
+    html.push('</div></section>');
   }
 
   pane.innerHTML = html.join('');
 }
 
-function updateQueue() {
-  const bar = $('queueBar');
-  const items = $('queueItems');
-  const submitBtn = $('submitBtn');
-  items.innerHTML = '';
-  submitBtn.textContent = state.submitInFlight ? 'Sending…' : 'Submit comments';
-  submitBtn.style.display = isJobHandlingInProgress(state.activeJob) ? 'none' : '';
+function formatRelativeTime(timestamp) {
+  const createdAt = Number(timestamp || 0);
+  const elapsedMs = Math.max(0, Date.now() - createdAt);
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  if (elapsedSeconds < 45) return 'just now';
 
-  if (state.activeJob && state.activeJob.state) {
-    bar.className = 'queue';
-    submitBtn.disabled = state.submitInFlight;
-    return;
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  if (elapsedMinutes < 60) return elapsedMinutes + ' min ago';
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return elapsedHours + ' hr ago';
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return elapsedDays + ' day' + (elapsedDays === 1 ? '' : 's') + ' ago';
+}
+
+function submitButtonLabel() {
+  const count = state.comments.length;
+  if (state.submitInFlight) {
+    return 'Sending ' + count + ' comment' + (count === 1 ? '' : 's') + '…';
   }
+  return 'Submit ' + count + ' comment' + (count === 1 ? '' : 's');
+}
+
+function updateSubmitButton() {
+  const submitBtn = $('submitBtn');
+  if (!submitBtn) return;
+  submitBtn.textContent = submitButtonLabel();
+  submitBtn.disabled = state.comments.length === 0 || state.submitInFlight || isJobHandlingInProgress(state.activeJob);
+}
+
+function updateCommentSidebar() {
+  const pane = $('sidebarBody');
+  pane.innerHTML = '';
 
   if (!state.comments.length) {
-    bar.className = 'queue';
-    submitBtn.disabled = state.submitInFlight;
+    pane.innerHTML = '<div class="empty-state"><p>No comments yet</p><p class="empty-state-hint">Click any element or edge to add a comment</p></div>';
     return;
   }
 
-  state.comments.forEach(function (c) {
-    const div = document.createElement('div');
-    div.className = 'queue-item';
+  const list = document.createElement('ul');
+  list.className = 'comment-list';
 
-    const text = document.createElement('span');
-    text.className = 'queue-item-text';
-    text.textContent = (c.target_label || 'target') + ': ' + c.comment;
+  state.comments.forEach(function (comment) {
+    const item = document.createElement('li');
+    item.className = 'comment-card';
+
+    const header = document.createElement('header');
+    header.className = 'comment-card-header';
+
+    const target = document.createElement('span');
+    target.className = 'comment-card-target';
+    target.textContent = commentTargetName(comment);
 
     const remove = document.createElement('button');
-    remove.className = 'queue-remove';
+    remove.className = 'comment-card-delete';
     remove.type = 'button';
-    remove.setAttribute('aria-label', 'Remove queued comment');
+    remove.setAttribute('aria-label', 'Delete comment');
     remove.textContent = '×';
     remove.addEventListener('click', function () {
-      const idx = state.comments.indexOf(c);
-      if (idx === -1) return;
-      state.comments.splice(idx, 1);
-      updateQueue();
+      state.comments = state.comments.filter(function (entry) {
+        return entry.id !== comment.id;
+      });
+      updateSidebar();
     });
 
-    div.appendChild(remove);
-    div.appendChild(text);
-    items.appendChild(div);
+    header.appendChild(target);
+    header.appendChild(remove);
+
+    const body = document.createElement('p');
+    body.className = 'comment-card-body';
+    body.textContent = comment.comment;
+
+    const time = document.createElement('time');
+    time.className = 'comment-card-time';
+    time.textContent = formatRelativeTime(comment.created_at);
+    time.dateTime = new Date(comment.created_at).toISOString();
+
+    item.appendChild(header);
+    item.appendChild(body);
+    item.appendChild(time);
+    list.appendChild(item);
   });
 
-  submitBtn.disabled = state.submitInFlight;
-  bar.className = 'queue show';
+  pane.appendChild(list);
+}
+
+function updateSidebar() {
+  const sidebar = $('sidebar');
+  const title = $('sidebarTitle');
+  const count = $('sidebarCount');
+  const footer = $('sidebarFooter');
+
+  if (!sidebar || !title || !count || !footer) return;
+
+  sidebar.setAttribute('data-mode', state.mode);
+  if (isCommentMode()) {
+    title.textContent = 'Comments';
+    count.hidden = false;
+    count.textContent = String(state.comments.length);
+    footer.hidden = false;
+    updateCommentSidebar();
+    updateSubmitButton();
+    return;
+  }
+
+  title.textContent = 'Component Details';
+  count.hidden = true;
+  footer.hidden = true;
+  updateDetails();
 }
 
 function commentTargetName(target) {
@@ -2625,14 +3046,16 @@ function addPendingComment() {
     updateStatusBar();
   }
   state.comments.push({
+    id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
     view_id: state.pendingTarget.view_id,
     element_id: state.pendingTarget.element_id,
     relationship_id: state.pendingTarget.relationship_id,
     target_label: state.pendingTarget.target_label,
     comment: txt,
+    created_at: Date.now(),
   });
   closeCommentDialog();
-  updateQueue();
+  updateSidebar();
 }
 
 function openCommentDialog(target) {
@@ -2657,9 +3080,8 @@ async function submitPayload() {
     return;
   }
 
-  state.commentMode = false;
   state.submitInFlight = true;
-  updateHeader();
+  updateSubmitButton();
   applyJobStatus({
     state: 'received',
     message: 'Comments sent. The agent is reviewing them now.',
@@ -2680,8 +3102,8 @@ async function submitPayload() {
 
     const accepted = await response.json();
     state.comments = [];
-    state.commentMode = false;
     $('payloadOverlay').className = 'overlay';
+    updateSidebar();
     applyJobStatus({
       job_id: accepted.job_id,
       state: accepted.state,
@@ -2725,14 +3147,8 @@ function truncate(s, n) {
 function render() {
   updateHeader();
   updateTabs();
-  updateDetails();
-  updateQueue();
+  updateSidebar();
   updateStatusBar();
-
-  const ws = $('workspace');
-  if (ws) {
-    ws.className = state.detailsOpen ? 'workspace details-open' : 'workspace';
-  }
 
   const view = currentView();
   if (!view) return;
@@ -2741,15 +3157,12 @@ function render() {
   else drawDiagramView(view);
 }
 
-$('commentToggle').addEventListener('click', function () {
-  state.commentMode = !state.commentMode;
-  render();
-});
-
-$('detailsCollapseBtn').addEventListener('click', function () {
-  state.detailsOpen = false;
-  state.selectedId = null;
-  render();
+['modeExploreBtn', 'modeCommentBtn'].forEach(function (id) {
+  const button = $(id);
+  if (!button) return;
+  button.addEventListener('click', function () {
+    setMode(button.getAttribute('data-mode'));
+  });
 });
 
 $('themeToggle').addEventListener('click', function () {
@@ -2788,12 +3201,19 @@ $('payloadCopy').addEventListener('click', async function () {
 });
 
 document.addEventListener('keydown', function (e) {
-  if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    const t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
-    e.preventDefault();
-    state.commentMode = !state.commentMode;
-    render();
+  const key = e.key.toLowerCase();
+  const t = e.target;
+  if (!e.metaKey && !e.ctrlKey && !e.altKey && !(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'))) {
+    if (key === 'c') {
+      e.preventDefault();
+      setMode('comment');
+      return;
+    }
+    if (key === 'v') {
+      e.preventDefault();
+      setMode('explore');
+      return;
+    }
   }
   if (e.key === 'Escape') {
     closeCommentDialog();

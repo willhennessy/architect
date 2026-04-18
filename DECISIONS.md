@@ -1,5 +1,16 @@
 # DECISIONS
 
+### Explicit Explore And Comment Modes In Diagram Shell — 2026-04-17
+
+**Context**
+The diagram shell had grown around a one-off `Comment (C)` toggle in the toolbar, a transient banner, and a details sidebar that only appeared for node inspection. That mixed two distinct workflows: drilling into architecture and staging feedback for submission.
+
+**Decision**
+Promote diagram interaction into two explicit persisted modes: `Explore` and `Comment`. Use a centered segmented control above the canvas as the primary mode switch, persist the chosen mode in `localStorage`, and make the right sidebar mode-aware: component details in Explore, comment list plus sticky submit footer in Comment.
+
+**Consequences**
+The review UI now has a clearer contract: Explore is for inspection and drill-down, Comment is for attaching and reviewing feedback. Future shell work should treat mode as first-class state and add sidebar actions inside the mode-specific panels instead of reintroducing global comment chrome.
+
 ### Warm-Neutral Diagram Theme Tokens — 2026-04-17
 
 **Context**
