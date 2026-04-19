@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="diagram-render-mode" content="__DIAGRAM_MODE__" />
-  <title>Claude Architect</title>
+  <title>Architect</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -1608,8 +1608,18 @@
       user-select: none;
     }
 
-    svg [data-element-id] {
+    #canvas svg {
+      cursor: inherit;
+    }
+
+    .diagram-node,
+    .diagram-node * {
       cursor: pointer;
+    }
+
+    .diagram-relationship,
+    .diagram-relationship * {
+      cursor: default;
     }
 
     .diagram-node,
@@ -1622,16 +1632,17 @@
       will-change: transform;
     }
 
-    .diagram-node[data-drillable="true"] {
+    .diagram-node[data-drillable="true"],
+    .diagram-node[data-drillable="true"] * {
       cursor: zoom-in;
     }
 
-    @media (hover: hover) and (pointer: fine) {
-      .comment-mode-on svg [data-element-id],
-      .comment-mode-on svg [data-relationship-id] {
-        cursor: crosshair;
-      }
+    .comment-mode-on #canvas,
+    .comment-mode-on #canvas * {
+      cursor: crosshair;
+    }
 
+    @media (hover: hover) and (pointer: fine) {
       body:not(.comment-mode-on) .diagram-node:hover {
         transform: translateY(-2px) scale(1.01);
       }
@@ -1882,7 +1893,7 @@
 <div id="app">
   <div class="topbar">
     <div class="brand">
-      <div class="title">Claude Architect</div>
+      <div class="title">Architect</div>
       <div class="subtitle" id="systemSubtitle"></div>
     </div>
     <div class="topbar-actions">
@@ -2017,7 +2028,14 @@ const MODE = "__DIAGRAM_MODE__";
 const HANDOFF = DATA.comment_handoff || {};
 
 const THEME_STORAGE_KEY = 'theme';
-const VIEW_MODE_STORAGE_KEY = 'viewMode';
+// Scope remembered mode to the current diagram artifact so a new file
+// opens in Explore even if an older diagram was last left in Comment mode.
+const VIEW_MODE_STORAGE_KEY = (function () {
+  if (HANDOFF.output_root) return 'viewMode:' + HANDOFF.output_root;
+  if (HANDOFF.diagram_path) return 'viewMode:' + HANDOFF.diagram_path;
+  if (window.location && window.location.pathname) return 'viewMode:' + window.location.pathname;
+  return 'viewMode:default';
+})();
 const THEME = {
   bgPrimary: 'var(--color-bg-app)',
   bgSecondary: 'var(--color-bg-sidebar)',
@@ -2821,6 +2839,15 @@ function tabLabel(view) {
     return tail + ' Components';
   }
   return cleanedTitle(view.title || view.id || 'View');
+}
+
+function activeBreadcrumbLabel(view) {
+  const current = document.querySelector('#breadcrumbNav .breadcrumb-item.is-current');
+  if (current && String(current.textContent || '').trim()) {
+    return String(current.textContent).trim();
+  }
+  const resolvedView = view || currentView();
+  return resolvedView ? tabLabel(resolvedView) : 'View';
 }
 
 function viewForType(type) {
@@ -3736,6 +3763,41 @@ function pendingTargetElement(svg) {
   return null;
 }
 
+function isCanvasCommentTarget(target) {
+  return Boolean(target && !target.element_id && !target.relationship_id);
+}
+
+function canvasCommentTarget(view) {
+  const resolvedView = view || currentView();
+  if (!resolvedView) return null;
+  return {
+    view_id: resolvedView.id,
+    element_id: null,
+    relationship_id: null,
+    target_label: activeBreadcrumbLabel(resolvedView),
+  };
+}
+
+function canvasCommentAnchorRoot(eventTarget) {
+  if (eventTarget && typeof eventTarget.closest === 'function') {
+    const canvas = eventTarget.closest('#canvas');
+    if (canvas) return canvas;
+  }
+  return $('canvas');
+}
+
+function commentTargetFromCanvasEvent(view, ev) {
+  const interactionTarget = underlyingInteractionTarget(ev && ev.target);
+  if (interactionTarget) return commentTargetFromInteractionTarget(interactionTarget);
+  return canvasCommentTarget(view);
+}
+
+function commentAnchorForCanvasEvent(ev) {
+  const interactionTarget = underlyingInteractionTarget(ev && ev.target);
+  if (interactionTarget) return commentAnchorFromEvent(interactionTarget, ev);
+  return commentAnchorFromEvent(canvasCommentAnchorRoot(ev && ev.target), ev);
+}
+
 function clearCommentTargetIndicators(svg) {
   if (!svg) return;
   svg.querySelectorAll('[data-comment-target-ring]').forEach(function (el) {
@@ -3844,27 +3906,14 @@ function wireSvgInteractions(svg, view) {
   applyCommentTargetIndicators(svg);
 
   svg.addEventListener('click', function (ev) {
-    const element = ev.target.closest('[data-element-id]');
-    const rel = ev.target.closest('[data-relationship-id]');
+    const interactionTarget = underlyingInteractionTarget(ev.target);
+    const element = interactionTarget && interactionTarget.hasAttribute('data-element-id') ? interactionTarget : null;
 
     if (isCommentMode()) {
       ev.preventDefault();
-      const anchor = commentAnchorFromEvent(element || rel, ev);
-      const target = element
-        ? {
-            view_id: view.id,
-            element_id: element.dataset.elementId,
-            relationship_id: null,
-            target_label: element.dataset.targetLabel || element.dataset.elementId,
-          }
-        : rel
-        ? {
-            view_id: view.id,
-            element_id: null,
-            relationship_id: rel.dataset.relationshipId || null,
-            target_label: rel.dataset.targetLabel || rel.dataset.relationshipId || 'relationship',
-          }
-        : null;
+      ev.stopPropagation();
+      const anchor = commentAnchorForCanvasEvent(ev);
+      const target = commentTargetFromCanvasEvent(view, ev);
       if (!target) return;
       openCommentDialog(target, anchor);
       return;
@@ -3898,7 +3947,6 @@ function drawDiagramView(view) {
     const svg = wrap.querySelector('svg');
     if (svg) {
       applyResponsiveSvgSizing(svg);
-      svg.style.cursor = isCommentMode() ? 'crosshair' : 'default';
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
       }
@@ -3918,7 +3966,6 @@ function drawDiagramView(view) {
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
   applyResponsiveSvgSizing(svg);
-  svg.style.cursor = isCommentMode() ? 'crosshair' : 'default';
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
   const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
@@ -4024,7 +4071,6 @@ function drawDiagramView(view) {
     g.setAttribute('data-element-id', node.id);
     g.setAttribute('data-view-id', view.id);
     g.setAttribute('data-target-label', node.name || node.id);
-    g.style.cursor = isCommentMode() ? 'crosshair' : 'pointer';
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', String(box.x));
@@ -4089,7 +4135,6 @@ function drawSequenceView(view) {
     const svg = wrap.querySelector('svg');
     if (svg) {
       applyResponsiveSvgSizing(svg);
-      svg.style.cursor = isCommentMode() ? 'crosshair' : 'default';
       if (!svg.getAttribute('data-view-id')) {
         svg.setAttribute('data-view-id', view.id);
       }
@@ -4650,9 +4695,11 @@ function clamp(value, min, max) {
 }
 
 function pendingTargetViewportRect() {
-  const targetEl = pendingTargetElement(currentDiagramSvg());
-  if (!targetEl) return null;
-  const rect = targetEl.getBoundingClientRect();
+  const svg = currentDiagramSvg();
+  const targetEl = pendingTargetElement(svg);
+  const rectSource = targetEl || (isCanvasCommentTarget(state.pendingTarget) ? $('canvas') : null);
+  if (!rectSource) return null;
+  const rect = rectSource.getBoundingClientRect();
   if (!rect || !isFinite(rect.left) || !isFinite(rect.top) || !isFinite(rect.width) || !isFinite(rect.height)) return null;
   return rect;
 }
@@ -4682,7 +4729,7 @@ function pendingTargetAnchorPoint(targetRect) {
 
 function commentPlacementRect(targetRect, anchorPoint) {
   if (!targetRect) return null;
-  if (state.pendingTarget && state.pendingTarget.relationship_id && anchorPoint) {
+  if (state.pendingTarget && anchorPoint && (state.pendingTarget.relationship_id || isCanvasCommentTarget(state.pendingTarget))) {
     return {
       left: anchorPoint.x,
       right: anchorPoint.x,
@@ -5061,6 +5108,18 @@ $('commentDialogOverlay').addEventListener('click', function (e) {
   if (underlying.closest('#canvas')) {
     attemptCloseCommentDialog('canvas');
   }
+});
+
+$('canvas').addEventListener('click', function (e) {
+  if (!isCommentMode()) return;
+  if (!e.target.closest('#canvas')) return;
+  if (underlyingInteractionTarget(e.target)) return;
+  const view = currentView();
+  if (!view) return;
+  e.preventDefault();
+  const target = canvasCommentTarget(view);
+  if (!target) return;
+  openCommentDialog(target, commentAnchorForCanvasEvent(e));
 });
 
 $('commentAdd').addEventListener('click', addPendingComment);
