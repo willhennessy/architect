@@ -287,7 +287,7 @@ Before pausing for user input, verify:
 - the target repo exists under `evals/repos/<repo>/`
 - the round output directory exists under `evals/architect-discover/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
-- `diagram.html` exists and is self-contained (no external dependencies)
+- `diagram.html` exists as a single-file artifact, with no external dependencies beyond the approved Instrument Sans Google Fonts links when that typography path is used
 - `scripts/validate-diagram-html.sh evals/architect-discover/roundX_<repo>/diagram.html` passes
 - `diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with JSON handoff)
 - relationship hit targets are selectable and carry `data-relationship-id` for edge comments

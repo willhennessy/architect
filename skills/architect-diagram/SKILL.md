@@ -34,7 +34,7 @@ Optional debug output:
 - Do not invent architecture facts.
 - Source all content from provided artifacts.
 - Preserve exact IDs and paths from source artifacts.
-- `diagram.html` must be fully self-contained (inline CSS/JS; no external dependencies).
+- `diagram.html` must remain a single-file artifact with inline CSS/JS; external assets are disallowed except for the approved Instrument Sans Google Fonts links when that typography path is intentionally used.
 - `diagram.html` must implement drill-down + breadcrumb navigation.
 - `diagram.html` must implement Comment Mode (`Comment` toggle + `C` shortcut + queued comments + JSON submit modal).
 - Do not render confidence labels directly on canvas/SVG; show confidence in details sidebar only.

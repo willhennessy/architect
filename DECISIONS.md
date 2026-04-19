@@ -1,5 +1,27 @@
 # DECISIONS
 
+### Approved Instrument Sans Google Fonts Exception — 2026-04-18
+
+**Context**
+The typography correction wanted the exact Instrument Sans face, and the user explicitly chose the Google Fonts path instead of preserving strict self-containment. The existing validator and diagram contract still rejected every external `<link>` tag, which meant the new font load failed production validation even though the rest of the artifact remained a single file.
+
+**Decision**
+Keep `diagram.html` as a single-file artifact with inline CSS/JS, but allow one narrow external dependency exception: the approved Instrument Sans Google Fonts links (`fonts.googleapis.com` / `fonts.gstatic.com`). Update the validator and contract docs to allow only that exception and continue rejecting arbitrary external assets.
+
+**Consequences**
+The diagram keeps practical portability and graceful fallback behavior while matching the intended typography more closely. The tradeoff is that the artifact is no longer strictly self-contained or fully offline-deterministic, so future contract language and evals need to talk about a single-file artifact with an approved font exception rather than "no external dependencies" in absolute terms.
+
+### Fluid Motion Inside The Existing Artifact Contract — 2026-04-18
+
+**Context**
+The diagram shell had grown into a real interactive app, and the next design pass wanted Benji-style fluidity: visible continuity between views, modes, and comment interactions. The tempting move was to introduce React or a separate frontend app shell, but Architect’s output contract still depends on emitting one portable self-contained `diagram.html`.
+
+**Decision**
+Keep the production artifact contract intact and implement the motion architecture inside `skills/architect-diagram/templates/diagram-app.html`. Use stronger shared design/motion tokens, directional document view transitions for view changes, lighter surface transitions for mode/detail changes, and origin-aware popover motion for inline comments. Skip the motion-heavy path for keyboard-triggered mode switches so repeated actions stay snappy.
+
+**Consequences**
+Architect gets a much more fluid shell without changing the renderer contract or introducing a dependency/bundle pipeline yet. The tradeoff is that the template remains large, so the next scaling decision is whether to introduce a source-authored build step that still emits the same self-contained HTML.
+
 ### Explicit Explore And Comment Modes In Diagram Shell — 2026-04-17
 
 **Context**
@@ -131,3 +153,14 @@ Document one blessed Claude setup path in `skills/architect-diagram/channels/arc
 
 **Consequences**  
 This gives the repo one operator story instead of several half-valid ones. It also captures the important quirks explicitly: do not also pass `--channels server:architect-comments`, `claude --help` may omit the relevant flags, and the startup warning about `no MCP server configured with that name` can still appear even when `/mcp` shows a healthy connected session.
+
+### Color-Based Elevation Only, No Shadows — 2026-04-18
+
+**Context**  
+The diagram shell kept regressing toward shadow-based chrome: after removing shadows from one surface, a new `box-shadow` or `drop-shadow` would appear on a different control or panel in a later pass. That meant the problem was systemic rather than local to one component.
+
+**Decision**  
+Treat shadow-based elevation as disallowed across the tracked repo. Do not use `box-shadow`, `filter: drop-shadow`, `text-shadow`, or shadow variables. Use background elevation tokens, 1px borders, and `outline` for `:focus-visible` states instead.
+
+**Consequences**  
+Future shadow additions are bugs, not design choices to debate case by case. Controls that need more grounding must solve it with border/background changes, and even reference/eval HTML artifacts should stay shadow-free so repo-wide grep remains a real enforcement tool.

@@ -9,7 +9,8 @@ Use this contract when producing diagram artifacts from architecture files.
 
 ## Primary requirements (`diagram.html`)
 
-- Self-contained HTML (inline CSS/JS only).
+- Single-file HTML with inline CSS/JS.
+- External assets are disallowed except for the approved Instrument Sans Google Fonts links (`fonts.googleapis.com` / `fonts.gstatic.com`) when that typography path is intentionally used.
 - Grounded in provided architecture artifacts only.
 - Drill-down + breadcrumb navigation.
 - Comment Mode with element/edge/canvas targeting and JSON handoff.
@@ -37,7 +38,8 @@ Preferred production pipeline:
 Before finishing:
 
 - `diagram.html` exists.
-- `diagram.html` is self-contained.
+- `diagram.html` is a single-file artifact.
+- Any external dependency is limited to the approved Instrument Sans Google Fonts links; arbitrary external assets remain disallowed.
 - diagram metadata attributes are present for interactive targets.
 - comment export is JSON and includes `view_id`, `element_id`, `relationship_id`, `comment`.
 - person/actor nodes are rendered as padded rectangular cards rather than avatar-style pictograms.

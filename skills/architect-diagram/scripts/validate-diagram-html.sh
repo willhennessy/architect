@@ -12,15 +12,32 @@ if [[ ! -f "$HTML_PATH" ]]; then
   exit 1
 fi
 
-# self-contained checks
+# single-file checks
 if grep -Eq '<script[^>]+src=' "$HTML_PATH"; then
   echo "ERROR: external <script src=...> found" >&2
   exit 1
 fi
-if grep -Eq '<link[^>]+href=' "$HTML_PATH"; then
-  echo "ERROR: external <link href=...> found" >&2
-  exit 1
-fi
+
+python3 - "$HTML_PATH" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+html = Path(sys.argv[1]).read_text(encoding='utf-8', errors='ignore')
+allowed_exact = {
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com",
+}
+allowed_prefix = "https://fonts.googleapis.com/css2?family=Instrument+Sans"
+
+for href in re.findall(r'<link[^>]+href=["\']([^"\']+)["\']', html, flags=re.IGNORECASE):
+    if href in allowed_exact:
+        continue
+    if href.startswith(allowed_prefix) and "display=swap" in href:
+        continue
+    print(f'ERROR: unsupported external <link href="{href}"> found', file=sys.stderr)
+    raise SystemExit(1)
+PY
 
 if ! grep -q '<script>' "$HTML_PATH"; then
   echo "ERROR: missing inline <script> block" >&2
