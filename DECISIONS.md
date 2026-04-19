@@ -200,16 +200,16 @@ For live plugin-channel testing, do not combine `--plugin-dir` with the plugin-q
 **Consequences**  
 The local development story becomes less convenient because the live session no longer runs directly from the inline plugin override. In return, channel delivery actually works with Claude’s current plugin-channel identity checks. Manual-eval tooling and docs must treat marketplace install as the canonical path for end-to-end comment-loop testing.
 
-### Official Claude Marketplace Is The Public Distribution Path — 2026-04-19
+### Official Claude Marketplace Is The Public Distribution Path — 2026-04-19 (superseded)
 
 **Context**  
 The original plugin docs were written around private-beta distribution and internal dev loops. That was fine for getting the runtime working, but it leaked internal setup details like `--permission-mode auto` and overly verbose operator guidance into the public-facing story.
 
 **Decision**  
-Treat the official Claude marketplace as the public distribution path for Architect. The public getting-started guide should show a marketplace install, a normal `--channels plugin:architect@claude-plugins-official` launch, default outputs under `./architecture/`, and a short refresh-based comment loop. Do not require `--permission-mode auto` in the end-user path.
+This was the temporary public-docs assumption before we confirmed we could not publish to the official Claude marketplace. It is now superseded by **GitHub Repo As The Public Plugin Marketplace** below.
 
 **Consequences**  
-The user-facing docs stay aligned with what external users can actually run. Internal eval tooling can still use extra flags when useful, but public guidance should stay marketplace-first, bash-only, and concise.
+Keep this entry only as historical context. Current public docs and install commands should not refer to `claude-plugins-official`.
 
 ### Keep The Explicit Channel System Prompt In Internal Eval Launches — 2026-04-19
 
@@ -221,6 +221,28 @@ Keep the explicit Architect channel system prompt in internal eval launchers suc
 
 **Consequences**  
 We do not pretend the no-append path is validated when it is not. Internal eval flows keep a slightly noisier launch command, but the working comment loop remains reliable while we continue investigating whether stronger channel instructions or another plugin-native hook can replace the extra prompt.
+
+### GitHub Repo As The Public Plugin Marketplace — 2026-04-19
+
+**Context**  
+We cannot submit Architect to the official Claude marketplace, but we still want a clean install story that feels like a real product instead of a local-dev-only plugin. The repo already contains a self-contained plugin bundle under `claude-plugin/architect/`, and Claude’s marketplace docs support GitHub-hosted marketplaces with a root `.claude-plugin/marketplace.json`.
+
+**Decision**  
+Use `willhennessy/architect` itself as the public plugin marketplace. Add a root marketplace catalog at `.claude-plugin/marketplace.json` with marketplace name `plugins`, marketplace description `Interactive architecture diagrams for planning, steering, and code review`, and a single `architect` plugin entry pointing at `./claude-plugin/architect`. Keep `claude-plugin/.claude-plugin/marketplace.json` as the repo-local development marketplace for unpublished testing only.
+
+**Consequences**  
+The public install flow becomes `claude plugin marketplace add willhennessy/architect` followed by `claude plugin install architect@plugins`. Public docs should stop referring to `claude-plugins-official` and stop framing the local-dev marketplace as the main install path. We now need a repeatable publish workflow that syncs and validates the bundle before pushing changes to GitHub.
+
+### Repeatable Agent-Safe Plugin Publish Gate — 2026-04-19
+
+**Context**  
+Once the repo itself becomes the public marketplace, a bad sync or wrong marketplace metadata can break installs for everyone. We need a small, deterministic workflow that any agent can run without having to remember the exact validation order or the expected marketplace metadata.
+
+**Decision**  
+Add `scripts/publish-plugin.sh` as the canonical publish gate and document it in `docs/plugin-publish.md`. The script must require a clean git state, require `main`, run `python3 scripts/sync-claude-plugin.py`, validate the root marketplace and `claude-plugin/architect`, verify the marketplace name/description/source path, and then stop with a human review/commit/push checklist instead of publishing automatically.
+
+**Consequences**  
+Publishing becomes more repeatable and easier to delegate to agents. The script is intentionally conservative: it catches config drift early, but still leaves the final review and push as an explicit human decision.
 
 ### Public Plugin Ships Only User-Facing Skills — 2026-04-19
 

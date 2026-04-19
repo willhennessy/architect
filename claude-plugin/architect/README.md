@@ -19,21 +19,28 @@ It also owns the live comment loop:
 
 ## Getting started
 
-Install Architect from the official Claude marketplace:
+Add the Architect marketplace from GitHub and install the plugin:
 
 ```bash
-claude plugin install architect@claude-plugins-official
+claude plugin marketplace add willhennessy/architect
+claude plugin install architect@plugins
 ```
 
 Start Claude with the Architect channel enabled:
 
 ```bash
 claude \
-  --channels plugin:architect@claude-plugins-official \
+  --channels plugin:architect@plugins \
   --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 ```
 
 `--append-system-prompt` is required to guarantee Claude responds to comments without adding a redundant second acknowledgment in chat.
+
+If you already added the marketplace before, refresh it with:
+
+```bash
+claude plugin marketplace update willhennessy/architect
+```
 
 In Claude:
 

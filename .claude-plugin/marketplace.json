@@ -1,0 +1,21 @@
+{
+  "name": "plugins",
+  "owner": {
+    "name": "Will Hennessy"
+  },
+  "metadata": {
+    "description": "Interactive architecture diagrams for planning, steering, and code review"
+  },
+  "plugins": [
+    {
+      "name": "architect",
+      "description": "Interactive architecture diagrams for planning, steering, and code review",
+      "version": "0.1.0",
+      "author": {
+        "name": "Will"
+      },
+      "source": "./claude-plugin/architect",
+      "category": "Developer Tools"
+    }
+  ]
+}

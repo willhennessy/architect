@@ -105,11 +105,23 @@ Helper scripts used by harness:
 
 Architect now treats the **Claude plugin runtime** as the primary comment-update path.
 
-The blessed local development and packaging path lives here:
+Public install path:
+
+1. add the GitHub-backed marketplace with `claude plugin marketplace add willhennessy/architect`
+2. install the plugin with `claude plugin install architect@plugins`
+3. start Claude with `--channels plugin:architect@plugins`
+4. append the Architect channel handoff system prompt so Claude acts on inbound comment events in the same session
+   `--append-system-prompt` is required to guarantee Claude responds to comments.
+5. run `/architect:init` or `/architect:plan`
+6. submit comments from `architecture/diagram.html`
+7. let the same Claude session own the update loop, progress reporting, validation, and rerender
+
+Plugin user guide:
 
 - `claude-plugin/architect/README.md`
+- `docs/plugin-publish.md` for the repeatable publish workflow
 
-Recommended shape:
+Internal local development path:
 
 1. sync the plugin bundle with `python3 scripts/sync-claude-plugin.py`
 2. add the repo-local development marketplace and install `architect@architect-local`
