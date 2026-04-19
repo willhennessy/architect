@@ -8,3 +8,8 @@
 .vscode/
 private/
 evals/manual-docsign-tests/
+prd.md
+DECISIONS.md
+STATE.md
+tmp-sample-review.html
+architecture/
