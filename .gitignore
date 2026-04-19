@@ -8,6 +8,8 @@
 .vscode/
 private/
 evals/manual-docsign-tests/
+evals/repos/*
+!evals/repos/.gitkeep
 prd.md
 DECISIONS.md
 STATE.md

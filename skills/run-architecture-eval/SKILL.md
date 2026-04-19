@@ -16,7 +16,7 @@ For each eval round, produce:
 - `evals/architect-init/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
 - `evals/architect-init/roundX_<repo>/reflections.md`: answers to the two reflection questions
 
-The target repository under test must live under `evals/repos/<repo>/` as a git submodule.
+The target repository under test must live under `evals/repos/<repo>/` as a local eval cache prepared on demand with `./scripts/ensure-eval-repo.sh`. Do not commit those cached repos.
 
 Do not write generated architecture files inside the repository under test.
 
@@ -57,7 +57,7 @@ Selection criteria (for off-catalog repos):
 - popular on GitHub by stars
 - well-written and non-trivial
 - architecturally interesting
-- no more than `2x` the size of `evals/repos/rundler` after filtering out low-signal files
+- no more than `2x` the size of the local Rundler eval cache at `evals/repos/rundler` after filtering out low-signal files
 
 Prefer:
 
@@ -81,14 +81,13 @@ Use a two-stage size heuristic:
    - prefer repos that feel like one system, product, or control plane rather than an ecosystem
 2. Hard cutoff after checkout:
    - compare filtered source file count against `evals/repos/rundler`
-   - use:
-     - `rg --files <repo> -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/target/**' -g '!**/vendor/**' -g '!**/third_party/**' -g '!**/coverage/**' | wc -l`
+   - use `./scripts/eval-source-file-count.sh <repo>`
    - hard reject above `2x` Rundler
    - soft reject above `1.5x` Rundler unless the architecture looks unusually clean and high-value
 
 Do not use GitHub repo size in MB, commit count, or raw unfiltered file count as the primary token-cost heuristic.
 
-If a chosen candidate exceeds the size limit after inspection, discard it and choose another one. If you already added it as a submodule for the current round, remove that just-added submodule before continuing.
+If a chosen candidate exceeds the size limit after inspection, discard it and choose another one. If you just fetched a throwaway cache for that candidate, you may delete it before continuing, but do not mutate a reusable cache you still care about.
 
 ## Workflow
 
@@ -97,7 +96,8 @@ If a chosen candidate exceeds the size limit after inspection, discard it and ch
 Before touching a candidate repo:
 
 - find the next round number from existing `evals/architect-init/round*` directories
-- compute the Rundler baseline using the filtered `rg --files` count defined in this skill
+- ensure the Rundler baseline cache exists with `./scripts/ensure-eval-repo.sh --repo-url https://github.com/alchemyplatform/rundler.git --slug rundler`
+- compute the Rundler baseline with `./scripts/eval-source-file-count.sh evals/repos/rundler`
 
 Do not create the round output directory until the repository slug is known.
 
@@ -117,19 +117,21 @@ After choosing the final candidate, create:
 
 ALWAYS create this directory as soon as you choose the repo name.
 
-### 3. Add the repository as a submodule
+### 3. Fetch the repository into the local eval cache
 
-Add the repository under:
+Fetch the repository under:
 
 - `evals/repos/<repo>/`
 
-Use a normal git submodule flow. If the repo already exists under `evals/`, prefer choosing a different repo for broader eval coverage unless the user explicitly wants a repeat.
+Use `./scripts/ensure-eval-repo.sh --repo-url <repo-url> --slug <repo>` for GitHub repos, or `./scripts/ensure-eval-repo.sh --repo-path <local-path> --slug <repo>` for a local checkout. The helper intentionally clones without recursing into nested git submodules so the eval cache stays lightweight and does not pollute the public marketplace clone path.
+
+If the repo already exists in the cache, reuse it unless the user explicitly wants a fresh clone or a refresh.
 
 ### 4. Verify repo size
 
 After checkout, compare candidate size to `evals/repos/rundler` using the filtered source-file count:
 
-- `rg --files evals/repos/<repo> -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/target/**' -g '!**/vendor/**' -g '!**/third_party/**' -g '!**/coverage/**' | wc -l`
+- `./scripts/eval-source-file-count.sh evals/repos/<repo>`
 
 Decision rule:
 
@@ -307,6 +309,7 @@ Before pausing for user input, verify:
 - the generated architecture artifacts are not stored inside the repo under test
 - the subagent used for review was fresh for that round
 - if ground truth exists, scores were validated against it
+- the repository under test was fetched into the ignored local cache, not reintroduced as a committed git submodule
 
 ## Common Mistakes To Avoid
 
@@ -314,6 +317,7 @@ Do not:
 
 - store architecture outputs inside `evals/repos/<repo>/`
 - skip either the pre-filter or the post-checkout size check against Rundler
+- assume `evals/repos/<repo>/` should be committed or wired up as a git submodule
 - reuse stale subagent context
 - ask the subagent to rubber-stamp your conclusions
 - apply subagent feedback without checking code evidence

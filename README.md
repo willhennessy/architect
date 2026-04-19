@@ -101,7 +101,16 @@ Helper scripts used by harness:
 - `scripts/generate-docsign-plan-artifacts.py`
 - `skills/architect-diagram/scripts/generate-svg-fragments.py` (production generator used by harness)
 
-### 3) Claude plugin handoff (primary mode)
+### 3) Prepare an eval repo cache
+
+```bash
+./scripts/ensure-eval-repo.sh --repo-url https://github.com/alchemyplatform/rundler.git --slug rundler
+./scripts/eval-source-file-count.sh evals/repos/rundler
+```
+
+`evals/repos/` is now a local cache, not committed repo content. The fetch helper clones without recursing into nested submodules so manual eval fixtures do not break public marketplace installs.
+
+### 4) Claude plugin handoff (primary mode)
 
 Architect now treats the **Claude plugin runtime** as the primary comment-update path.
 
@@ -146,7 +155,7 @@ The intended handoff flow is:
 
 This keeps the browser/job contract stable while making the user's live Claude session the orchestrator of the comment-update loop, without requiring a separately started bridge process.
 
-### 4) Live comment feedback bridge (legacy fallback / dev path)
+### 5) Live comment feedback bridge (legacy fallback / dev path)
 
 Run the localhost bridge used by `architecture/diagram.html` comment submission:
 
@@ -191,6 +200,7 @@ Use the eval skills from chat:
 - `run-architecture-eval`: full discover -> diagram -> review loop
 
 Eval outputs are written under `evals/architect-init/` and related folders. Historical rounds remain in the archived eval outputs.
+Eval target repos now live in the ignored local cache under `evals/repos/` and should be fetched on demand with `./scripts/ensure-eval-repo.sh`.
 
 ---
 
