@@ -45,3 +45,56 @@ In Claude:
 6. Refresh the same file when the UI says `Refresh the page to see updates.`
 
 That is the whole loop.
+
+## Troubleshooting
+
+### `/mcp` shows `plugin:architect:architect-comments · ✘ failed`
+
+The most common cause is that another Architect runtime is already using port `8765`.
+
+Fix:
+
+```bash
+pkill -f architect_runtime.cjs
+```
+
+Then restart Claude and run `/mcp` again.
+
+### Claude never responds after `Submit comments`
+
+This usually means Claude was started without the required `--append-system-prompt`, or the Architect channel is not connected in the current session.
+
+Fix:
+
+1. Run `/mcp` and make sure `plugin:architect:architect-comments` is connected.
+2. If it is not connected, restart Claude.
+3. Make sure you launch Claude with the exact command shown above, including `--append-system-prompt`.
+
+### The page says `Another comment update is already in progress`
+
+Usually the previous comment job is still finishing up, or it just failed and the page has not refreshed yet.
+
+Fix:
+
+1. Wait about 20 seconds.
+2. Refresh `architecture/diagram.html`.
+3. Submit the comment again.
+
+### The page falls back to copy-paste JSON instead of submitting comments
+
+This usually means the rendered diagram no longer matches the folder it came from. The most common cause is moving or renaming the output folder after rendering.
+
+Fix:
+
+1. Keep the generated `architecture/` folder in the same location after Architect renders it.
+2. If you already moved or renamed it, rerun `/architect:plan` or `/architect:discover` and open the newly generated `architecture/diagram.html`.
+
+### I refreshed, but I still do not see the change
+
+Make sure you are refreshing the same `architecture/diagram.html` file that Claude updated.
+
+Fix:
+
+1. Refresh the exact same browser tab.
+2. If you opened multiple copies of the diagram, close the older tabs and reopen `./architecture/diagram.html`.
+3. If needed, hard refresh the page.
