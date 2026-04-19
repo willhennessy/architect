@@ -1,0 +1,8 @@
+{
+  "job_id": "job_2026-04-19T14-59-39-056Z_08e8",
+  "state": "failed",
+  "status_path": "/Users/will/.codex/worktrees/d07d/architect/architecture/.out/feedback-jobs/job_2026-04-19T14-59-39-056Z_08e8/status.json",
+  "result_path": "/Users/will/.codex/worktrees/d07d/architect/architecture/.out/feedback-jobs/job_2026-04-19T14-59-39-056Z_08e8/result.json",
+  "diagram_path": "/Users/will/.codex/worktrees/d07d/architect/architecture/diagram.html",
+  "output_root": "/Users/will/.codex/worktrees/d07d/architect"
+}

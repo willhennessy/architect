@@ -1,0 +1,180 @@
+<svg viewBox="0 0 1278 718" width="1278" height="718" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--color-border-strong)" />
+    </marker>
+  </defs>
+  <rect x="366.6" y="130.0" width="593.3" height="532.0" rx="14" fill="var(--color-bg-sidebar)" stroke="var(--color-border-default)" stroke-width="1" stroke-dasharray="4 4" />
+  <text x="382.6" y="152.0" font-size="11" fill="var(--color-text-tertiary)" font-weight="700" letter-spacing="0.08em">System Boundary</text>
+  <g data-relationship-id="rel-admin-webapp" data-view-id="view-container" data-target-label="accesses admin dashboard">
+    <path d="M 298.6 185.6 L 364.7 185.6 Q 370.3 185.6 370.3 191.2 L 370.3 191.2 Q 370.3 196.8 375.9 196.8 L 422.0 196.8" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 298.6 185.6 L 364.7 185.6 Q 370.3 185.6 370.3 191.2 L 370.3 191.2 Q 370.3 196.8 375.9 196.8 L 422.0 196.8" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="334.5" y="193.6" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">accesses admin dashboard</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-signer-portal" data-view-id="view-container" data-target-label="enters OTP, reviews and signs document">
+    <path d="M 298.6 281.6 L 521.6 281.6 Q 531.6 281.6 531.6 271.6 L 531.6 228.4 Q 531.6 218.4 541.6 218.4 L 724.6 218.4" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 298.6 281.6 L 521.6 281.6 Q 531.6 281.6 531.6 271.6 L 531.6 228.4 Q 531.6 218.4 541.6 218.4 L 724.6 218.4" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="415.1" y="283.1" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">enters OTP, reviews</text>
+      <text x="415.1" y="296.1" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">and signs document</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-webapp-api" data-view-id="view-container" data-target-label="calls REST API (authed via tenant JWT)">
+    <path d="M 512.0 250.0 L 512.0 259.5 Q 512.0 260.0 512.0 260.0 L 512.0 260.0 Q 512.0 260.0 512.0 260.5 L 512.0 290.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 512.0 250.0 L 512.0 259.5 Q 512.0 260.0 512.0 260.0 L 512.0 260.0 Q 512.0 260.0 512.0 260.5 L 512.0 290.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="504.0" y="268.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">calls REST API (authed</text>
+      <text x="504.0" y="281.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">via tenant JWT)</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-portal-api" data-view-id="view-container" data-target-label="submits OTP for verification, submits signature">
+    <path d="M 724.6 243.7 L 660.7 243.7 Q 650.7 243.7 650.7 253.7 L 650.7 280.0 Q 650.7 290.0 640.7 290.0 L 616.7 290.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 724.6 243.7 L 660.7 243.7 Q 650.7 243.7 650.7 253.7 L 650.7 280.0 Q 650.7 290.0 640.7 290.0 L 616.7 290.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="687.6" y="229.2" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">submits OTP for verification,</text>
+      <text x="687.6" y="242.2" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">submits signature</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-api-db" data-view-id="view-container" data-target-label="reads/writes documents, tenants, sessions, audit events">
+    <path d="M 507.5 380.0 L 507.5 429.3 Q 507.5 437.0 499.8 437.0 L 499.8 437.0 Q 492.1 437.0 492.1 444.7 L 492.1 534.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 507.5 380.0 L 507.5 429.3 Q 507.5 437.0 499.8 437.0 L 499.8 437.0 Q 492.1 437.0 492.1 444.7 L 492.1 534.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="484.1" y="479.0" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">reads/writes documents,</text>
+      <text x="484.1" y="492.0" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">tenants, sessions, audit events</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-api-store" data-view-id="view-container" data-target-label="stores uploaded documents, reads for signer delivery">
+    <path d="M 512.0 380.0 L 512.0 419.5 Q 512.0 420.0 512.0 420.0 L 512.0 420.0 Q 512.0 420.0 512.0 420.0 L 512.0 420.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 512.0 380.0 L 512.0 419.5 Q 512.0 420.0 512.0 420.0 L 512.0 420.0 Q 512.0 420.0 512.0 420.0 L 512.0 420.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="504.0" y="393.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">stores uploaded documents,</text>
+      <text x="504.0" y="406.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">reads for signer delivery</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-api-queue" data-view-id="view-container" data-target-label="enqueues email, webhook, and PDF finalization jobs">
+    <path d="M 552.2 380.0 L 552.2 437.0 Q 552.2 447.0 562.2 447.0 L 680.0 447.0 Q 690.0 447.0 690.0 457.0 L 690.0 534.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 552.2 380.0 L 552.2 437.0 Q 552.2 447.0 562.2 447.0 L 680.0 447.0 Q 690.0 447.0 690.0 457.0 L 690.0 534.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="621.1" y="448.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">enqueues email, webhook,</text>
+      <text x="621.1" y="461.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">and PDF finalization jobs</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-worker-queue" data-view-id="view-container" data-target-label="consumes jobs from queue">
+    <path d="M 799.1 380.0 L 799.1 457.0 Q 799.1 467.0 789.1 467.0 L 755.9 467.0 Q 745.9 467.0 745.9 477.0 L 745.9 534.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 799.1 380.0 L 799.1 457.0 Q 799.1 467.0 789.1 467.0 L 755.9 467.0 Q 745.9 467.0 745.9 477.0 L 745.9 534.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="791.1" y="423.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">consumes jobs from queue</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-worker-db" data-view-id="view-container" data-target-label="reads job context, updates job and document state">
+    <path d="M 754.3 380.0 L 661.1 380.0 Q 651.1 380.0 651.1 390.0 L 651.1 524.0 Q 651.1 534.0 641.1 534.0 L 547.9 534.0" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 754.3 380.0 L 661.1 380.0 Q 651.1 380.0 651.1 390.0 L 651.1 524.0 Q 651.1 534.0 641.1 534.0 L 547.9 534.0" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="643.1" y="450.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">reads job context, updates</text>
+      <text x="643.1" y="463.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">job and document state</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-worker-store" data-view-id="view-container" data-target-label="reads source document, writes finalized signed PDF">
+    <path d="M 709.8 380.0 L 657.4 380.0 Q 647.4 380.0 647.4 390.0 L 647.4 415.1 Q 647.4 425.1 637.4 425.1 L 604.9 425.1" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 709.8 380.0 L 657.4 380.0 Q 647.4 380.0 647.4 390.0 L 647.4 415.1 Q 647.4 425.1 637.4 425.1 L 604.9 425.1" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="678.6" y="365.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">reads source document,</text>
+      <text x="678.6" y="378.5" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">writes finalized signed PDF</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-worker-email" data-view-id="view-container" data-target-label="dispatches OTP code and completion emails">
+    <path d="M 931.9 298.6 L 989.9 298.6 Q 999.9 298.6 999.9 288.6 L 999.9 278.9 Q 999.9 268.9 1009.9 268.9 L 1027.9 268.9" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 931.9 298.6 L 989.9 298.6 Q 999.9 298.6 999.9 288.6 L 999.9 278.9 Q 999.9 268.9 1009.9 268.9 L 1027.9 268.9" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="965.9" y="300.1" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">dispatches OTP code</text>
+      <text x="965.9" y="313.1" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">and completion emails</text>
+    </g>
+  </g>
+  <g data-relationship-id="rel-worker-webhook" data-view-id="view-container" data-target-label="delivers webhook callbacks with exponential-backoff retries">
+    <path d="M 931.9 346.5 L 955.2 346.5 Q 959.9 346.5 959.9 351.2 L 959.9 351.2 Q 959.9 355.9 964.6 355.9 L 1027.9 355.9" stroke="var(--color-border-strong)" stroke-width="1.5" fill="none" marker-end="url(#arrow)" />
+    <path d="M 931.9 346.5 L 955.2 346.5 Q 959.9 346.5 959.9 351.2 L 959.9 351.2 Q 959.9 355.9 964.6 355.9 L 1027.9 355.9" stroke="transparent" stroke-width="14" fill="none" />
+    <g class="edge-label" data-edge-label="true">
+      <text x="993.9" y="357.4" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">delivers webhook callbacks with</text>
+      <text x="993.9" y="370.4" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--color-text-tertiary)">exponential-backoff retries</text>
+    </g>
+  </g>
+  <g class="diagram-node" data-element="sage" data-element-id="person-admin" data-view-id="view-container" data-target-label="Tenant Admin">
+    <rect x="64.0" y="130.0" width="234.6" height="90.0" rx="12" fill="var(--color-element-sage-fill)" stroke="var(--color-element-sage)" stroke-width="2" />
+    <path d="M 76.0 130.0 H 286.6 Q 298.6 130.0 298.6 142.0 V 149.0 H 64.0 V 142.0 Q 64.0 130.0 76.0 130.0 Z" data-node-header="true" fill="var(--color-element-sage)" fill-opacity="0.18" />
+    <text x="181.3" y="140.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Person</text>
+    <text x="181.3" y="182.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Tenant Admin</text>
+    <text x="181.3" y="200.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">A customer-organization use…</text>
+  </g>
+  <g class="diagram-node" data-element="sage" data-element-id="person-signer" data-view-id="view-container" data-target-label="Document Signer">
+    <rect x="64.0" y="254.0" width="234.6" height="90.0" rx="12" fill="var(--color-element-sage-fill)" stroke="var(--color-element-sage)" stroke-width="2" />
+    <path d="M 76.0 254.0 H 286.6 Q 298.6 254.0 298.6 266.0 V 273.0 H 64.0 V 266.0 Q 64.0 254.0 76.0 254.0 Z" data-node-header="true" fill="var(--color-element-sage)" fill-opacity="0.18" />
+    <text x="181.3" y="264.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Person</text>
+    <text x="181.3" y="306.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Document Signer</text>
+    <text x="181.3" y="324.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">An external party who recei…</text>
+  </g>
+  <g class="diagram-node" data-element="plum" data-element-id="container-web-app" data-view-id="view-container" data-target-label="Admin Web App">
+    <rect x="422.0" y="160.0" width="180.0" height="90.0" rx="12" fill="var(--color-element-plum-fill)" stroke="var(--color-element-plum)" stroke-width="2" />
+    <path d="M 434.0 160.0 H 590.0 Q 602.0 160.0 602.0 172.0 V 179.0 H 422.0 V 172.0 Q 422.0 160.0 434.0 160.0 Z" data-node-header="true" fill="var(--color-element-plum)" fill-opacity="0.18" />
+    <text x="512.0" y="170.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Container</text>
+    <text x="512.0" y="212.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Admin Web App</text>
+    <text x="512.0" y="230.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">Svelte, TypeScript</text>
+  </g>
+  <g class="diagram-node" data-element="plum" data-element-id="container-signer-portal" data-view-id="view-container" data-target-label="Signer Portal">
+    <rect x="724.6" y="160.0" width="180.0" height="90.0" rx="12" fill="var(--color-element-plum-fill)" stroke="var(--color-element-plum)" stroke-width="2" />
+    <path d="M 736.6 160.0 H 892.6 Q 904.6 160.0 904.6 172.0 V 179.0 H 724.6 V 172.0 Q 724.6 160.0 736.6 160.0 Z" data-node-header="true" fill="var(--color-element-plum)" fill-opacity="0.18" />
+    <text x="814.6" y="170.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Container</text>
+    <text x="814.6" y="212.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Signer Portal</text>
+    <text x="814.6" y="230.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">React, TypeScript</text>
+  </g>
+  <g class="diagram-node" data-element="plum" data-element-id="container-api" data-view-id="view-container" data-target-label="API Server">
+    <rect x="394.6" y="290.0" width="234.6" height="90.0" rx="12" fill="var(--color-element-plum-fill)" stroke="var(--color-element-plum)" stroke-width="2" />
+    <path d="M 406.6 290.0 H 617.3 Q 629.3 290.0 629.3 302.0 V 309.0 H 394.6 V 302.0 Q 394.6 290.0 406.6 290.0 Z" data-node-header="true" fill="var(--color-element-plum)" fill-opacity="0.18" />
+    <text x="512.0" y="300.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Container</text>
+    <text x="512.0" y="342.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">API Server</text>
+    <text x="512.0" y="360.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">Node.js, TypeScript, Expres…</text>
+  </g>
+  <g class="diagram-node" data-element="plum" data-element-id="container-worker" data-view-id="view-container" data-target-label="Async Worker">
+    <rect x="697.3" y="290.0" width="234.6" height="90.0" rx="12" fill="var(--color-element-plum-fill)" stroke="var(--color-element-plum)" stroke-width="2" />
+    <path d="M 709.3 290.0 H 919.9 Q 931.9 290.0 931.9 302.0 V 309.0 H 697.3 V 302.0 Q 697.3 290.0 709.3 290.0 Z" data-node-header="true" fill="var(--color-element-plum)" fill-opacity="0.18" />
+    <text x="814.6" y="300.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Container</text>
+    <text x="814.6" y="342.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Async Worker</text>
+    <text x="814.6" y="360.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">Node.js, BullMQ / SQS consu…</text>
+  </g>
+  <g class="diagram-node" data-element="slate" data-element-id="db-primary" data-view-id="view-container" data-target-label="Primary Database">
+    <rect x="394.6" y="534.0" width="185.9" height="90.0" rx="12" fill="var(--color-element-slate-fill)" stroke="var(--color-element-slate)" stroke-width="2" />
+    <path d="M 406.6 534.0 H 568.6 Q 580.6 534.0 580.6 546.0 V 553.0 H 394.6 V 546.0 Q 394.6 534.0 406.6 534.0 Z" data-node-header="true" fill="var(--color-element-slate)" fill-opacity="0.18" />
+    <text x="487.6" y="544.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Database</text>
+    <text x="487.6" y="586.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Primary Database</text>
+    <text x="487.6" y="604.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">MongoDB</text>
+  </g>
+  <g class="diagram-node" data-element="plum" data-element-id="store-documents" data-view-id="view-container" data-target-label="Document Storage">
+    <rect x="419.0" y="420.0" width="185.9" height="90.0" rx="12" fill="var(--color-element-plum-fill)" stroke="var(--color-element-plum)" stroke-width="2" />
+    <path d="M 431.0 420.0 H 592.9 Q 604.9 420.0 604.9 432.0 V 439.0 H 419.0 V 432.0 Q 419.0 420.0 431.0 420.0 Z" data-node-header="true" fill="var(--color-element-plum)" fill-opacity="0.18" />
+    <text x="512.0" y="430.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Container</text>
+    <text x="512.0" y="472.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Document Storage</text>
+    <text x="512.0" y="490.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">AWS S3 / compatible</text>
+  </g>
+  <g class="diagram-node" data-element="rose" data-element-id="queue-jobs" data-view-id="view-container" data-target-label="Job Queue">
+    <rect x="622.6" y="534.0" width="215.5" height="90.0" rx="12" fill="var(--color-element-rose-fill)" stroke="var(--color-element-rose)" stroke-width="2" />
+    <path d="M 634.6 534.0 H 826.1 Q 838.1 534.0 838.1 546.0 V 553.0 H 622.6 V 546.0 Q 622.6 534.0 634.6 534.0 Z" data-node-header="true" fill="var(--color-element-rose)" fill-opacity="0.18" />
+    <text x="730.3" y="544.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">Queue</text>
+    <text x="730.3" y="586.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Job Queue</text>
+    <text x="730.3" y="604.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">Redis (BullMQ) or AWS SQS</text>
+  </g>
+  <g class="diagram-node" data-element="ochre" data-element-id="ext-email-provider" data-view-id="view-container" data-target-label="Email Service">
+    <rect x="1027.9" y="196.0" width="180.0" height="90.0" rx="12" fill="var(--color-element-ochre-fill)" stroke="var(--color-element-ochre)" stroke-width="2" />
+    <path d="M 1039.9 196.0 H 1195.9 Q 1207.9 196.0 1207.9 208.0 V 215.0 H 1027.9 V 208.0 Q 1027.9 196.0 1039.9 196.0 Z" data-node-header="true" fill="var(--color-element-ochre)" fill-opacity="0.18" />
+    <text x="1117.9" y="206.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">External System</text>
+    <text x="1117.9" y="248.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Email Service</text>
+    <text x="1117.9" y="266.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">SendGrid / AWS SES</text>
+  </g>
+  <g class="diagram-node" data-element="ochre" data-element-id="ext-customer-system" data-view-id="view-container" data-target-label="Customer Backend">
+    <rect x="1027.9" y="320.0" width="185.9" height="90.0" rx="12" fill="var(--color-element-ochre-fill)" stroke="var(--color-element-ochre)" stroke-width="2" />
+    <path d="M 1039.9 320.0 H 1201.8 Q 1213.8 320.0 1213.8 332.0 V 339.0 H 1027.9 V 332.0 Q 1027.9 320.0 1039.9 320.0 Z" data-node-header="true" fill="var(--color-element-ochre)" fill-opacity="0.18" />
+    <text x="1120.9" y="330.2" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="var(--color-text-primary)">External System</text>
+    <text x="1120.9" y="372.0" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">Customer Backend</text>
+    <text x="1120.9" y="390.0" text-anchor="middle" font-size="11" fill="var(--color-text-secondary)">Tenant-defined</text>
+  </g>
+</svg>

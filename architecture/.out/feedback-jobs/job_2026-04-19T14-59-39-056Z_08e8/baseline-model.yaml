@@ -1,0 +1,615 @@
+version: 2
+system_name: "DocSign Platform"
+repo_archetype: "full_stack_product"
+
+elements:
+  # ── Persons ──────────────────────────────────────────────────────────────────
+  - id: "person-admin"
+    name: "Tenant Admin"
+    kind: "person"
+    c4_level: "context"
+    description: "A customer-organization user who creates documents, assigns signers, monitors status, and views analytics."
+    responsibility: "Document creation, signer assignment, monitoring, analytics consumption"
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-001"
+      - "plan://req-005"
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["req-001", "req-005"]
+
+  - id: "person-signer"
+    name: "Document Signer"
+    kind: "person"
+    c4_level: "context"
+    description: "An external party who receives a magic-link email and signs a document without requiring a platform account."
+    responsibility: "Document review and signature via magic-link"
+    technology: ""
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-002"
+    tags: ["actor"]
+    confidence: "confirmed"
+    evidence_ids: ["req-002"]
+
+  # ── Software System (context level) ──────────────────────────────────────────
+  - id: "system-docsign"
+    name: "DocSign Platform"
+    kind: "software_system"
+    c4_level: "context"
+    description: "Multi-tenant B2B SaaS platform for document creation, e-signature collection, webhook callbacks, audit trail, and analytics."
+    responsibility: "End-to-end document signing lifecycle management"
+    technology: ""
+    owned_data:
+      - "Tenant accounts"
+      - "Documents"
+      - "Signatures"
+      - "Audit events"
+    system_of_record:
+      - "Documents"
+      - "Signatures"
+      - "Audit events"
+    runtime_boundary: "network_zone"
+    deployable: false
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-001"
+      - "plan://req-002"
+      - "plan://req-003"
+      - "plan://req-004"
+      - "plan://req-005"
+    tags: []
+    confidence: "confirmed"
+    evidence_ids: ["req-001", "req-002", "req-003", "req-004", "req-005"]
+
+  # ── External Systems ──────────────────────────────────────────────────────────
+  - id: "ext-email-provider"
+    name: "Email Service"
+    kind: "external_system"
+    c4_level: "context"
+    description: "Managed transactional email provider (e.g. SendGrid or AWS SES) used to dispatch magic-link and notification emails."
+    responsibility: "Reliable email delivery to signers and tenant users"
+    technology: "SendGrid / AWS SES"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-002"
+      - "plan://asm-001"
+    tags: ["third-party"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "asm-001"]
+
+  - id: "ext-customer-system"
+    name: "Customer Backend"
+    kind: "external_system"
+    c4_level: "context"
+    description: "Tenant-owned backend systems that receive webhook callbacks when signature events occur."
+    responsibility: "Consuming webhook payloads to trigger downstream business processes"
+    technology: "Tenant-defined"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "external"
+    deployable: false
+    external: true
+    parent_id: ""
+    source_paths:
+      - "plan://req-003"
+    tags: ["webhook-consumer"]
+    confidence: "confirmed"
+    evidence_ids: ["req-003"]
+
+  # ── Containers ────────────────────────────────────────────────────────────────
+  - id: "container-web-app"
+    name: "Admin Web App"
+    kind: "container"
+    c4_level: "container"
+    description: "React SPA served to tenant admins. Provides document upload, template creation, signer assignment, status tracking, and the analytics dashboard."
+    responsibility: "Tenant admin UI: document management + analytics"
+    technology: "React, TypeScript"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-001"
+      - "plan://req-005"
+    tags: ["frontend"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "req-005", "con-002", "trd-001"]
+
+  - id: "container-signer-portal"
+    name: "Signer Portal"
+    kind: "container"
+    c4_level: "container"
+    description: "Public-facing React app that signers land on after clicking the email magic link. Renders the document, captures signature, and confirms completion."
+    responsibility: "Signer authentication (magic-link), document review, signature capture"
+    technology: "React, TypeScript"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-002"
+    tags: ["frontend", "public"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "trd-001"]
+
+  - id: "container-api"
+    name: "API Server"
+    kind: "container"
+    c4_level: "container"
+    description: "Node.js REST API. Enforces tenant isolation, manages document lifecycle, validates magic-link tokens, writes audit events transactionally, and enqueues async jobs."
+    responsibility: "Business logic, multi-tenant enforcement, audit writes, job dispatch"
+    technology: "Node.js, TypeScript, Express / Fastify"
+    owned_data:
+      - "Tenant configurations"
+      - "Documents"
+      - "Signing sessions"
+      - "Audit events"
+      - "Webhook endpoint configs"
+    system_of_record:
+      - "Documents"
+      - "Signing sessions"
+      - "Audit events"
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-001"
+      - "plan://req-002"
+      - "plan://req-003"
+      - "plan://req-004"
+    tags: ["backend", "api"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "req-002", "req-003", "req-004", "con-001", "trd-001", "trd-002"]
+
+  - id: "container-worker"
+    name: "Async Worker"
+    kind: "container"
+    c4_level: "container"
+    description: "Background job processor that consumes from the job queue. Responsible for sending magic-link emails, delivering webhook callbacks with retries, and finalizing signed PDFs."
+    responsibility: "Email dispatch, webhook delivery with retries, PDF finalization"
+    technology: "Node.js, BullMQ / SQS consumer"
+    owned_data: []
+    system_of_record: []
+    runtime_boundary: "deployable"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-002"
+      - "plan://req-003"
+      - "plan://trd-003"
+    tags: ["backend", "worker"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "req-003", "trd-003"]
+
+  - id: "db-primary"
+    name: "Primary Database"
+    kind: "database"
+    c4_level: "container"
+    description: "PostgreSQL database. Stores tenant accounts, users, documents, signing sessions, signature records, webhook configurations, job state, and append-only audit_events table."
+    responsibility: "System of record for all transactional and audit data"
+    technology: "PostgreSQL"
+    owned_data:
+      - "Tenant accounts"
+      - "Users"
+      - "Documents"
+      - "Signing sessions"
+      - "Signatures"
+      - "Audit events"
+      - "Webhook configs"
+    system_of_record:
+      - "Tenant accounts"
+      - "Users"
+      - "Documents"
+      - "Signing sessions"
+      - "Signatures"
+      - "Audit events"
+      - "Webhook configs"
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://asm-002"
+      - "plan://req-004"
+    tags: ["datastore", "postgres"]
+    confidence: "strong_inference"
+    evidence_ids: ["asm-002", "req-004", "trd-002"]
+
+  - id: "store-documents"
+    name: "Document Storage"
+    kind: "container"
+    c4_level: "container"
+    description: "S3-compatible object storage for raw uploaded documents and finalized signed PDFs."
+    responsibility: "Durable storage of document files and signed PDF artifacts"
+    technology: "AWS S3 / compatible"
+    owned_data:
+      - "Raw document files"
+      - "Signed PDF artifacts"
+    system_of_record:
+      - "Raw document files"
+      - "Signed PDF artifacts"
+    runtime_boundary: "data_store"
+    deployable: false
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-001"
+      - "plan://asm-001"
+    tags: ["datastore", "object-storage"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "asm-001"]
+
+  - id: "queue-jobs"
+    name: "Job Queue"
+    kind: "queue"
+    c4_level: "container"
+    description: "Message queue for async job dispatch. Decouples API server from email delivery, webhook calls, and PDF finalization to ensure reliability and independent retry policies."
+    responsibility: "Async job buffering and delivery guarantee"
+    technology: "Redis (BullMQ) or AWS SQS"
+    owned_data:
+      - "Job payloads"
+    system_of_record: []
+    runtime_boundary: "data_store"
+    deployable: true
+    external: false
+    parent_id: ""
+    source_paths:
+      - "plan://req-002"
+      - "plan://req-003"
+      - "plan://trd-003"
+    tags: ["queue", "async"]
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "req-003", "trd-003"]
+
+relationships:
+  # ── Context-level ─────────────────────────────────────────────────────────────
+  - id: "rel-admin-docsign"
+    source_id: "person-admin"
+    target_id: "system-docsign"
+    label: "creates documents, monitors status, views analytics"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects:
+      - "Document drafts"
+      - "Signature status"
+      - "Analytics data"
+    confidence: "confirmed"
+    evidence_ids: ["req-001", "req-005"]
+
+  - id: "rel-signer-docsign"
+    source_id: "person-signer"
+    target_id: "system-docsign"
+    label: "reviews and signs document via magic link"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects:
+      - "Magic-link token"
+      - "Signature"
+    confidence: "confirmed"
+    evidence_ids: ["req-002"]
+
+  - id: "rel-docsign-email"
+    source_id: "system-docsign"
+    target_id: "ext-email-provider"
+    label: "sends magic-link and notification emails"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "https"
+    data_objects:
+      - "Magic-link email"
+      - "Signing notification"
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "asm-001"]
+
+  - id: "rel-docsign-customer"
+    source_id: "system-docsign"
+    target_id: "ext-customer-system"
+    label: "delivers webhook callbacks on signature events"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "https"
+    data_objects:
+      - "Webhook event payload"
+    confidence: "confirmed"
+    evidence_ids: ["req-003"]
+
+  # ── Container-level ───────────────────────────────────────────────────────────
+  - id: "rel-admin-webapp"
+    source_id: "person-admin"
+    target_id: "container-web-app"
+    label: "accesses admin dashboard"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects:
+      - "Document drafts"
+      - "Analytics views"
+    confidence: "confirmed"
+    evidence_ids: ["req-001", "req-005"]
+
+  - id: "rel-signer-portal"
+    source_id: "person-signer"
+    target_id: "container-signer-portal"
+    label: "opens magic-link, signs document"
+    interaction_type: "uses"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects:
+      - "Magic-link token"
+      - "Document view"
+      - "Signature input"
+    confidence: "confirmed"
+    evidence_ids: ["req-002"]
+
+  - id: "rel-webapp-api"
+    source_id: "container-web-app"
+    target_id: "container-api"
+    label: "calls REST API (authed via tenant JWT)"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects:
+      - "Document CRUD requests"
+      - "Signing session requests"
+      - "Analytics queries"
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "req-005", "asm-003"]
+
+  - id: "rel-portal-api"
+    source_id: "container-signer-portal"
+    target_id: "container-api"
+    label: "exchanges magic-link token, submits signature"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "sync"
+    protocol: "https"
+    data_objects:
+      - "Magic-link token"
+      - "Signature data"
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "asm-003"]
+
+  - id: "rel-api-db"
+    source_id: "container-api"
+    target_id: "db-primary"
+    label: "reads/writes documents, tenants, sessions, audit events"
+    interaction_type: "writes"
+    directionality: "bidirectional"
+    sync_async: "sync"
+    protocol: "sql"
+    data_objects:
+      - "Tenant records"
+      - "Documents"
+      - "Signing sessions"
+      - "Audit events"
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "req-004", "asm-002"]
+
+  - id: "rel-api-store"
+    source_id: "container-api"
+    target_id: "store-documents"
+    label: "stores uploaded documents, reads for signer delivery"
+    interaction_type: "writes"
+    directionality: "bidirectional"
+    sync_async: "sync"
+    protocol: "s3"
+    data_objects:
+      - "Raw document files"
+      - "Presigned download URLs"
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "asm-001"]
+
+  - id: "rel-api-queue"
+    source_id: "container-api"
+    target_id: "queue-jobs"
+    label: "enqueues email, webhook, and PDF finalization jobs"
+    interaction_type: "publishes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects:
+      - "Job payloads"
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "req-003", "trd-003"]
+
+  - id: "rel-worker-queue"
+    source_id: "container-worker"
+    target_id: "queue-jobs"
+    label: "consumes jobs from queue"
+    interaction_type: "subscribes"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "n_a"
+    data_objects:
+      - "Job payloads"
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "req-003", "trd-003"]
+
+  - id: "rel-worker-db"
+    source_id: "container-worker"
+    target_id: "db-primary"
+    label: "reads job context, updates job and document state"
+    interaction_type: "writes"
+    directionality: "bidirectional"
+    sync_async: "sync"
+    protocol: "sql"
+    data_objects:
+      - "Document state"
+      - "Webhook delivery records"
+    confidence: "strong_inference"
+    evidence_ids: ["req-003", "asm-002"]
+
+  - id: "rel-worker-store"
+    source_id: "container-worker"
+    target_id: "store-documents"
+    label: "reads source document, writes finalized signed PDF"
+    interaction_type: "writes"
+    directionality: "bidirectional"
+    sync_async: "sync"
+    protocol: "s3"
+    data_objects:
+      - "Source document"
+      - "Finalized signed PDF"
+    confidence: "strong_inference"
+    evidence_ids: ["req-001", "asm-001"]
+
+  - id: "rel-worker-email"
+    source_id: "container-worker"
+    target_id: "ext-email-provider"
+    label: "dispatches magic-link and completion emails"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "https"
+    data_objects:
+      - "Magic-link email payload"
+      - "Completion notification payload"
+    confidence: "strong_inference"
+    evidence_ids: ["req-002", "asm-001"]
+
+  - id: "rel-worker-webhook"
+    source_id: "container-worker"
+    target_id: "ext-customer-system"
+    label: "delivers webhook callbacks with exponential-backoff retries"
+    interaction_type: "calls"
+    directionality: "unidirectional"
+    sync_async: "async"
+    protocol: "https"
+    data_objects:
+      - "Webhook event payload"
+    confidence: "confirmed"
+    evidence_ids: ["req-003", "trd-003"]
+
+evidence:
+  - id: "req-001"
+    path: "plan://requirements/create-send-documents"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Core product requirement: tenants create and send documents for signature"
+
+  - id: "req-002"
+    path: "plan://requirements/signer-magic-link-flow"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Core product requirement: signers authenticate and sign via email magic link"
+
+  - id: "req-003"
+    path: "plan://requirements/webhook-callbacks"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Core product requirement: webhook callbacks to customer systems on signature events"
+
+  - id: "req-004"
+    path: "plan://requirements/audit-trail"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Core product requirement: immutable audit trail for every signature event"
+
+  - id: "req-005"
+    path: "plan://requirements/admin-analytics-dashboard"
+    kind: "plan_requirement"
+    strength: "high"
+    reason: "Core product requirement: analytics dashboard for tenant admins"
+
+  - id: "con-001"
+    path: "plan://constraints/multi-tenant-b2b"
+    kind: "plan_constraint"
+    strength: "high"
+    reason: "System must support multiple customer organizations with strict data isolation"
+
+  - id: "con-002"
+    path: "plan://constraints/team-timeline"
+    kind: "plan_constraint"
+    strength: "high"
+    reason: "5 engineers, 10-week MVP — constrains architecture complexity toward modular monolith"
+
+  - id: "asm-001"
+    path: "plan://assumptions/cloud-infrastructure"
+    kind: "plan_assumption"
+    strength: "medium"
+    reason: "Cloud-hosted infrastructure assumed; specific provider unconfirmed"
+
+  - id: "asm-002"
+    path: "plan://assumptions/postgresql"
+    kind: "plan_assumption"
+    strength: "medium"
+    reason: "PostgreSQL is a standard choice for B2B SaaS; unconfirmed by user"
+
+  - id: "asm-003"
+    path: "plan://assumptions/rest-api"
+    kind: "plan_assumption"
+    strength: "medium"
+    reason: "REST API assumed for client-server communication; GraphQL is alternative"
+
+  - id: "trd-001"
+    path: "plan://tradeoffs/monolith-vs-microservices"
+    kind: "plan_tradeoff"
+    strength: "high"
+    reason: "Modular monolith chosen over microservices to hit 10-week deadline with 5 engineers"
+
+  - id: "trd-002"
+    path: "plan://tradeoffs/multitenant-row-vs-schema"
+    kind: "plan_tradeoff"
+    strength: "high"
+    reason: "Row-level tenant_id isolation chosen over schema-per-tenant for MVP simplicity"
+
+  - id: "trd-003"
+    path: "plan://tradeoffs/async-queue-for-webhooks"
+    kind: "plan_tradeoff"
+    strength: "high"
+    reason: "Async queue for webhook + email delivery ensures reliability and independent retry; audit writes are synchronous within DB transaction for correctness"
+
+unknowns:
+  - "Signature capture method: typed name, drawn signature, or cryptographic certificate"
+  - "Webhook delivery SLA and retry policy (max retries, dead-letter handling)"
+  - "Compliance requirements (SOC 2, HIPAA, eIDAS) that may constrain data residency or signing method"
+  - "Expected peak document volume and concurrent signer load"
+  - "Whether analytics dashboards require a separate OLAP store or Postgres materialized views suffice"
+  - "Authentication method for tenant admin users (email/password, SSO, OAuth)"
+
+assumptions:
+  - text: "Cloud-hosted infrastructure (AWS or equivalent) with managed PostgreSQL and S3-compatible object storage"
+    confidence: "strong_inference"
+  - text: "PostgreSQL as the primary relational database"
+    confidence: "strong_inference"
+  - text: "REST API communication between frontend apps and API server"
+    confidence: "strong_inference"
+  - text: "Signers do not need a platform account — magic link is the sole signer auth mechanism for MVP"
+    confidence: "strong_inference"
+  - text: "Row-level tenant_id column isolation is sufficient for MVP multi-tenancy"
+    confidence: "strong_inference"
+  - text: "Audit events are written synchronously within the signature transaction for correctness, not via the async queue"
+    confidence: "strong_inference"

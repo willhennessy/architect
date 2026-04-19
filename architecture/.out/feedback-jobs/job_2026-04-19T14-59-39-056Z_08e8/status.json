@@ -1,0 +1,18 @@
+{
+  "submitted_comment_count": 3,
+  "needs_refresh": false,
+  "has_fast_result": false,
+  "has_final_result": false,
+  "diagram_path": "/Users/will/.codex/worktrees/d07d/architect/architecture/diagram.html",
+  "output_root": "/Users/will/.codex/worktrees/d07d/architect",
+  "bridge_url": "http://127.0.0.1:8765",
+  "job_id": "job_2026-04-19T14-59-39-056Z_08e8",
+  "state": "failed",
+  "message": "The agent did not acknowledge this update. Confirm Claude is running with the installed Architect plugin channel enabled, then submit again.",
+  "timestamps": {
+    "received_at": "2026-04-19T14:59:39Z",
+    "failed_at": "2026-04-19T14:59:59Z"
+  },
+  "refresh_hint": "",
+  "error": "agent_ack_timeout"
+}

@@ -1,0 +1,35 @@
+{
+  "system_name": "DocSign Platform",
+  "output_root": "/Users/will/.codex/worktrees/d07d/architect",
+  "diagram_revision_id": "rev-45d0dd4169d6",
+  "mode": "rich",
+  "comments": [
+    {
+      "index": 1,
+      "view_id": "view-container",
+      "element_id": "db-primary",
+      "relationship_id": null,
+      "target_label": "Primary Database",
+      "comment": "the db should use MongoDB instead"
+    },
+    {
+      "index": 2,
+      "view_id": "view-container",
+      "element_id": "container-web-app",
+      "relationship_id": null,
+      "target_label": "Admin Web App",
+      "comment": "switch the web app to Svelte"
+    },
+    {
+      "index": 3,
+      "view_id": "view-container",
+      "element_id": null,
+      "relationship_id": "rel-worker-email",
+      "target_label": "dispatches magic-link and completion emails",
+      "comment": "instead of magic link, use 6-digit OTP codes"
+    }
+  ],
+  "job_id": "job_2026-04-19T14-59-39-056Z_08e8",
+  "bridge_url": "http://127.0.0.1:8765",
+  "submitted_at": "2026-04-19T14:59:39Z"
+}
