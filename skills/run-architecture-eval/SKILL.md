@@ -1,20 +1,20 @@
 ---
 name: run-architecture-eval
-description: Run a repeatable eval round for the architect-discover skill. Use this when you want to evaluate a new version of the skill on a fresh codebase, get subagent review of the generated architecture artifacts, reflect on the run, and optionally apply improvements to architect-discover after user approval.
+description: Run a repeatable eval round for the architect-init skill. Use this when you want to evaluate a new version of the skill on a fresh codebase, get subagent review of the generated architecture artifacts, reflect on the run, and optionally apply improvements to architect-init after user approval.
 ---
 
-Use this skill to run a full eval loop against a real repository. The goal is consistent evaluation of `architect-discover`, not ad hoc repo exploration.
+Use this skill to run a full eval loop against a real repository. The goal is consistent evaluation of `architect-init`, not ad hoc repo exploration.
 
 ## Outcome
 
 For each eval round, produce:
 
-- `evals/architect-discover/roundX_<repo>/architecture/`: generated architecture artifacts
-- `evals/architect-discover/roundX_<repo>/architecture/diagram.html`: primary interactive HTML architecture diagram (with Comment Mode)
-- `evals/architect-discover/roundX_<repo>/architecture/diagram-prompt.md`: secondary Claude Imagine upload bundle
-- `evals/architect-discover/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
-- `evals/architect-discover/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
-- `evals/architect-discover/roundX_<repo>/reflections.md`: answers to the two reflection questions
+- `evals/architect-init/roundX_<repo>/architecture/`: generated architecture artifacts
+- `evals/architect-init/roundX_<repo>/architecture/diagram.html`: primary interactive HTML architecture diagram (with Comment Mode)
+- `evals/architect-init/roundX_<repo>/architecture/diagram-prompt.md`: secondary Claude Imagine upload bundle
+- `evals/architect-init/roundX_<repo>/subagent_feedback.md`: summary of fresh subagent review
+- `evals/architect-init/roundX_<repo>/scores.yaml`: quantitative scores per the scoring rubric
+- `evals/architect-init/roundX_<repo>/reflections.md`: answers to the two reflection questions
 
 The target repository under test must live under `evals/repos/<repo>/` as a git submodule.
 
@@ -23,13 +23,13 @@ Do not write generated architecture files inside the repository under test.
 ## Hard Rules
 
 - Always compute the next round number before naming outputs.
-- Always store evaluation outputs in `evals/architect-discover/roundX_<repo>/`.
+- Always store evaluation outputs in `evals/architect-init/roundX_<repo>/`.
 - Always keep the repository under test separate from eval outputs.
-- Always use `architect-discover` to produce the architecture artifacts.
+- Always use `architect-init` to produce the architecture artifacts.
 - Always get review from a fresh subagent before finalizing the round.
 - Always score the output using the scoring rubric before writing reflections.
-- Always pause after writing reflections and ask the user whether to implement improvements to `architect-discover`.
-- Do not implement improvements to `architect-discover` unless the user explicitly says yes.
+- Always pause after writing reflections and ask the user whether to implement improvements to `architect-init`.
+- Do not implement improvements to `architect-init` unless the user explicitly says yes.
 
 ## Naming Rules
 
@@ -37,12 +37,12 @@ Determine `X` by scanning existing round output directories directly under `eval
 
 Examples:
 
-- `evals/architect-discover/round1_rundler/` counts as round `1`
-- `evals/architect-discover/round2/` counts as round `2`
+- `evals/architect-init/round1_rundler/` counts as round `1`
+- `evals/architect-init/round2/` counts as round `2`
 
 Use the next highest round number for both:
 
-- `evals/architect-discover/roundX_<repo>/`
+- `evals/architect-init/roundX_<repo>/`
 
 Normalize `<repo>` to a simple slug based on the repository name.
 
@@ -96,7 +96,7 @@ If a chosen candidate exceeds the size limit after inspection, discard it and ch
 
 Before touching a candidate repo:
 
-- find the next round number from existing `evals/architect-discover/round*` directories
+- find the next round number from existing `evals/architect-init/round*` directories
 - compute the Rundler baseline using the filtered `rg --files` count defined in this skill
 
 Do not create the round output directory until the repository slug is known.
@@ -113,7 +113,7 @@ For the final candidate, confirm:
 
 After choosing the final candidate, create:
 
-- `evals/architect-discover/roundX_<repo>/`
+- `evals/architect-init/roundX_<repo>/`
 
 ALWAYS create this directory as soon as you choose the repo name.
 
@@ -139,21 +139,21 @@ Decision rule:
 
 ### 5. Run architect
 
-Invoke `architect-discover` on the repository under test.
+Invoke `architect-init` on the repository under test.
 
 Set the output path to:
 
-- `evals/architect-discover/roundX_<repo>/architecture/`
+- `evals/architect-init/roundX_<repo>/architecture/`
 
 Then invoke `architect-diagram` using the parent round folder as output root so it reads `architecture/` and writes the primary output (prefer hybrid template + LLM SVG fragments; fallback to deterministic layout if fragments are missing):
 
-- `evals/architect-discover/roundX_<repo>/architecture/diagram.html` (primary, includes Comment Mode)
+- `evals/architect-init/roundX_<repo>/architecture/diagram.html` (primary, includes Comment Mode)
 
 Then invoke `architect-diagram-prompt` on the same output root to generate:
 
-- `evals/architect-discover/roundX_<repo>/architecture/diagram-prompt.md` (secondary)
+- `evals/architect-init/roundX_<repo>/architecture/diagram-prompt.md` (secondary)
 
-**Do not skip diagram generation.** During eval runs, invoke `architect-diagram` after `architect-discover`, then invoke `architect-diagram-prompt` so every round includes both outputs for UX and Anthropic-facing evaluation.
+**Do not skip diagram generation.** During eval runs, invoke `architect-diagram` after `architect-init`, then invoke `architect-diagram-prompt` so every round includes both outputs for UX and Anthropic-facing evaluation.
 
 `diagram-prompt.md` must remain upload-ready for zero-text user flows. The file must include a top section with this exact heading:
 
@@ -165,12 +165,12 @@ At the very end of `diagram-prompt.md`, require this one-line handoff instructio
 
 - `View the architecture diagram here: <fully_resolved_file_path>`
 
-Where `<fully_resolved_file_path>` is the absolute path to `evals/architect-discover/roundX_<repo>/architecture/diagram.html`.
+Where `<fully_resolved_file_path>` is the absolute path to `evals/architect-init/roundX_<repo>/architecture/diagram.html`.
 
 Keep the exploration scope limited to the repository under test. Do not explore unrelated directories except:
 
 - the target repo under `evals/repos/<repo>/`
-- the round output directory under `evals/architect-discover/roundX_<repo>/`
+- the round output directory under `evals/architect-init/roundX_<repo>/`
 - the skill files being evaluated if and only if the user later approves improvements
 
 ### 6. Spawn a fresh subagent for review
@@ -181,7 +181,7 @@ Give it:
 
 - the repository-under-test path
 - the generated architecture output path
-- the skill's output contract and rules (extracted from `skills/architect-discover/SKILL.md`)
+- the skill's output contract and rules (extracted from `skills/architect-init/SKILL.md`)
 - the scoring rubric (from `skills/run-architecture-eval/references/scoring-rubric.md`)
 - the ground truth file if one exists (from `evals/ground-truth/<repo>.yaml`)
 
@@ -216,7 +216,7 @@ Use a prompt equivalent to:
 
 Capture the subagent's output in:
 
-- `evals/architect-discover/roundX_<repo>/subagent_feedback.md`
+- `evals/architect-init/roundX_<repo>/subagent_feedback.md`
 
 Summarize:
 
@@ -229,7 +229,7 @@ Summarize:
 
 Extract the subagent's quantitative scores and write them to:
 
-- `evals/architect-discover/roundX_<repo>/scores.yaml`
+- `evals/architect-init/roundX_<repo>/scores.yaml`
 
 Use the format defined in `skills/run-architecture-eval/references/scoring-rubric.md`.
 
@@ -250,11 +250,11 @@ If you disagree with a subagent suggestion, keep the existing model and record t
 Answer both questions yourself:
 
 1. `now that you've done this, what would you have done differently?`
-2. `what improvements should we make to the architect-discover skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?`
+2. `what improvements should we make to the architect-init skill in order to improve accuracy, efficiency, and comprehensiveness in future runs on other arbitrary software?`
 
 Write the answers to:
 
-- `evals/architect-discover/roundX_<repo>/reflections.md`
+- `evals/architect-init/roundX_<repo>/reflections.md`
 
 ### 10. Pause and ask the user
 
@@ -270,7 +270,7 @@ Do not continue automatically.
 
 Implement the approved improvements to:
 
-- `skills/architect-discover/`
+- `skills/architect-init/`
 
 Update companion metadata if needed.
 
@@ -285,10 +285,10 @@ Wait for further input.
 Before pausing for user input, verify:
 
 - the target repo exists under `evals/repos/<repo>/`
-- the round output directory exists under `evals/architect-discover/roundX_<repo>/`
+- the round output directory exists under `evals/architect-init/roundX_<repo>/`
 - `architecture/` exists inside the round output directory
 - `architecture/diagram.html` exists as a single-file artifact, with no external dependencies beyond the approved Instrument Sans Google Fonts links when that typography path is used
-- `scripts/validate-diagram-html.sh evals/architect-discover/roundX_<repo>/architecture/diagram.html` passes
+- `scripts/validate-diagram-html.sh evals/architect-init/roundX_<repo>/architecture/diagram.html` passes
 - `architecture/diagram.html` includes Comment Mode (`Comment` toggle, `C` shortcut, queued comments, submit modal with JSON handoff)
 - relationship hit targets are selectable and carry `data-relationship-id` for edge comments
 - any legend appears outside the architecture/system boundary region

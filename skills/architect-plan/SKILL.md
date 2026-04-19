@@ -5,7 +5,7 @@ description: Generate a planning-time architecture proposal (before implementati
 
 Use this skill for planning-mode architecture design.
 
-This skill must emit the same artifact schema as `architect-discover`.
+This skill must emit the same artifact schema as `architect-init`.
 
 ## Required Output Contract
 
@@ -171,7 +171,7 @@ Before presenting for approval or finishing any iteration, verify:
 
 ## Handoffs
 
-- If the user needs architecture from an existing repo, hand off to `architect-discover`.
+- If the user needs architecture from an existing repo, hand off to `architect-init`.
 - Use `architect-diagram` directly inside this skill for normal planning flow.
 - Use `architect-diagram-prompt` only when user explicitly requests `diagram-prompt.md` generation.
 - Treat diagram generation as a separate handoff only when the user explicitly requests diagram-only regeneration from existing artifacts.

@@ -4,7 +4,7 @@ Architect as a Claude plugin.
 
 This is the new primary packaging path for:
 
-- `/architect:discover`
+- `/architect:init`
 - `/architect:plan`
 - `/architect:diagram`
 - `/architect:diagram-prompt`
@@ -38,7 +38,7 @@ claude \
 In Claude:
 
 1. Run `/mcp` and confirm `plugin:architect:architect-comments` is connected.
-2. Run `/architect:plan` or `/architect:discover`.
+2. Run `/architect:plan` or `/architect:init`.
 3. Architect writes visible artifacts under `./architecture/` by default.
 4. Open `./architecture/diagram.html`.
 5. Submit comments from the diagram.
@@ -87,7 +87,7 @@ This usually means the rendered diagram no longer matches the folder it came fro
 Fix:
 
 1. Keep the generated `architecture/` folder in the same location after Architect renders it.
-2. If you already moved or renamed it, rerun `/architect:plan` or `/architect:discover` and open the newly generated `architecture/diagram.html`.
+2. If you already moved or renamed it, rerun `/architect:plan` or `/architect:init` and open the newly generated `architecture/diagram.html`.
 
 ### I refreshed, but I still do not see the change
 

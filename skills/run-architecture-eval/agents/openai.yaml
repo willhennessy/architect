@@ -1,7 +1,7 @@
 interface:
   display_name: "Run Architecture Eval"
-  short_description: "Run a full eval round for the architect-discover skill"
-  default_prompt: "Use $run-architecture-eval to pick a suitable GitHub repository, run architect-discover into eval outputs, run architect-diagram for diagram.html with Comment Mode (primary), then run architect-diagram-prompt for diagram-prompt.md (secondary), get fresh subagent review, write reflections, and pause for approval before improving the skill."
+  short_description: "Run a full eval round for the architect-init skill"
+  default_prompt: "Use $run-architecture-eval to pick a suitable GitHub repository, run architect-init into eval outputs, run architect-diagram for diagram.html with Comment Mode (primary), then run architect-diagram-prompt for diagram-prompt.md (secondary), get fresh subagent review, write reflections, and pause for approval before improving the skill."
 
 policy:
   allow_implicit_invocation: true

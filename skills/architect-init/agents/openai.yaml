@@ -1,0 +1,7 @@
+interface:
+  display_name: "Architecture Init"
+  short_description: "Discover codebase architecture and emit structured architecture artifacts"
+  default_prompt: "Use $architect-init to inspect this repository, produce a canonical architecture model plus derived structured views, then automatically run architect-diagram with the same output root so the init output includes an interactive HTML diagram."
+
+policy:
+  allow_implicit_invocation: true

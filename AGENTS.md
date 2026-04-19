@@ -37,7 +37,7 @@ Help Will evolve Architect quickly while preserving:
 ## Canonical skills and responsibilities
 
 - `architect-plan`: requirements -> architecture artifacts
-- `architect-discover`: repo -> architecture artifacts
+- `architect-init`: repo -> architecture artifacts
 - `architect-diagram`: artifacts -> `diagram.html`
 - `architect-diagram-prompt`: artifacts -> `diagram-prompt.md` (explicit only)
 

@@ -2,7 +2,7 @@
 
 This schema is shared by:
 
-- `architect-discover`
+- `architect-init`
 - `architect-plan`
 
 Both skills must emit architecture artifacts that conform to this contract.
@@ -41,7 +41,7 @@ Schema:
 ```yaml
 version: 2
 system_name: "<system name>"
-generated_by_skill: "<architect-discover|architect-plan>"
+generated_by_skill: "<architect-init|architect-plan>"
 mode: "<initial|update>"
 evidence_basis: "<code|plan|mixed>"
 architecture_state: "<proposed|approved|implementing|drifted>"   # optional

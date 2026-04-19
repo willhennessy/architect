@@ -44,13 +44,13 @@ Adopt one warm-neutral light/dark token system on `html[data-theme]`, add a head
 **Consequences**
 Theme switching now works without regenerating the page, future styling work should extend token usage instead of reintroducing hex values, and diagrams stay visually consistent between production fragments and the template's fallback renderer.
 
-### Auto-render diagram after discovery — 2026-04-16
+### Auto-render diagram after init — 2026-04-16
 
 **Context**  
-`architect-plan` already auto-invokes `architect-diagram`, but `architect-discover` still documented diagram generation as optional/manual. That mismatch made the plan and discover flows behave differently even though both produce the same artifact contract and both ultimately feed the same interactive diagram experience.
+`architect-plan` already auto-invokes `architect-diagram`, but `architect-init` still documented diagram generation as optional/manual. That mismatch made the plan and init flows behave differently even though both produce the same artifact contract and both ultimately feed the same interactive diagram experience.
 
 **Decision**  
-`architect-discover` should finish by handing off to `architect-diagram` with the same output root so `diagram.html` is generated automatically. The discover skill still owns artifact generation; the diagram skill still owns rendering. `diagram-prompt.md` remains explicit-only through `architect-diagram-prompt`.
+`architect-init` should finish by handing off to `architect-diagram` with the same output root so `diagram.html` is generated automatically. The init skill still owns artifact generation; the diagram skill still owns rendering. `diagram-prompt.md` remains explicit-only through `architect-diagram-prompt`.
 
 **Consequences**  
 Discover and plan now share the same default output shape for normal runs. Documentation and agent prompts must reflect the automatic handoff, and diagram regressions now block both flows instead of only diagram-only runs.

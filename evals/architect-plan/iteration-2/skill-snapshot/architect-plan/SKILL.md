@@ -5,7 +5,7 @@ description: Generate a planning-time architecture proposal (before implementati
 
 Use this skill for planning-mode architecture work. It is for **pre-implementation** design, not codebase discovery.
 
-This skill must emit the same artifact schema as `architect-discover`.
+This skill must emit the same artifact schema as `architect-init`.
 
 ## Required Output Contract
 
@@ -132,7 +132,7 @@ Before presenting for approval or finishing any iteration, verify:
 
 ## Handoffs
 
-- If the user needs architecture from an existing repo, hand off to `architect-discover`.
+- If the user needs architecture from an existing repo, hand off to `architect-init`.
 - If the user needs a Claude Imagine upload bundle, hand off to `architect-diagram-prompt`.
 
 ## Completion Standard

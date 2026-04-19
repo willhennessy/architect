@@ -15,7 +15,7 @@ Outputs are standardized and compatible across skills.
 
 - `skills/` — production skills
   - `architect-plan` — generate architecture from requirements/constraints
-  - `architect-discover` — infer architecture from a repository
+  - `architect-init` — infer architecture from a repository
   - `architect-diagram` — render interactive `diagram.html`
   - `architect-diagram-prompt` — generate `diagram-prompt.md` (optional, on-demand)
   - `run-plan-eval` / `run-architecture-eval` — eval orchestration skills
@@ -50,7 +50,7 @@ Always treat `skills/references/architecture-contract.md` as source of truth.
 In chat with the agent, use skill commands like:
 
 - `/architect-plan ...`
-- `/architect-discover ...`
+- `/architect-init ...`
 - `/architect-diagram ...`
 - `/architect-diagram-prompt ...`
 - `/run-plan-eval ...`
@@ -58,7 +58,7 @@ In chat with the agent, use skill commands like:
 
 Typical workflow:
 
-1. Run `architect-plan` or `architect-discover`
+1. Run `architect-plan` or `architect-init`
 2. Let that skill automatically hand off to `architect-diagram` to generate `architecture/diagram.html`
 3. Run `architect-diagram` directly only when you want diagram-only regeneration from existing artifacts
 4. Run `architect-diagram-prompt` only if you explicitly need `architecture/diagram-prompt.md`
@@ -117,7 +117,7 @@ Recommended shape:
 4. enable the Architect development channel for that session with `plugin:architect@architect-local`
 5. append the Architect channel handoff system prompt so Claude acts on inbound comment events in the same session
    `--append-system-prompt` is required to guarantee Claude responds to comments.
-6. run `/architect:discover` or `/architect:plan`
+6. run `/architect:init` or `/architect:plan`
 7. submit comments from `architecture/diagram.html`
 8. let the same Claude session own the update loop, progress reporting, validation, and rerender
 
@@ -178,7 +178,7 @@ Use the eval skills from chat:
 - `run-plan-eval`: focuses on planning artifact quality
 - `run-architecture-eval`: full discover -> diagram -> review loop
 
-Eval outputs are written under `evals/architect-discover/` and related folders.
+Eval outputs are written under `evals/architect-init/` and related folders. Historical rounds remain in the archived eval outputs.
 
 ---
 

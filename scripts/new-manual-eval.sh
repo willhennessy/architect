@@ -18,7 +18,7 @@ Options:
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
   --name <suffix>        Optional folder name suffix appended after timestamp; also used as Claude session name
-  --skills <csv>         Skill dirs to snapshot for reference (default: architect-plan,architect-discover,architect-diagram)
+  --skills <csv>         Skill dirs to snapshot for reference (default: architect-plan,architect-init,architect-diagram)
   --with-skill           Configure the Architect plugin for this run (default)
   --without-skill        Do not configure the Architect plugin (baseline run)
   -h, --help             Show help
@@ -32,7 +32,7 @@ REPO_URL=""
 REPO_PATH=""
 RUN_ROOT="$HOME/tmp/architect-manual-evals"
 RUN_NAME_SUFFIX=""
-SKILLS_CSV="architect-plan,architect-discover,architect-diagram"
+SKILLS_CSV="architect-plan,architect-init,architect-diagram"
 WITH_SKILL=1
 
 while [[ $# -gt 0 ]]; do
