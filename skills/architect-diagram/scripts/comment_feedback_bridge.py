@@ -121,6 +121,7 @@ KIND_NORMALIZATION = {
     "person": "person",
     "actor": "person",
 }
+RUNTIME_DIR = ".out"
 
 
 class BridgeError(RuntimeError):
@@ -184,8 +185,24 @@ def short_hash(text: str, length: int = 8) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()[:length]
 
 
+def architecture_dir(output_root: Path) -> Path:
+    return output_root / "architecture"
+
+
+def runtime_dir(output_root: Path) -> Path:
+    return architecture_dir(output_root) / RUNTIME_DIR
+
+
+def feedback_jobs_dir(output_root: Path) -> Path:
+    return runtime_dir(output_root) / "feedback-jobs"
+
+
+def diagram_html_path(output_root: Path) -> Path:
+    return architecture_dir(output_root) / "diagram.html"
+
+
 def compute_revision_id(output_root: Path) -> str:
-    arch = output_root / "architecture"
+    arch = architecture_dir(output_root)
     parts: List[bytes] = []
     for path in sorted((arch / "views").glob("*.y*ml")):
         parts.append(path.name.encode("utf-8"))
@@ -247,7 +264,7 @@ class ViewRecord:
 
 
 def load_views(output_root: Path) -> Dict[str, ViewRecord]:
-    views_dir = output_root / "architecture" / "views"
+    views_dir = architecture_dir(output_root) / "views"
     if not views_dir.exists():
         raise BridgeError(f"Missing views directory: {views_dir}")
     out: Dict[str, ViewRecord] = {}
@@ -575,7 +592,7 @@ class ArchitectureUpdater:
         self.output_root = output_root
         self.job_id = job_id
         self.payload = payload
-        self.arch_dir = output_root / "architecture"
+        self.arch_dir = architecture_dir(output_root)
         self.model_path = self.arch_dir / "model.yaml"
         self.summary_path = self.arch_dir / "summary.md"
         self.manifest_path = self.arch_dir / "manifest.yaml"
@@ -864,7 +881,7 @@ class ArchitectureUpdater:
         code, output = run_cmd(["python3", str(script_dir / "render-diagram-html.py"), "--output-root", str(self.output_root), "--mode", "fast"])
         if code != 0:
             raise BridgeError(output.strip() or "Fast render failed")
-        code, output = run_cmd([str(script_dir / "validate-diagram-html.sh"), str(self.output_root / "diagram.html")])
+        code, output = run_cmd([str(script_dir / "validate-diagram-html.sh"), str(diagram_html_path(self.output_root))])
         if code != 0:
             raise BridgeError(output.strip() or "Fast validation failed")
 
@@ -876,7 +893,7 @@ class ArchitectureUpdater:
         code, output = run_cmd(["python3", str(script_dir / "render-diagram-html.py"), "--output-root", str(self.output_root), "--mode", "rich"], timeout=180)
         if code != 0:
             raise BridgeError(output.strip() or "Slow render failed")
-        code, output = run_cmd([str(script_dir / "validate-diagram-html.sh"), str(self.output_root / "diagram.html")], timeout=180)
+        code, output = run_cmd([str(script_dir / "validate-diagram-html.sh"), str(diagram_html_path(self.output_root))], timeout=180)
         if code != 0:
             raise BridgeError(output.strip() or "Slow validation failed")
 
@@ -930,7 +947,7 @@ class ArchitectureUpdater:
                 "python3",
                 str(script_dir / "semantic-diff-gate.py"),
                 "--baseline",
-                str(self.output_root / "feedback-jobs" / self.job_id / "baseline-model.yaml"),
+                str(feedback_jobs_dir(self.output_root) / self.job_id / "baseline-model.yaml"),
                 "--current",
                 str(self.model_path),
             ],
@@ -965,7 +982,7 @@ class ArchitectureUpdater:
         return f"{script_name} failed"
 
     def _write_result_summary(self, result: ApplyResult) -> None:
-        job_dir = self.output_root / "feedback-jobs" / self.job_id
+        job_dir = feedback_jobs_dir(self.output_root) / self.job_id
         write_json(
             job_dir / "result.json",
             {
@@ -977,7 +994,7 @@ class ArchitectureUpdater:
                 "warnings": result.warnings,
                 "changed_element_ids": sorted(set(result.changed_element_ids)),
                 "changed_relationship_ids": sorted(set(result.changed_relationship_ids)),
-                "diagram_path": str(self.output_root / "diagram.html"),
+                "diagram_path": str(diagram_html_path(self.output_root)),
             },
         )
 
@@ -1059,12 +1076,12 @@ class JobStore:
 
     def create_job(self, payload: Dict[str, Any]) -> JobRecord:
         output_root = Path(str(payload.get("output_root") or "")).expanduser().resolve()
-        arch_dir = output_root / "architecture"
+        arch_dir = architecture_dir(output_root)
         if not output_root.exists() or not arch_dir.exists():
             raise BridgeError(f"output_root must contain architecture/: {output_root}")
 
         job_id = datetime.now(timezone.utc).strftime("job_%Y-%m-%dT%H-%M-%SZ_") + short_hash(str(time.time()) + str(random.random()), 4)
-        job_dir = output_root / "feedback-jobs" / job_id
+        job_dir = feedback_jobs_dir(output_root) / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
 
         payload = copy.deepcopy(payload)
@@ -1073,7 +1090,7 @@ class JobStore:
         payload["submitted_at"] = utc_now_iso()
         write_json(job_dir / "input.json", payload)
 
-        baseline_model = output_root / "architecture" / "model.yaml"
+        baseline_model = architecture_dir(output_root) / "model.yaml"
         if baseline_model.exists():
             atomic_write_text(job_dir / "baseline-model.yaml", baseline_model.read_text(encoding="utf-8"))
 
@@ -1088,7 +1105,7 @@ class JobStore:
             needs_refresh=False,
             has_fast_result=False,
             has_final_result=False,
-            diagram_path=str(output_root / "diagram.html"),
+            diagram_path=str(diagram_html_path(output_root)),
             output_root=str(output_root),
             bridge_url=str(payload.get("bridge_url") or ""),
         )
@@ -1115,7 +1132,7 @@ class JobStore:
                 "state": state,
                 "message": message,
                 "timestamps": timestamps,
-                "diagram_path": str(record.output_root / "diagram.html"),
+                "diagram_path": str(diagram_html_path(record.output_root)),
                 "output_root": str(record.output_root),
             }
         )
@@ -1130,7 +1147,7 @@ class JobStore:
         return status
 
     def latest_status_for_output_root(self, output_root: Path) -> Optional[Dict[str, Any]]:
-        latest_path = output_root / "feedback-jobs" / "latest.json"
+        latest_path = feedback_jobs_dir(output_root) / "latest.json"
         latest = read_json(latest_path, default=None)
         if not isinstance(latest, dict):
             return None
@@ -1155,7 +1172,7 @@ class JobStore:
             f.write(json.dumps({"event": "state", "data": status}, ensure_ascii=False) + "\n")
 
     def _write_latest_pointer(self, record: JobRecord, status: Dict[str, Any]) -> None:
-        latest_path = record.output_root / "feedback-jobs" / "latest.json"
+        latest_path = feedback_jobs_dir(record.output_root) / "latest.json"
         write_json(
             latest_path,
             {
@@ -1163,7 +1180,7 @@ class JobStore:
                 "state": status.get("state"),
                 "status_path": str(record.job_dir / "status.json"),
                 "result_path": str(record.job_dir / "result.json"),
-                "diagram_path": str(record.output_root / "diagram.html"),
+                "diagram_path": str(diagram_html_path(record.output_root)),
                 "output_root": str(record.output_root),
             },
         )
@@ -1475,7 +1492,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "message": status.get("message"),
                 "status_url": f"http://{self.server.server_address[0]}:{self.server.server_address[1]}/jobs/{record.job_id}",
                 "events_url": f"http://{self.server.server_address[0]}:{self.server.server_address[1]}/jobs/{record.job_id}/events",
-                "diagram_path": str(record.output_root / "diagram.html"),
+                "diagram_path": str(diagram_html_path(record.output_root)),
             },
         )
 

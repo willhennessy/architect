@@ -1,0 +1,24 @@
+{
+  "name": "architect",
+  "version": "0.1.0",
+  "description": "Architecture discovery, planning, diagram rendering, and live Claude comment handoff.",
+  "author": {
+    "name": "Will"
+  },
+  "mcpServers": {
+    "architect-comments": {
+      "command": "bash",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/launch-runtime.sh"
+      ],
+      "env": {
+        "ARCHITECT_BRIDGE_PORT": "8765"
+      }
+    }
+  },
+  "channels": [
+    {
+      "server": "architect-comments"
+    }
+  ]
+}

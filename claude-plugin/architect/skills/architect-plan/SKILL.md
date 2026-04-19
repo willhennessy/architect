@@ -1,5 +1,5 @@
 ---
-name: architect-plan
+name: plan
 description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts and automatically render an HTML diagram via architect-diagram. Use when the user is designing a new system or major feature and wants architecture steering - especially use in Plan Mode.
 ---
 
@@ -52,9 +52,9 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 - Do not collapse distinct responsibilities into one generic container when separation is a key decision (for example: keep webhook, notification, and audit processing distinct unless there is explicit rationale to merge).
 - `summary.md` must include a **Key Decisions** section, and each key decision should include explicit coverage hints using `covers: <id1,id2,...>` referencing element/relationship/view IDs when possible.
 - Run decision coverage, decomposition policy, and semantic drift checks before finalizing revisions:
-  - `skills/architect-plan/scripts/decision-coverage-check.py`
-  - `skills/architect-plan/scripts/container-decomposition-check.py`
-  - `skills/architect-plan/scripts/semantic-diff-gate.py` (when a baseline model exists)
+  - `${CLAUDE_PLUGIN_ROOT}/scripts/decision-coverage-check.py`
+  - `${CLAUDE_PLUGIN_ROOT}/scripts/container-decomposition-check.py`
+  - `${CLAUDE_PLUGIN_ROOT}/scripts/semantic-diff-gate.py` (when a baseline model exists)
 - Record unknowns; do not fabricate precision.
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
 - In Plan Mode, do **not** present ASCII architecture diagrams as the primary visualization.
@@ -160,11 +160,11 @@ Before presenting for approval or finishing any iteration, verify:
 - no cross-parent component mixing in component views
 - no duplicated system-of-record assignments without explicit justification
 - decision coverage check passes (strict mode):
-  - `python3 skills/architect-plan/scripts/decision-coverage-check.py --summary <output-root>/architecture/summary.md --model <output-root>/architecture/model.yaml --views-dir <output-root>/architecture/views --strict`
+  - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/decision-coverage-check.py --summary <output-root>/architecture/summary.md --model <output-root>/architecture/model.yaml --views-dir <output-root>/architecture/views --strict`
 - container decomposition policy check passes (strict mode):
-  - `python3 skills/architect-plan/scripts/container-decomposition-check.py --model <output-root>/architecture/model.yaml --summary <output-root>/architecture/summary.md --strict --only-when-mentioned`
+  - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/container-decomposition-check.py --model <output-root>/architecture/model.yaml --summary <output-root>/architecture/summary.md --strict --only-when-mentioned`
 - semantic drift gate passes when a baseline model exists:
-  - `python3 skills/architect-plan/scripts/semantic-diff-gate.py --baseline <previous>/architecture/model.yaml --current <output-root>/architecture/model.yaml`
+  - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/semantic-diff-gate.py --baseline <previous>/architecture/model.yaml --current <output-root>/architecture/model.yaml`
   - by default, do not allow name-stable ID shifts unless explicitly justified.
 - `architecture/diagram.html` exists and corresponds to the current artifact set
 - if requested, `architecture/diagram-prompt.md` exists and corresponds to the current artifact set

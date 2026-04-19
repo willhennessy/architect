@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import fs from "node:fs"
 import http from "node:http"
 import path from "node:path"
 import { spawnSync } from "node:child_process"
@@ -16,6 +17,7 @@ const bind = process.env.ARCHITECT_CHANNEL_BIND || "127.0.0.1"
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(moduleDir, "../../../..")
 const feedbackValidatorScript = path.join(repoRoot, "skills/architect-diagram/scripts/validate-feedback-update.py")
+const svgFragmentScript = path.join(repoRoot, "skills/architect-diagram/scripts/generate-svg-fragments.py")
 const renderDiagramScript = path.join(repoRoot, "skills/architect-diagram/scripts/render-diagram-html.py")
 const htmlValidatorScript = path.join(repoRoot, "skills/architect-diagram/scripts/validate-diagram-html.sh")
 
@@ -77,7 +79,7 @@ function buildFeedbackContent(body) {
     "3. Implement the requested updates directly instead of stopping at a plan, unless you are blocked or the feedback is genuinely ambiguous or high-risk.",
     "4. Keep edits contract-safe. Use canonical model kinds like `database`, not `datastore`.",
     "5. After editing, call finalize_feedback_update with the output_root and bridge_url instead of guessing render commands.",
-    `6. If finalize succeeds, call update_feedback_status with state=completed and the exact message: "All ${comments.length} comment${comments.length === 1 ? "" : "s"} have been applied. Refresh the page to see updates."`,
+    '6. If finalize succeeds, call update_feedback_status with state=completed and the exact message: "Refresh the page to see updates."',
     "7. If you are blocked or validation fails, report it with update_feedback_status using state=blocked or state=failed and a concise reason.",
     "8. When you tell the user what changed, summarize the actual edits you wrote. Do not imply bidirectionality unless the relationship is truly bidirectional in the model.",
   ]
@@ -149,6 +151,76 @@ function runCommand(command, args) {
   return { stdout, stderr }
 }
 
+function extractEmbeddedDiagramData(html) {
+  const startMarker = "const DATA = "
+  const endMarker = ";\nconst MODE = "
+  const start = html.indexOf(startMarker)
+  if (start === -1) return null
+  const end = html.indexOf(endMarker, start)
+  if (end === -1) return null
+  const jsonText = html.slice(start + startMarker.length, end).trim()
+  try {
+    return JSON.parse(jsonText)
+  } catch (_error) {
+    return null
+  }
+}
+
+function diagramPathFor(outputRoot) {
+  return path.join(outputRoot, "architecture", "diagram.html")
+}
+
+function inspectExistingDiagram(outputRoot) {
+  const diagramPath = diagramPathFor(outputRoot)
+  if (!fs.existsSync(diagramPath)) return null
+
+  const html = fs.readFileSync(diagramPath, "utf8")
+  const data = extractEmbeddedDiagramData(html)
+  const handoffContext =
+    data &&
+    data.comment_handoff &&
+    data.comment_handoff.render_context &&
+    typeof data.comment_handoff.render_context === "object"
+      ? data.comment_handoff.render_context
+      : null
+  const modeMatch =
+    html.match(/<meta name="diagram-render-mode" content="([^"]+)"/) ||
+    html.match(/const MODE = "([^"]+)"/)
+  const viewTypes = Array.isArray(handoffContext?.view_types)
+    ? handoffContext.view_types.map((value) => String(value || "")).filter(Boolean)
+    : Array.isArray(data?.views)
+      ? data.views.map((view) => String(view?.type || "")).filter(Boolean)
+      : []
+  const svgFragmentViewIds = Array.isArray(handoffContext?.svg_fragment_view_ids)
+    ? handoffContext.svg_fragment_view_ids.map((value) => String(value || "")).filter(Boolean)
+    : Array.isArray(data?.views)
+      ? data.views.filter((view) => Boolean(view?.svg_fragment)).map((view) => String(view?.id || "")).filter(Boolean)
+      : []
+
+  return {
+    mode: String(handoffContext?.mode || (modeMatch ? modeMatch[1] : "fast")).trim() === "rich" ? "rich" : "fast",
+    includeSequence: Boolean(handoffContext?.include_sequence) || viewTypes.includes("sequence"),
+    viewTypes,
+    svgFragmentViewIds,
+    hasSvgFragments: svgFragmentViewIds.length > 0,
+  }
+}
+
+function resolveRenderProfile(outputRoot, requestedMode) {
+  const existing = inspectExistingDiagram(outputRoot)
+  const currentNeedsRich =
+    !!existing &&
+    (existing.mode === "rich" || existing.viewTypes.includes("component") || existing.hasSvgFragments)
+  return {
+    requestedMode,
+    renderMode: requestedMode === "rich" || currentNeedsRich ? "rich" : "fast",
+    includeSequence: Boolean(existing?.includeSequence),
+    regenerateSvgFragments: Boolean(existing?.hasSvgFragments) || requestedMode === "rich" || currentNeedsRich,
+    preservedExistingProfile: requestedMode === "fast" && currentNeedsRich,
+    existing,
+  }
+}
+
 async function postBridgeStatus(args) {
   const bridgeUrl = String(args.bridge_url || "").replace(/\/$/, "")
   const jobId = String(args.job_id || "").trim()
@@ -190,12 +262,13 @@ function finalizeFeedbackUpdate(args) {
   const rawOutputRoot = String(args.output_root || "").trim()
   const outputRoot = path.isAbsolute(rawOutputRoot) ? rawOutputRoot : path.resolve(repoRoot, rawOutputRoot)
   const bridgeUrl = String(args.bridge_url || "").trim()
-  const renderMode = String(args.render_mode || "fast").trim()
+  const requestedRenderMode = String(args.render_mode || "fast").trim()
 
   if (!rawOutputRoot) throw new Error("output_root is required")
-  if (!["fast", "rich"].includes(renderMode)) {
+  if (!["fast", "rich"].includes(requestedRenderMode)) {
     throw new Error("render_mode must be one of: fast, rich")
   }
+  const renderProfile = resolveRenderProfile(outputRoot, requestedRenderMode)
 
   const validationResult = runCommand("python3", [
     feedbackValidatorScript,
@@ -205,26 +278,40 @@ function finalizeFeedbackUpdate(args) {
   ])
   const validation = JSON.parse(validationResult.stdout || "{}")
 
-  const renderArgs = [renderDiagramScript, "--output-root", outputRoot, "--mode", renderMode]
+  let svgGenerationResult = null
+  if (renderProfile.regenerateSvgFragments) {
+    svgGenerationResult = runCommand("python3", [svgFragmentScript, "--output-root", outputRoot])
+  }
+
+  const renderArgs = [renderDiagramScript, "--output-root", outputRoot, "--mode", renderProfile.renderMode]
+  if (renderProfile.includeSequence) {
+    renderArgs.push("--include-sequence")
+  }
   if (bridgeUrl) {
     renderArgs.push("--feedback-bridge-url", bridgeUrl)
   }
   const renderResult = runCommand("python3", renderArgs)
 
-  const diagramPath = path.join(outputRoot, "diagram.html")
+  const diagramPath = diagramPathFor(outputRoot)
   const htmlValidationResult = runCommand("bash", [htmlValidatorScript, diagramPath])
 
   return {
     ok: true,
     output_root: outputRoot,
     diagram_path: diagramPath,
-    render_mode: renderMode,
+    render_mode_requested: requestedRenderMode,
+    render_mode: renderProfile.renderMode,
+    include_sequence: renderProfile.includeSequence,
+    regenerated_svg_fragments: renderProfile.regenerateSvgFragments,
+    preserved_existing_render_profile: renderProfile.preservedExistingProfile,
+    existing_render_profile: renderProfile.existing,
     validation: {
       ok: Boolean(validation.ok),
       error_count: Number(validation.error_count || 0),
       warning_count: Number(validation.warning_count || 0),
       warnings: Array.isArray(validation.warnings) ? validation.warnings : [],
     },
+    svg_generation_stdout: svgGenerationResult ? svgGenerationResult.stdout.trim() : "",
     render_stdout: renderResult.stdout.trim(),
     html_validation_stdout: htmlValidationResult.stdout.trim(),
     next_step:
@@ -300,7 +387,7 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "finalize_feedback_update",
       description:
-        "Validate architecture artifacts, rerender diagram.html with the exact repo render path, and validate the generated HTML before you mark a feedback job complete.",
+        "Validate architecture artifacts, preserve the current diagram's quality and view set when rerendering diagram.html, and validate the generated HTML before you mark a feedback job complete.",
       inputSchema: {
         type: "object",
         properties: {
@@ -316,7 +403,7 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
           render_mode: {
             type: "string",
             enum: ["fast", "rich"],
-            description: "Render mode for the diagram refresh. Use fast by default for comment updates.",
+            description: "Requested render mode override. The current diagram's richer profile is preserved automatically when present.",
           },
         },
         required: ["output_root"],

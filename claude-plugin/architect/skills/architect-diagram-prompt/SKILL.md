@@ -1,5 +1,5 @@
 ---
-name: architect-diagram-prompt
+name: diagram-prompt
 description: Generate the secondary Claude Imagine upload bundle (`diagram-prompt.md`) from existing architecture artifacts and rendered diagram output. Use when explicitly requested.
 ---
 

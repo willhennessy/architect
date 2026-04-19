@@ -164,3 +164,137 @@ Treat shadow-based elevation as disallowed across the tracked repo. Do not use `
 
 **Consequences**  
 Future shadow additions are bugs, not design choices to debate case by case. Controls that need more grounding must solve it with border/background changes, and even reference/eval HTML artifacts should stay shadow-free so repo-wide grep remains a real enforcement tool.
+
+### Plugin-Owned Claude Runtime For Private Beta — 2026-04-17
+
+**Context**  
+The Channels-based comment loop was validated, but the operator story still required users to manually start a localhost bridge, manually start a bare channel server, and hand-roll MCP config just to use Architect normally. That friction is too high for private beta distribution.
+
+**Decision**  
+Package Architect as a real Claude plugin with a plugin-owned runtime. The plugin runtime combines the browser bridge endpoints, the Claude channel emitter, and the `update_feedback_status` / `finalize_feedback_update` MCP tools in one process. The plugin uses a `SessionStart` hook to bootstrap Node and Python dependencies into `${CLAUDE_PLUGIN_DATA}` so end users do not manually run `npm install` or set up a separate bridge process. Claude CLI is the only committed host target for this first plugin beta.
+
+**Consequences**  
+The primary operator flow moves from "start bridge + start bare channel server" to "launch Claude with the Architect plugin". The old Python bridge and bare channel server remain available as repo-level fallback/dev infrastructure, but they are no longer the primary product story. The plugin bundle must mirror the shipping skills, references, templates, and shipped scripts so installed-plugin execution does not depend on repo-external paths.
+The original bootstrap implementation used a `SessionStart` hook; that detail was later superseded by **Bootstrap The Plugin Runtime On MCP Launch** once cold-start races showed up in real sessions.
+
+### Repo-Local Development Marketplace For Channel Testing — 2026-04-17
+
+**Context**  
+The plugin bundle loaded correctly via `--plugin-dir`, but Claude’s development-channel flag rejected `plugin:architect` because development channels currently require a marketplace-qualified plugin identifier like `plugin:<name>@<marketplace>`.
+
+**Decision**  
+Add a repo-local development marketplace rooted at `claude-plugin/` with the existing `claude-plugin/architect/` bundle published as `architect@architect-local`. For development sessions, install the plugin from that local marketplace and still pass `--plugin-dir` so the live working copy overrides the installed cache while the channel flag uses a valid plugin-qualified identifier.
+
+**Consequences**  
+The development command becomes slightly longer, but it is now valid under Claude’s current Channels preview rules. This avoids creating a second plugin copy just to satisfy marketplace identity, and keeps the local plugin bundle as the only packaged artifact we edit directly.
+The `--plugin-dir` override part of this decision was later superseded by **Installed Plugin Identity Required For Plugin Channel Delivery** once Claude’s channel identity checks proved stricter than expected.
+
+### Installed Plugin Identity Required For Plugin Channel Delivery — 2026-04-17
+
+**Context**  
+After adding the repo-local development marketplace, the team tried to preserve live-working-copy behavior by launching Claude with both `--plugin-dir ./claude-plugin/architect` and `--dangerously-load-development-channels plugin:architect@<marketplace>`. The MCP server connected, but comment jobs stayed stuck in `received` and Claude never reacted. Claude debug logs revealed the reason: `Channel notifications skipped: you asked for plugin:architect@... but the installed architect plugin is from inline`.
+
+**Decision**  
+For live plugin-channel testing, do not combine `--plugin-dir` with the plugin-qualified channel flag. Install `architect@<marketplace>` from the repo-local marketplace and launch Claude against that installed plugin identity, plus the explicit Architect channel handoff system prompt. Keep `--plugin-dir` for non-channel plugin loading/dev inspection only.
+
+**Consequences**  
+The local development story becomes less convenient because the live session no longer runs directly from the inline plugin override. In return, channel delivery actually works with Claude’s current plugin-channel identity checks. Manual-eval tooling and docs must treat marketplace install as the canonical path for end-to-end comment-loop testing.
+
+### Official Claude Marketplace Is The Public Distribution Path — 2026-04-19
+
+**Context**  
+The original plugin docs were written around private-beta distribution and internal dev loops. That was fine for getting the runtime working, but it leaked internal setup details like `--permission-mode auto` and overly verbose operator guidance into the public-facing story.
+
+**Decision**  
+Treat the official Claude marketplace as the public distribution path for Architect. The public getting-started guide should show a marketplace install, a normal `--channels plugin:architect@claude-plugins-official` launch, default outputs under `./architecture/`, and a short refresh-based comment loop. Do not require `--permission-mode auto` in the end-user path.
+
+**Consequences**  
+The user-facing docs stay aligned with what external users can actually run. Internal eval tooling can still use extra flags when useful, but public guidance should stay marketplace-first, bash-only, and concise.
+
+### Keep The Explicit Channel System Prompt In Internal Eval Launches — 2026-04-19
+
+**Context**  
+We tested whether the plugin channel's built-in `instructions` were strong enough to replace the extra `--append-system-prompt` in internal eval sessions. In a real run against `evals/manual-docsign-tests/run-003`, Claude started successfully, the channel connected, and the bridge accepted a comment batch, but the job auto-failed after ~20 seconds with `agent_ack_timeout`.
+
+**Decision**  
+Keep the explicit Architect channel system prompt in internal eval launchers such as `scripts/new-manual-eval.sh` for now. Public marketplace docs can stay clean and omit it, but internal validation paths should keep the extra prompt until we find a plugin-native mechanism that proves equally reliable.
+
+**Consequences**  
+We do not pretend the no-append path is validated when it is not. Internal eval flows keep a slightly noisier launch command, but the working comment loop remains reliable while we continue investigating whether stronger channel instructions or another plugin-native hook can replace the extra prompt.
+
+### Public Plugin Ships Only User-Facing Skills — 2026-04-19
+
+**Context**  
+The repo contains internal eval skills like `run-plan-eval` and `run-architecture-eval` that are useful for maintainers but confusing for marketplace users. Even though the plugin sync path was already only copying the four user-facing skills, it did not actively prune stale extra skill directories from an existing plugin snapshot.
+
+**Decision**  
+Treat the public plugin bundle as a strict allowlist. The plugin ships only `architect-plan`, `architect-discover`, `architect-diagram`, `architect-diagram-prompt`, plus shared references. The sync script now removes any other skill directories from `claude-plugin/architect/skills/`, including internal eval skills.
+
+**Consequences**  
+Marketplace users see a cleaner slash-command surface, and old plugin snapshots cannot accidentally keep maintainer-only skills alive. Internal eval skills remain in the repo, just not in the public plugin distribution.
+
+### Fail Clearly When The Architect Bridge Port Is Occupied — 2026-04-19
+
+**Context**  
+When a second Architect-backed Claude session started while another runtime was still listening on `127.0.0.1:8765`, `/mcp` only showed a generic failed server. The real cause was a fixed-port collision, but the user had to inspect `lsof` manually to discover that.
+
+**Decision**  
+Add an explicit startup check in the plugin launcher for `ARCHITECT_BRIDGE_PORT` conflicts and mirror the same wording in the Node runtime's bind error path. The error should name the port, the bind address, the likely owner process, and the recommended recovery command.
+
+**Consequences**  
+Plugin users get a concrete, actionable failure instead of a vague MCP reconnect loop. Architect still uses a single fixed local port for now, but the failure mode is much easier to diagnose until we decide whether to support dynamic per-session ports.
+
+### Auto-Fail Unacknowledged Comment Jobs — 2026-04-17
+
+**Context**  
+Before hardening, a comment batch could get stuck in `received` forever if Claude never acknowledged the channel event. That left `diagram.html` locked in “Comments sent. The agent is reviewing them now.” and forced manual `failed` status surgery just to submit another batch.
+
+**Decision**  
+If a feedback job remains in `received` for roughly 20 seconds without moving to `acknowledged`, the plugin runtime should automatically mark it `failed` with a clear retry message. The browser should treat 409 “job already in progress” responses as a status refresh, not a copy-JSON fallback, so stale locks collapse back into the live status view.
+
+**Consequences**  
+The UI now recovers from missing Claude acknowledgements without manual intervention, and stale `received` jobs no longer trap the comment bar indefinitely. The timeout is intentionally narrow to the pre-ack phase so long-running real updates are not interrupted once Claude has actually started work.
+
+### Revision-Keyed SVG Fragments — 2026-04-17
+
+**Context**  
+A real comment update renamed `Tenant Admin` to `Frank Admin` in `architecture/model.yaml`, and the details panel showed the new name, but the node label in the visual diagram still showed the old one. Investigation showed the renderer was blindly embedding existing `diagram-svg/*.svg` fragments even after the canonical architecture artifacts changed, so stale fragment text could override the updated model data in `diagram.html`.
+
+**Decision**  
+Treat `diagram-svg/` as a revision-keyed cache, not a source of truth. `generate-svg-fragments.py` now writes `diagram-svg/_metadata.json` with the current architecture revision ID, and `render-diagram-html.py` only uses SVG fragments when that revision matches the current `architecture/` state. If metadata is missing or stale, the renderer falls back to the live in-template layout path instead of embedding stale SVG.
+
+**Consequences**  
+The visual diagram and the details panel now stay in sync after comment-driven YAML edits, even when old SVG fragments are still on disk. Rich/demo flows need fresh fragment generation to get fragment-backed visuals, but they can no longer silently reuse stale SVG text after a model change.
+
+### Bootstrap The Plugin Runtime On MCP Launch — 2026-04-17
+
+**Context**  
+The first plugin-backed Claude sessions were flaky: `/mcp` would often show `plugin:architect:architect-comments · ✘ failed` immediately after startup, and manually reconnecting the server would then work. The plugin manifest was bootstrapping Node and Python dependencies in a separate `SessionStart` hook while the MCP server itself launched independently, so cold starts could race the server connection against dependency installation.
+
+**Decision**  
+Move runtime bootstrap onto the MCP launch path itself. The plugin MCP server now starts through `scripts/launch-runtime.sh`, which first runs `bootstrap-runtime.sh`, then exports `NODE_PATH`, then execs the runtime server. Remove the separate `SessionStart` bootstrap hook instead of relying on parallel startup work.
+
+**Consequences**  
+Cold starts may spend a bit longer before the first MCP connection completes, but the server no longer needs a manual reconnect after Claude launches. The runtime prerequisites are now serialized behind MCP startup, which makes behavior more predictable and easier to reason about than a background hook racing the connection.
+
+### Preserve Existing Render Profile On Comment Updates — 2026-04-17
+
+**Context**  
+A simple comment-driven rename on a rich Rundler diagram caused an unacceptable downgrade: Claude updated the YAML correctly, but `finalize_feedback_update` rerendered with `render_mode=fast`, which dropped the component views and fell back to a much more basic visual presentation. That makes comment submission feel destructive even when the underlying architecture change is tiny.
+
+**Decision**  
+Treat the current `diagram.html` render profile as the default contract for comment updates. `finalize_feedback_update` now inspects the existing diagram, preserves rich/component view sets, preserves sequence inclusion when already present, and regenerates SVG fragments when the current diagram was using them. `render-diagram-html.py` also embeds `comment_handoff.render_context` so future comment updates can carry this profile forward explicitly.
+
+**Consequences**  
+Small comment edits no longer silently downgrade a high-quality diagram into a stripped-down fast render. Comment updates may spend a little longer regenerating SVG fragments for rich diagrams, but the quality stays consistent with what the user was already reviewing, which is the right tradeoff for trust and product feel.
+
+### User-Facing Artifacts Live Under `architecture/` — 2026-04-19
+
+**Context**  
+The visible output package had drifted into an awkward split: canonical YAML artifacts lived under `architecture/`, but the main rendered diagram and related user-facing files were written beside that folder. That leaked internal implementation structure into the user experience and forced docs/examples to talk about a parent output root instead of one clear artifact package.
+
+**Decision**  
+Treat `architecture/` as the visible artifact package. The primary rendered diagram now lives at `architecture/diagram.html`, and any user-facing upload bundle should live at `architecture/diagram-prompt.md`. Internal render/comment-loop state is allowed to live under hidden `architecture/.out/` sidecar paths so the browser/job system can keep working without cluttering the visible package.
+
+**Consequences**  
+End users can reason about one artifact directory instead of a split output shape, and public docs/examples no longer need to teach `./out/...` style phrasing just to explain where the diagram landed. Runtime/path-sensitive code has to preserve the distinction between visible artifacts in `architecture/` and hidden state in `architecture/.out/`.

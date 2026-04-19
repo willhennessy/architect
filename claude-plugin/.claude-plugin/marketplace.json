@@ -1,0 +1,21 @@
+{
+  "name": "architect-local",
+  "owner": {
+    "name": "Will"
+  },
+  "metadata": {
+    "description": "Local development marketplace for the Architect Claude plugin."
+  },
+  "plugins": [
+    {
+      "name": "architect",
+      "description": "Architecture discovery, planning, diagram rendering, and live Claude comment handoff.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Will"
+      },
+      "source": "./architect",
+      "category": "Developer Tools"
+    }
+  ]
+}

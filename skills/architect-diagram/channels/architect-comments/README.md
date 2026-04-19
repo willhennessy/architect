@@ -1,14 +1,20 @@
 # Architect Comments Channel
 
-This is the primary Claude Code handoff surface for Architect comment feedback.
+This is the legacy bare-server development channel for Architect comment feedback.
+
+The primary packaging path is now the plugin runtime at:
+
+- `/Users/will/.codex/worktrees/d07d/architect/claude-plugin/architect/README.md`
+
+Use this bare channel server when you want to debug the channel transport directly outside the plugin wrapper.
 
 It exists so the user's live Claude session can own the full comment-update loop:
 
-1. `diagram.html` submits a batched feedback job to the localhost bridge
+1. `architecture/diagram.html` submits a batched feedback job to the localhost bridge
 2. the bridge persists the job and forwards it to this channel server
 3. Claude receives a `<channel ...>` event in the active session
 4. Claude acknowledges the feedback, updates bridge job status through the MCP tool, and takes over the update loop
-5. Claude validates and rerenders the same `diagram.html` through the finalize MCP tool before marking the job complete
+5. Claude validates and rerenders the same `architecture/diagram.html` through the finalize MCP tool before marking the job complete
 
 ## Install
 
@@ -18,9 +24,9 @@ From this directory:
 npm install
 ```
 
-## Blessed path (known good)
+## Legacy bare-server path (known good)
 
-This is the **blessed local setup** for Claude handoff today.
+This is the **known-good bare-server setup** for Claude handoff today.
 
 It was validated against Claude Code `2.1.111`, the in-repo bridge, and the development channel server in this repo.
 
@@ -80,7 +86,7 @@ claude \
 - run `/mcp`
 - confirm `architect-comments` shows as connected before submitting comments
 
-### 6) Submit comments from `diagram.html`
+### 6) Submit comments from `architecture/diagram.html`
 
 Expected result:
 
@@ -88,7 +94,7 @@ Expected result:
 - Claude receives an `architect-comments` channel event in the same live session
 - Claude reports progress through `update_feedback_status`
 - Claude uses `finalize_feedback_update`
-- the browser tells the user to refresh the same `diagram.html`
+- the browser tells the user to refresh the same `architecture/diagram.html`
 
 ### Known-good notes
 
@@ -143,7 +149,7 @@ After Claude starts, run `/mcp` and confirm `architect-comments` is connected be
 The channel exposes two MCP tools:
 
 - `update_feedback_status` — posts progress, ready, completed, blocked, or failed status updates back to the localhost bridge using the `bridge_url` and `job_id` from the channel event
-- `finalize_feedback_update` — runs the hardening validator, rerenders `diagram.html` with the exact repo render command, preserves the bridge URL when provided, and validates the generated HTML before Claude marks the job complete
+- `finalize_feedback_update` — runs the hardening validator, rerenders `architecture/diagram.html` with the exact repo render command, preserves the bridge URL when provided, and validates the generated HTML before Claude marks the job complete
 
 Recommended Claude behavior for a normal feedback batch:
 
@@ -151,7 +157,7 @@ Recommended Claude behavior for a normal feedback batch:
 2. Inspect the referenced artifacts and call `update_feedback_status` with `state=analyzing`
 3. Edit the architecture artifacts
 4. Call `finalize_feedback_update` with `output_root` and `bridge_url`
-5. If finalize succeeds, call `update_feedback_status` with `state=completed` and a short refresh message like `All 3 comments have been applied. Refresh the page to see updates.`
+5. If finalize succeeds, call `update_feedback_status` with `state=completed` and the exact message `Refresh the page to see updates.`
 
 ## Run the bridge in Claude handoff mode
 

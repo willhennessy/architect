@@ -1,5 +1,5 @@
 ---
-name: architect-discover
+name: discover
 description: Discover and model the architecture of an unfamiliar codebase, emit a canonical architecture model plus derived structured view files for multiple audiences, then automatically hand off to architect-diagram for the interactive HTML diagram. Use this skill when asked to explore a repository, identify runtime boundaries, data ownership, key workflows, or generate architecture artifacts from source code.
 ---
 

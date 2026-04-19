@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate SVG fragments for DocSign test runs.
 
-Creates per-view SVG fragments under <output-root>/diagram-svg so the renderer
-can run in --demo-mode without fallback.
+Creates per-view SVG fragments under <output-root>/architecture/.out/diagram-svg
+so the renderer can run in --demo-mode without fallback.
 """
 
 from __future__ import annotations
@@ -373,7 +373,7 @@ def main() -> int:
     arch = root / "architecture"
     model = load_yaml(arch / "model.yaml")
     views_dir = arch / "views"
-    out_dir = root / "diagram-svg"
+    out_dir = root / "architecture" / ".out" / "diagram-svg"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     elements = {

@@ -37,14 +37,15 @@ Most skills ultimately produce or consume this structure under an output root:
 
 Diagram-related outputs:
 
-- `diagram.html` (primary interactive diagram)
-- optional `diagram-prompt.md` (secondary upload bundle, generated separately via `architect-diagram-prompt`)
+- `architecture/diagram.html` (primary interactive diagram)
+- optional `architecture/diagram-prompt.md` (secondary upload bundle, generated separately via `architect-diagram-prompt`)
+- hidden runtime sidecars under `architecture/.out/` when comment mode or rich rendering is enabled
 
 Always treat `skills/references/architecture-contract.md` as source of truth.
 
 ---
 
-## How to run skills (OpenClaw)
+## How to run skills
 
 In chat with the agent, use skill commands like:
 
@@ -58,9 +59,9 @@ In chat with the agent, use skill commands like:
 Typical workflow:
 
 1. Run `architect-plan` or `architect-discover`
-2. Let that skill automatically hand off to `architect-diagram` to generate `diagram.html`
+2. Let that skill automatically hand off to `architect-diagram` to generate `architecture/diagram.html`
 3. Run `architect-diagram` directly only when you want diagram-only regeneration from existing artifacts
-4. Run `architect-diagram-prompt` only if you explicitly need `diagram-prompt.md`
+4. Run `architect-diagram-prompt` only if you explicitly need `architecture/diagram-prompt.md`
 
 ---
 
@@ -72,7 +73,8 @@ Typical workflow:
 ./scripts/new-manual-eval.sh --repo-url <git-url> [--name <run-name>]
 ```
 
-Creates an isolated run directory and launches Claude in plan mode.
+Creates an isolated run directory and launches Claude in `auto` mode.
+When `--with-skill` is used, it also snapshots the Architect plugin, wires a run-local development marketplace, installs `architect@...` locally for that run, and launches Claude with the plugin and development channel enabled.
 
 Useful options:
 
@@ -99,40 +101,42 @@ Helper scripts used by harness:
 - `scripts/generate-docsign-plan-artifacts.py`
 - `skills/architect-diagram/scripts/generate-svg-fragments.py` (production generator used by harness)
 
-### 3) Claude handoff comment loop (primary mode)
+### 3) Claude plugin handoff (primary mode)
 
-Architect now treats **Claude handoff** as the primary comment-update path.
+Architect now treats the **Claude plugin runtime** as the primary comment-update path.
 
-The blessed local launch/setup is documented here:
+The blessed local development and packaging path lives here:
 
-- `skills/architect-diagram/channels/architect-comments/README.md`
+- `claude-plugin/architect/README.md`
 
 Recommended shape:
 
-1. start Claude with the Architect development channel enabled
-2. run the bridge with `--claude-channel-url ... --channel-handoff-only`
-3. submit comments from `diagram.html`
-4. let Claude own the update loop, progress reporting, validation, and rerender
+1. sync the plugin bundle with `python3 scripts/sync-claude-plugin.py`
+2. add the repo-local development marketplace and install `architect@architect-local`
+3. start Claude from the installed plugin identity, not `--plugin-dir`, for live channel testing
+4. enable the Architect development channel for that session with `plugin:architect@architect-local`
+5. append the Architect channel handoff system prompt so Claude acts on inbound comment events in the same session
+   `--append-system-prompt` is required to guarantee Claude responds to comments.
+6. run `/architect:discover` or `/architect:plan`
+7. submit comments from `architecture/diagram.html`
+8. let the same Claude session own the update loop, progress reporting, validation, and rerender
 
-There is an in-repo development channel server for this flow:
-
-- server code: `skills/architect-diagram/channels/architect-comments/`
-- usage notes: `skills/architect-diagram/channels/architect-comments/README.md`
+The first `/mcp` connect may take a little longer on a cold start because the plugin bootstraps its runtime dependencies during MCP launch, but it should not require a manual reconnect anymore.
 
 The intended handoff flow is:
 
-1. `diagram.html` submits one batched comment payload to the localhost bridge
-2. the bridge persists a file-backed job and acknowledges receipt
-3. the bridge forwards the batch into the active Claude session as a `<channel ...>` event
+1. `architecture/diagram.html` submits one batched comment payload to the plugin runtime on `http://127.0.0.1:8765`
+2. the runtime persists a file-backed job and acknowledges receipt
+3. the runtime forwards the batch into the active Claude session as a `<channel ...>` event
 4. Claude uses `update_feedback_status` to stream real progress back to the browser
-5. Claude uses `finalize_feedback_update` to validate artifacts, rerender `diagram.html`, and validate the regenerated HTML before completion
-6. the user refreshes the same `diagram.html` file to see the updated diagram
+5. Claude uses `finalize_feedback_update` to validate artifacts, rerender `architecture/diagram.html`, and validate the regenerated HTML before completion
+6. the user refreshes the same `architecture/diagram.html` file to see the updated diagram
 
-This keeps the browser/job contract stable while making the user's live Claude session the orchestrator of the comment-update loop.
+This keeps the browser/job contract stable while making the user's live Claude session the orchestrator of the comment-update loop, without requiring a separately started bridge process.
 
-### 4) Live comment feedback bridge (fallback deterministic worker)
+### 4) Live comment feedback bridge (legacy fallback / dev path)
 
-Run the localhost bridge used by `diagram.html` comment submission:
+Run the localhost bridge used by `architecture/diagram.html` comment submission:
 
 ```bash
 python3 skills/architect-diagram/scripts/comment_feedback_bridge.py
@@ -145,23 +149,25 @@ Default bind:
 What it does:
 
 - accepts one batched comment payload per submit
-- writes file-backed jobs under `<output-root>/feedback-jobs/`
+- writes file-backed jobs under `<output-root>/architecture/.out/feedback-jobs/`
 - acknowledges receipt immediately in the bridge terminal
 - if you do **not** run Claude handoff mode, it can run the built-in deterministic updater as a fallback
-- rewrites the same `<output-root>/diagram.html` path in place
+- rewrites the same `<output-root>/architecture/diagram.html` path in place
+
+Use this path for repo-level development or fallback testing. It is no longer the primary operator story.
 
 Browser behavior:
 
-- submit comments from `diagram.html`
+- submit comments from `architecture/diagram.html`
 - watch status in the HTML banner and the bridge terminal
-- refresh the same `diagram.html` file when the UI says the update is ready
+- refresh the same `architecture/diagram.html` file when the UI says the update is ready
 - submitted comments clear after a successful submit and are gone again on refresh
 
 Important:
 
-- `diagram.html` embeds the bridge URL at render time
+- `architecture/diagram.html` embeds the bridge URL at render time
 - default embedded bridge URL is `http://127.0.0.1:8765`
-- if you run the bridge on a different port, either rerender `diagram.html` with `--feedback-bridge-url <url>` or restart the bridge on the embedded port
+- if you run the bridge on a different port, either rerender `architecture/diagram.html` with `--feedback-bridge-url <url>` or restart the bridge on the embedded port
 
 ---
 
@@ -209,4 +215,4 @@ Eval outputs are written under `evals/architect-discover/` and related folders.
 ## Notes
 
 - `architect-diagram` intentionally does **not** generate `diagram-prompt.md` by default.
-- Generate that only when requested via `architect-diagram-prompt`.
+- Generate that only when requested via `architect-diagram-prompt`, and expect it at `architecture/diagram-prompt.md`.

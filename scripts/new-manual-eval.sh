@@ -3,9 +3,9 @@ set -euo pipefail
 
 # One-shot isolated manual eval setup.
 # Creates a per-run sandbox with:
-#   - copied skills snapshot
+#   - copied source skill snapshot for reference
 #   - copied shared skill references (skills/references)
-#   - run-local .claude/skills
+#   - copied Architect Claude plugin snapshot
 #   - isolated repo checkout/copy
 
 usage() {
@@ -18,9 +18,9 @@ Options:
   --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
   --name <suffix>        Optional folder name suffix appended after timestamp; also used as Claude session name
-  --skills <csv>         Skill dirs to snapshot (default: architect-plan,architect-discover,architect-diagram)
-  --with-skill           Include skills in run-local .claude/skills (default)
-  --without-skill        Do not include skills (baseline run)
+  --skills <csv>         Skill dirs to snapshot for reference (default: architect-plan,architect-discover,architect-diagram)
+  --with-skill           Configure the Architect plugin for this run (default)
+  --without-skill        Do not configure the Architect plugin (baseline run)
   -h, --help             Show help
 
 Example:
@@ -91,9 +91,18 @@ if [[ -e "$RUN_DIR" ]]; then
   exit 1
 fi
 
-mkdir -p "$RUN_DIR"/{skills,repo,out,.claude/skills}
+RUN_NAME="$(basename "$RUN_DIR")"
+
+mkdir -p "$RUN_DIR"/{skills,repo,architecture,.claude/skills}
+
+PLUGIN_MARKETPLACE_DIR=""
+PLUGIN_DIR=""
+MARKETPLACE_NAME=""
 
 if (( WITH_SKILL )); then
+  echo "Syncing Architect plugin bundle..."
+  python3 "$ARCHITECT_ROOT/scripts/sync-claude-plugin.py"
+
   # Copy shared references used by multiple skills (e.g., architecture-contract.md)
   if [[ -d "$SKILLS_ROOT/references" ]]; then
     cp -R "$SKILLS_ROOT/references" "$RUN_DIR/skills/references"
@@ -108,8 +117,35 @@ if (( WITH_SKILL )); then
       exit 1
     fi
     cp -R "$src" "$dst"
-    ln -sfn "$RUN_DIR/skills/$s" "$RUN_DIR/.claude/skills/$s"
   done
+
+  if [[ ! -d "$ARCHITECT_ROOT/claude-plugin" ]]; then
+    echo "Claude plugin root not found: $ARCHITECT_ROOT/claude-plugin" >&2
+    exit 1
+  fi
+  cp -R "$ARCHITECT_ROOT/claude-plugin" "$RUN_DIR/claude-plugin"
+  PLUGIN_MARKETPLACE_DIR="$RUN_DIR/claude-plugin"
+  PLUGIN_DIR="$RUN_DIR/claude-plugin/architect"
+
+  MARKETPLACE_NAME="$(printf '%s' "architect-local-$RUN_NAME" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' \
+    | cut -c1-63)"
+  if [[ -z "$MARKETPLACE_NAME" ]]; then
+    MARKETPLACE_NAME="architect-local"
+  fi
+
+  python3 - "$PLUGIN_MARKETPLACE_DIR/.claude-plugin/marketplace.json" "$MARKETPLACE_NAME" <<'PY'
+import json
+import pathlib
+import sys
+
+marketplace_path = pathlib.Path(sys.argv[1])
+marketplace_name = sys.argv[2]
+data = json.loads(marketplace_path.read_text(encoding="utf-8"))
+data["name"] = marketplace_name
+marketplace_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+PY
 fi
 
 if [[ -n "$REPO_URL" ]]; then
@@ -134,8 +170,6 @@ else
   MODE="without-skill"
 fi
 
-RUN_NAME="$(basename "$RUN_DIR")"
-
 CLAUDE_LAUNCH_BIN=""
 CLAUDE_LAUNCH_VIA_NPX=0
 if command -v claude >/dev/null 2>&1; then
@@ -151,9 +185,22 @@ else
   exit 127
 fi
 
+CLAUDE_CMD=("$CLAUDE_LAUNCH_BIN")
 LAUNCH_CMD_DISPLAY="$CLAUDE_LAUNCH_BIN"
 if (( CLAUDE_LAUNCH_VIA_NPX )); then
+  CLAUDE_CMD+=(-y @anthropic-ai/claude-code)
   LAUNCH_CMD_DISPLAY+=" -y @anthropic-ai/claude-code"
+fi
+
+CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+
+if (( WITH_SKILL )); then
+  echo "Configuring run-local Architect marketplace and plugin..."
+  (
+    cd "$RUN_DIR"
+    "${CLAUDE_CMD[@]}" plugin marketplace add "$PLUGIN_MARKETPLACE_DIR" --scope local
+    "${CLAUDE_CMD[@]}" plugin install "architect@$MARKETPLACE_NAME" --scope local
+  )
 fi
 
 cat > "$RUN_DIR/notes.md" <<EOF
@@ -171,18 +218,49 @@ cat > "$RUN_DIR/notes.md" <<EOF
 
 This run auto-starts Claude in this directory with:
 
-$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME" --permission-mode plan
+$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME" --allow-dangerously-skip-permissions --permission-mode auto$( (( WITH_SKILL )) && printf ' --dangerously-load-development-channels plugin:architect@%s --append-system-prompt "%s"' "$MARKETPLACE_NAME" "$CHANNEL_SYSTEM_PROMPT" )
 
 (Working directory: $RUN_DIR)
+
+## Default Architect outputs
+
+If you do not specify a custom output path in Claude, Architect should write visible artifacts under:
+
+- $RUN_DIR/architecture/
+- $RUN_DIR/architecture/diagram.html
+
 EOF
+
+if (( WITH_SKILL )); then
+cat >> "$RUN_DIR/notes.md" <<EOF
+
+## Plugin configuration
+
+- marketplace_dir: $PLUGIN_MARKETPLACE_DIR
+- marketplace_name: $MARKETPLACE_NAME
+- plugin_dir: $PLUGIN_DIR
+- source skill snapshot: $RUN_DIR/skills
+
+This run configured the Architect plugin through a run-local marketplace and launches Claude with the plugin enabled.
+EOF
+fi
 
 echo "Run ready: $RUN_DIR"
 echo "Created: $RUN_DIR/notes.md"
-echo "Launching Claude in plan mode..."
+if (( WITH_SKILL )); then
+  echo "Launching Claude with the Architect plugin configured..."
+else
+  echo "Launching Claude without the Architect plugin..."
+fi
 
 cd "$RUN_DIR"
-if (( CLAUDE_LAUNCH_VIA_NPX )); then
-  exec "$CLAUDE_LAUNCH_BIN" -y @anthropic-ai/claude-code --name "$SESSION_NAME" --permission-mode plan
+if (( WITH_SKILL )); then
+  exec "${CLAUDE_CMD[@]}" \
+    --name "$SESSION_NAME" \
+    --allow-dangerously-skip-permissions \
+    --dangerously-load-development-channels "plugin:architect@$MARKETPLACE_NAME" \
+    --permission-mode auto \
+    --append-system-prompt "$CHANNEL_SYSTEM_PROMPT"
 else
-  exec "$CLAUDE_LAUNCH_BIN" --name "$SESSION_NAME" --permission-mode plan
+  exec "${CLAUDE_CMD[@]}" --name "$SESSION_NAME" --allow-dangerously-skip-permissions --permission-mode auto
 fi

@@ -105,10 +105,10 @@ fi
 # Always generate SVG fragments first, then render in strict demo mode (no fallback)
 python3 "$REPO_ROOT/skills/architect-diagram/scripts/generate-svg-fragments.py" --output-root "$RUN_DIR" >/dev/null
 python3 "$REPO_ROOT/skills/architect-diagram/scripts/render-diagram-html.py" --output-root "$RUN_DIR" --demo-mode >/dev/null
-"$REPO_ROOT/skills/architect-diagram/scripts/validate-diagram-html.sh" "$RUN_DIR/diagram.html" >/dev/null
+"$REPO_ROOT/skills/architect-diagram/scripts/validate-diagram-html.sh" "$RUN_DIR/architecture/diagram.html" >/dev/null
 
 DIAGRAM_NAME="diagram-$next_index.html"
-cp "$RUN_DIR/diagram.html" "$TEST_ROOT/$DIAGRAM_NAME"
+cp "$RUN_DIR/architecture/diagram.html" "$TEST_ROOT/$DIAGRAM_NAME"
 
 python3 - <<PY
 import json
@@ -130,7 +130,7 @@ meta={
   'reason': '$reason',
   'source_commit': '$current_commit',
   'diagram_file': str(Path('$TEST_ROOT') / '$DIAGRAM_NAME'),
-  'svg_dir': str(run_dir / 'diagram-svg'),
+  'svg_dir': str(run_dir / 'architecture' / '.out' / 'diagram-svg'),
 }
 (Path('$RUN_DIR')/'run-metadata.json').write_text(json.dumps(meta, indent=2))
 PY
