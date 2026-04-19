@@ -53,6 +53,7 @@ Claude plugin packaging
 
 ## Up Next
 
+- [ ] Dogfood the unified sidebar status card in a fresh plugin session and confirm the 4-second success auto-refresh feels right
 - [ ] Run one fresh end-to-end Claude session with the installed marketplace plugin identity and multiple comment rounds
 - [ ] Verify the unacknowledged-job timeout behaves well in a fresh plugin session without false positives
 - [ ] Add regression coverage for the new canvas-comment path and cursor-priority behavior
@@ -62,12 +63,14 @@ Claude plugin packaging
 
 ## Completed
 
+- [x] Moved comment processing status into the sidebar, kept submitted drafts visible through pending and failure, and restyled comment cards around the shared kind-color mapping
 - [x] Removed the plugin MCP cold-start race by moving runtime bootstrap onto the MCP launch path instead of a separate `SessionStart` hook
 - [x] Fixed stale SVG reuse so comment-driven YAML edits cannot leave node labels out of sync with the details panel
 - [x] Fixed comment-update rerenders so rich diagrams keep their component views and regenerated SVG-backed visuals after small edits
 - [x] Moved the visible diagram artifact packaging under `architecture/diagram.html` while hiding render/comment sidecars under `architecture/.out/`
-- [x] Let comment mode add view-level comments anywhere on the canvas and unified cursor priority across comment, drill-down, and selectable states
 
 ## Notes for Next Session
 
 The active control plane is the plugin bundle at `claude-plugin/architect/` plus the repo-local development marketplace at `claude-plugin/.claude-plugin/marketplace.json`. `scripts/sync-claude-plugin.py` rebuilds the plugin-local mirrors from the source skills/scripts after any shipped-file change. The runtime now bootstraps Node/Python dependencies on the MCP launch path itself, then serves the browser bridge on port `8765` while also exposing the Claude channel tools. The critical Claude Channels lesson is that live plugin-channel testing must use the installed marketplace identity, not `--plugin-dir`; Claude will skip channel notifications if the requested channel identity is marketplace-installed but the loaded plugin is `inline`. The runtime now auto-fails unacknowledged `received` jobs after about 20 seconds so the HTML app unlocks without manual status surgery. Rich comment updates preserve the current diagram render profile and regenerate SVG fragments when needed, and SVG fragment reuse is now revision-keyed via `architecture/.out/diagram-svg/_metadata.json`. The visible artifact package is now `architecture/`: user-facing docs and render outputs should point to `architecture/diagram.html` and `architecture/diagram-prompt.md`, while hidden sidecars live under `architecture/.out/`. The live repo now uses `architect-init` as the canonical repo-derived architecture skill name, with `/architect:init` as the documented plugin command. Archived historical eval outputs were intentionally left untouched per user direction, while new eval guidance now points at `evals/architect-init/`. A real no-append validation run against `evals/manual-docsign-tests/run-003` failed with `agent_ack_timeout`, so the internal eval launcher should keep the explicit Architect channel system prompt until we find a plugin-native replacement that is equally reliable. `diagram-app.html` now supports view-level comments anywhere on the canvas, titles those comments from the active breadcrumb label, and applies cursor precedence from the canvas surface outward so comment mode stays crosshair-first. Feedback batch channel copy is now intentionally a single friendly line (`Got it, let me noodle on these N comments.` for multi-comment batches), and the detailed job/comment context is carried in channel metadata (`bridge_url`, `output_root`, `diagram_revision_id`, `comments_json`, `comments_summary`). New Claude sessions should use the updated prompt text so Claude treats that channel line as the acknowledgment instead of posting a second chat ack. The diagram app now auto-reloads once per job when it sees a final `completed` status with `has_final_result=true`, which keeps the comment loop hands-off without reloading on intermediate `fast_patch_ready` states.
+
+The comment sidebar now owns the full batch lifecycle: pending uses a neutral in-sidebar status card, success stays visible for about four seconds before the automatic reload, failure keeps the submitted drafts in place with `Retry` and `Details`, and comment target dots still come from the shared `colorForKind` mapping instead of a sidebar-only palette. `diagram-38.html` is the latest validated DocSign regression artifact for this UI pass.

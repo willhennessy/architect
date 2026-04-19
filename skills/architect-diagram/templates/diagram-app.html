@@ -591,111 +591,6 @@
       line-height: 1;
     }
 
-    .toolbar {
-      display: none;
-      padding: 0 16px 8px;
-      background: transparent;
-      align-items: center;
-      position: relative;
-      z-index: 4;
-    }
-
-    .toolbar.show {
-      display: flex;
-    }
-
-    .statusbar {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      flex: 1 1 320px;
-    }
-
-    .statusbar.show { display: flex; }
-
-    .statusbar-main {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      flex: 1 1 auto;
-      padding: 10px 14px;
-      border-radius: 18px;
-      border: 1px solid color-mix(in srgb, var(--color-border-default) 72%, transparent);
-      background:
-        linear-gradient(135deg, color-mix(in srgb, var(--color-bg-surface) 94%, transparent), color-mix(in srgb, var(--color-bg-sidebar) 90%, transparent));
-      backdrop-filter: blur(18px) saturate(1.12);
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      border: 1px solid var(--color-border-default);
-      background: var(--color-bg-surface-raised);
-      color: var(--color-text-primary);
-      font-weight: 500;
-      flex-shrink: 0;
-    }
-
-    .status-pill::before {
-      content: '';
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: currentColor;
-      opacity: .9;
-    }
-
-    .statusbar.pending .status-pill {
-      color: var(--color-brand);
-      border-color: color-mix(in srgb, var(--color-brand) 34%, var(--color-border-default));
-      background: color-mix(in srgb, var(--color-brand) 12%, var(--color-bg-surface-raised));
-    }
-
-    .statusbar.pending .status-pill::before {
-      animation: status-pulse 1.6s ease-in-out infinite;
-    }
-
-    .statusbar.success .status-pill {
-      color: var(--color-status-success);
-      border-color: color-mix(in srgb, var(--color-status-success) 34%, var(--color-border-default));
-      background: color-mix(in srgb, var(--color-status-success) 12%, var(--color-bg-surface-raised));
-    }
-
-    .statusbar.info .status-pill {
-      color: var(--color-signal);
-      border-color: color-mix(in srgb, var(--color-signal) 36%, var(--color-border-default));
-      background: color-mix(in srgb, var(--color-signal) 12%, var(--color-bg-surface-raised));
-    }
-
-    .statusbar.error .status-pill {
-      color: var(--color-status-error);
-      border-color: color-mix(in srgb, var(--color-status-error) 36%, var(--color-border-default));
-      background: color-mix(in srgb, var(--color-status-error) 12%, var(--color-bg-surface-raised));
-    }
-
-    .status-message {
-      font-size: 13px;
-      color: var(--color-text-primary);
-      min-width: 0;
-      line-height: 1.35;
-      max-height: calc(1.35em * 2);
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      word-break: break-word;
-      text-wrap: pretty;
-    }
-
     button {
       border: 1px solid var(--color-border-default);
       background: var(--color-bg-surface);
@@ -988,6 +883,17 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .sidebar-status-region {
+      padding: 18px 22px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar-status-region[hidden] {
+      display: none;
+    }
+
     .sidebar-body {
       min-height: 0;
       flex: 1 1 auto;
@@ -1024,49 +930,168 @@
       cursor: not-allowed;
     }
 
+    .comment-status-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px 15px;
+      border-radius: 18px;
+      border: 1px solid color-mix(in srgb, var(--color-border-default) 88%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 96%, transparent), color-mix(in srgb, var(--color-bg-sidebar) 88%, transparent));
+    }
+
+    .comment-status-card[data-tone="pending"] {
+      border-color: color-mix(in srgb, var(--color-border-default) 94%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 94%, transparent), color-mix(in srgb, var(--color-selected-bg) 48%, var(--color-bg-surface)));
+    }
+
+    .comment-status-card[data-tone="success"] {
+      border-color: color-mix(in srgb, var(--color-status-success) 28%, var(--color-border-default));
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-status-success) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-status-success) 9%, var(--color-bg-sidebar)));
+    }
+
+    .comment-status-card[data-tone="failed"] {
+      border-color: color-mix(in srgb, var(--color-status-error) 28%, var(--color-border-default));
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-status-error) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-status-error) 9%, var(--color-bg-sidebar)));
+    }
+
+    .comment-status-card-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .comment-status-icon {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      color: var(--color-text-primary);
+      background: color-mix(in srgb, var(--color-bg-surface-raised) 88%, transparent);
+    }
+
+    .comment-status-card[data-tone="success"] .comment-status-icon {
+      color: var(--color-status-success);
+      background: color-mix(in srgb, var(--color-status-success) 14%, var(--color-bg-surface-raised));
+    }
+
+    .comment-status-card[data-tone="failed"] .comment-status-icon {
+      color: var(--color-status-error);
+      background: color-mix(in srgb, var(--color-status-error) 14%, var(--color-bg-surface-raised));
+    }
+
+    .comment-status-icon svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .comment-status-icon.is-spinner::before {
+      content: "";
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      animation: status-spin 0.9s linear infinite;
+    }
+
+    .comment-status-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .comment-status-title {
+      margin: 0;
+      color: var(--color-text-primary);
+      font-size: 14px;
+      line-height: 1.35;
+      font-weight: 600;
+      text-wrap: pretty;
+    }
+
+    .comment-status-title[data-animated="true"]::after {
+      content: "";
+      display: inline-block;
+      width: 1.35em;
+      text-align: left;
+      animation: status-dots 1.25s steps(4, end) infinite;
+    }
+
+    .comment-status-subtitle {
+      margin: 0;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+      text-wrap: pretty;
+    }
+
+    .comment-status-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .comment-list {
       list-style: none;
       padding: 0;
       margin: 0;
     }
 
+    .comment-list.is-pending {
+      opacity: 0.62;
+      pointer-events: none;
+    }
+
     .comment-card {
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 98%, transparent), color-mix(in srgb, var(--color-bg-sidebar) 68%, transparent));
-      border: 1px solid color-mix(in srgb, var(--color-border-subtle) 88%, transparent);
-      border-radius: 18px;
       padding: 14px 15px;
-      margin-bottom: 12px;
+      margin: 0;
       position: relative;
       animation: comment-card-in 320ms var(--ease-out) both;
       animation-delay: calc(var(--comment-index, 0) * 36ms);
     }
 
+    .comment-card + .comment-card {
+      border-top: 1px solid var(--color-border-subtle);
+    }
+
     .comment-card-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
 
     .comment-card-target {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--color-border-subtle) 84%, transparent);
-      background: color-mix(in srgb, var(--color-selected-bg) 90%, transparent);
+      gap: 8px;
+      min-width: 0;
+      padding: 0;
       font-size: 12px;
       font-weight: 500;
       color: var(--color-text-secondary);
+      line-height: 1.4;
+      text-wrap: pretty;
     }
 
     .comment-card-target::before {
       content: "";
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
       border-radius: 999px;
       background: var(--comment-tone, var(--color-signal));
     }
@@ -1099,19 +1124,13 @@
     }
 
     .comment-card-body {
-      color: var(--color-text-primary);
-      font-size: 14px;
+      color: var(--color-text-secondary);
+      font-size: 13px;
       line-height: 1.5;
-      margin: 0 0 6px;
+      margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
       text-wrap: pretty;
-    }
-
-    .comment-card-time {
-      color: var(--color-text-muted);
-      font-size: 11px;
-      font-variant-numeric: tabular-nums;
     }
 
     .empty-state {
@@ -1682,6 +1701,20 @@
       }
     }
 
+    @keyframes status-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes status-dots {
+      0%,
+      20% { content: ""; }
+      40% { content: "."; }
+      60% { content: ".."; }
+      80%,
+      100% { content: "..."; }
+    }
+
     #canvas,
     #sidebarBody,
     #sidebarTitle,
@@ -1971,14 +2004,6 @@
           </div>
         </div>
       </div>
-      <div class="toolbar" id="toolbar">
-        <div class="statusbar" id="statusBar">
-          <div class="statusbar-main">
-            <span class="status-pill" id="statusPill">Idle</span>
-            <div class="status-message" id="statusMessage"></div>
-          </div>
-        </div>
-      </div>
       <div class="canvas-surface">
         <div class="canvas-wrap">
           <div id="canvas"></div>
@@ -1987,9 +2012,10 @@
     </div>
     <aside id="sidebar" class="sidebar" data-mode="explore" aria-label="Mode-aware sidebar">
       <header class="sidebar-header">
-        <h2 id="sidebarTitle" class="sidebar-title">Component Details</h2>
+        <h2 id="sidebarTitle" class="sidebar-title">Component details</h2>
         <span id="sidebarCount" class="sidebar-count" hidden>0</span>
       </header>
+      <div id="sidebarStatusRegion" class="sidebar-status-region" hidden></div>
       <div id="sidebarBody" class="sidebar-body"><div class="empty-state"><p>Click a component to inspect details</p></div></div>
       <footer id="sidebarFooter" class="sidebar-footer" hidden>
         <button id="submitBtn" class="btn-submit-comments" type="button" disabled>Submit 0 comments</button>
@@ -2088,6 +2114,7 @@ const state = {
   pendingPlacement: 'right',
   submitInFlight: false,
   activeJob: null,
+  lastSubmittedPayload: null,
   eventSource: null,
   pollTimer: null,
   autoRefreshTimer: null,
@@ -2595,23 +2622,14 @@ function setMode(mode, shouldRender, options) {
 }
 
 function statusToneForState(jobState) {
-  if (jobState === 'failed' || jobState === 'blocked') return 'error';
-  if (jobState === 'completed' || jobState === 'fast_patch_ready') return 'success';
-  if (jobState === 'slow_patch_running') return 'info';
+  if (jobState === 'failed' || jobState === 'blocked') return 'failed';
+  if (jobState === 'completed') return 'success';
   return 'pending';
 }
 
-function statusLabelForState(jobState) {
-  if (jobState === 'received') return 'Received';
-  if (jobState === 'acknowledged') return 'Thinking';
-  if (jobState === 'analyzing') return 'Analyzing';
-  if (jobState === 'fast_patch_running') return 'Updating';
-  if (jobState === 'fast_patch_ready') return 'Quick Update';
-  if (jobState === 'slow_patch_running') return 'Reconciling';
-  if (jobState === 'completed') return 'Ready';
-  if (jobState === 'failed') return 'Failed';
-  if (jobState === 'blocked') return 'Blocked';
-  return 'Status';
+function commentCountLabel(count) {
+  const safeCount = Math.max(0, Number(count) || 0);
+  return safeCount + ' comment' + (safeCount === 1 ? '' : 's');
 }
 
 function stopStatusSubscriptions() {
@@ -2636,18 +2654,13 @@ function scheduleAutoRefresh(status) {
   }
   state.autoRefreshTimer = setTimeout(function () {
     window.location.reload();
-  }, 350);
+  }, 4000);
 }
 
-function showPayloadFallback(payload, reason) {
-  const bridgeDetail = HANDOFF.bridge_url
-    ? ' Expected bridge: ' + HANDOFF.bridge_url + '.'
-    : '';
-  $('payloadTitle').textContent = 'Comment payload (fallback JSON)';
-  $('payloadHelper').textContent = reason
-    ? reason + bridgeDetail + ' Copy this JSON and paste it into your coding agent.'
-    : 'Copy this JSON and paste it into your coding agent.';
-  $('payloadPre').textContent = JSON.stringify(payload, null, 2);
+function showOverlayContent(title, helper, body) {
+  $('payloadTitle').textContent = title;
+  $('payloadHelper').textContent = helper;
+  $('payloadPre').textContent = body;
   $('payloadOverlay').className = 'overlay show';
 }
 
@@ -2670,11 +2683,40 @@ function buildCommentPayload() {
   };
 }
 
+function failureDetailsText() {
+  const details = [];
+  const status = state.activeJob || {};
+  if (status.state) details.push('State: ' + status.state);
+  if (status.job_id) details.push('Job id: ' + status.job_id);
+  const errorText = String(status.error || status.message || '').trim();
+  if (errorText) {
+    details.push('', 'Error', errorText);
+  } else {
+    details.push('', 'Error', 'No additional error details were returned.');
+  }
+  if (state.lastSubmittedPayload) {
+    details.push('', 'Submitted payload', JSON.stringify(state.lastSubmittedPayload, null, 2));
+  }
+  return details.join('\n');
+}
+
+function showFailureDetails() {
+  showOverlayContent(
+    'Processing details',
+    "Here's what the runtime reported for this batch.",
+    failureDetailsText()
+  );
+}
+
 function applyJobStatus(status) {
   if (!status || !status.state) return;
+  if ((status.state !== 'completed' || !status.has_final_result) && state.autoRefreshTimer) {
+    clearTimeout(state.autoRefreshTimer);
+    state.autoRefreshTimer = null;
+    state.autoRefreshJobId = null;
+  }
   state.activeJob = status;
-  updateSubmitButton();
-  updateStatusBar();
+  updateSidebar();
   scheduleAutoRefresh(status);
 
   if (status.state === 'completed' || status.state === 'failed' || status.state === 'blocked') {
@@ -2689,53 +2731,122 @@ function shouldSuppressHydratedStatus(status) {
   return status.job_id === HANDOFF.latest_job_id;
 }
 
-function conciseReadyMessage(status) {
-  if (!status || !status.state) return '';
-  if (status.state === 'completed') {
-    return 'Refresh the page to see updates.';
-  }
-  if (status.state === 'fast_patch_ready') {
-    return 'A quick update is ready. Refresh the page to see updates.';
-  }
-  return '';
-}
-
 function isJobHandlingInProgress(status) {
   if (!status || !status.state) return false;
   return ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(status.state) !== -1;
 }
 
-function updateStatusBar() {
-  const toolbar = $('toolbar');
-  const bar = $('statusBar');
-  const pill = $('statusPill');
-  const message = $('statusMessage');
-
-  if (!state.activeJob) {
-    toolbar.className = 'toolbar';
-    bar.className = 'statusbar';
-    message.textContent = '';
-    updateSubmitButton();
-    return;
-  }
-
-  toolbar.className = 'toolbar show';
+function statusSummaryForActiveJob() {
+  if (!state.activeJob) return null;
+  const count = Math.max(
+    0,
+    Number(state.activeJob.submitted_comment_count || state.comments.length || 0) || 0
+  );
   const tone = statusToneForState(state.activeJob.state);
-  bar.className = 'statusbar show ' + tone;
-  pill.textContent = statusLabelForState(state.activeJob.state);
-  const conciseReady = conciseReadyMessage(state.activeJob);
-  let statusText = conciseReady || state.activeJob.message || 'The agent is reviewing your comments.';
-  if (!conciseReady && state.activeJob.has_fast_result && !state.activeJob.has_final_result && state.activeJob.state === 'slow_patch_running') {
-    statusText = statusText + ' A quick patch is ready now. Another update is still coming.';
-  } else if (!conciseReady && !state.activeJob.message) {
-    if (state.activeJob.refresh_hint) {
-      statusText = state.activeJob.refresh_hint;
-    } else if (state.activeJob.needs_refresh) {
-      statusText = 'Refresh this page to view the updated diagram.';
-    }
+  if (tone === 'success') {
+    return {
+      tone: tone,
+      title: 'All ' + commentCountLabel(count) + ' addressed',
+      subtitle: 'Updates have been applied.',
+      animated: false,
+    };
   }
-  message.textContent = statusText;
-  updateSubmitButton();
+  if (tone === 'failed') {
+    return {
+      tone: tone,
+      title: "Couldn't process comments",
+      subtitle: 'Something went wrong. Your drafts are saved.',
+      animated: false,
+    };
+  }
+  return {
+    tone: tone,
+    title: 'Processing ' + commentCountLabel(count),
+    subtitle: 'Claude is reviewing. This may take a few minutes.',
+    animated: true,
+  };
+}
+
+function statusIconMarkup(tone) {
+  if (tone === 'success') {
+    return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"></circle><path d="M4.2 8.2 6.65 10.65 11.8 5.5" stroke="var(--color-text-inverse)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+  }
+  if (tone === 'failed') {
+    return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8.83 1.18 14.8 12.2A1 1 0 0 1 13.92 13.7H2.08A1 1 0 0 1 1.2 12.2L7.17 1.18A1 1 0 0 1 8.83 1.18Z" fill="currentColor"></path><path d="M8 4.65v4.1" stroke="var(--color-text-inverse)" stroke-width="1.5" stroke-linecap="round"></path><circle cx="8" cy="11.25" r=".9" fill="var(--color-text-inverse)"></circle></svg>';
+  }
+  return '';
+}
+
+function renderSidebarStatusCard() {
+  const region = $('sidebarStatusRegion');
+  if (!region) return;
+
+  region.hidden = !state.activeJob;
+  region.innerHTML = '';
+  if (!state.activeJob) return;
+
+  const summary = statusSummaryForActiveJob();
+  if (!summary) return;
+
+  const card = document.createElement('section');
+  card.className = 'comment-status-card';
+  card.setAttribute('data-tone', summary.tone);
+  card.setAttribute('aria-live', 'polite');
+
+  const main = document.createElement('div');
+  main.className = 'comment-status-card-main';
+
+  const icon = document.createElement('span');
+  icon.className = 'comment-status-icon';
+  if (summary.tone === 'pending') {
+    icon.classList.add('is-spinner');
+    icon.setAttribute('aria-hidden', 'true');
+  } else {
+    icon.innerHTML = statusIconMarkup(summary.tone);
+  }
+
+  const copy = document.createElement('div');
+  copy.className = 'comment-status-copy';
+
+  const title = document.createElement('p');
+  title.className = 'comment-status-title';
+  title.textContent = summary.title;
+  if (summary.animated) {
+    title.setAttribute('data-animated', 'true');
+  }
+
+  const subtitle = document.createElement('p');
+  subtitle.className = 'comment-status-subtitle';
+  subtitle.textContent = summary.subtitle;
+
+  copy.appendChild(title);
+  copy.appendChild(subtitle);
+  main.appendChild(icon);
+  main.appendChild(copy);
+  card.appendChild(main);
+
+  if (summary.tone === 'failed') {
+    const actions = document.createElement('div');
+    actions.className = 'comment-status-actions';
+
+    const retry = document.createElement('button');
+    retry.className = 'btn-primary';
+    retry.type = 'button';
+    retry.textContent = 'Retry';
+    retry.disabled = state.submitInFlight || state.comments.length === 0;
+    retry.addEventListener('click', submitPayload);
+
+    const details = document.createElement('button');
+    details.type = 'button';
+    details.textContent = 'Details';
+    details.addEventListener('click', showFailureDetails);
+
+    actions.appendChild(retry);
+    actions.appendChild(details);
+    card.appendChild(actions);
+  }
+
+  region.appendChild(card);
 }
 
 function startPollingJob(jobId, statusUrl) {
@@ -2799,7 +2910,7 @@ function hydrateLatestStatus() {
       if (!payload || !payload.status) return;
       if (shouldSuppressHydratedStatus(payload.status)) {
         state.activeJob = null;
-        updateStatusBar();
+        updateSidebar();
         return;
       }
       applyJobStatus(payload.status);
@@ -4504,22 +4615,6 @@ function updateDetails() {
   pane.innerHTML = html.join('');
 }
 
-function formatRelativeTime(timestamp) {
-  const createdAt = Number(timestamp || 0);
-  const elapsedMs = Math.max(0, Date.now() - createdAt);
-  const elapsedSeconds = Math.floor(elapsedMs / 1000);
-  if (elapsedSeconds < 45) return 'just now';
-
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  if (elapsedMinutes < 60) return elapsedMinutes + ' min ago';
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return elapsedHours + ' hr ago';
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  return elapsedDays + ' day' + (elapsedDays === 1 ? '' : 's') + ' ago';
-}
-
 function submitButtonLabel() {
   const count = state.comments.length;
   if (state.submitInFlight) {
@@ -4533,6 +4628,10 @@ function updateSubmitButton() {
   if (!submitBtn) return;
   submitBtn.textContent = submitButtonLabel();
   submitBtn.disabled = state.comments.length === 0 || state.submitInFlight || isJobHandlingInProgress(state.activeJob);
+}
+
+function isCommentEditingLocked() {
+  return isJobHandlingInProgress(state.activeJob);
 }
 
 function commentToneForTarget(target) {
@@ -4554,6 +4653,10 @@ function updateCommentSidebar() {
 
   const list = document.createElement('ul');
   list.className = 'comment-list';
+  if (isJobHandlingInProgress(state.activeJob)) {
+    list.classList.add('is-pending');
+    list.setAttribute('aria-disabled', 'true');
+  }
 
   state.comments.forEach(function (comment, idx) {
     const item = document.createElement('li');
@@ -4573,12 +4676,15 @@ function updateCommentSidebar() {
     remove.type = 'button';
     remove.setAttribute('aria-label', 'Delete comment');
     remove.textContent = '×';
-    remove.addEventListener('click', function () {
-      state.comments = state.comments.filter(function (entry) {
-        return entry.id !== comment.id;
+    remove.disabled = isJobHandlingInProgress(state.activeJob);
+    if (!remove.disabled) {
+      remove.addEventListener('click', function () {
+        state.comments = state.comments.filter(function (entry) {
+          return entry.id !== comment.id;
+        });
+        updateSidebar();
       });
-      updateSidebar();
-    });
+    }
 
     header.appendChild(target);
     header.appendChild(remove);
@@ -4587,14 +4693,8 @@ function updateCommentSidebar() {
     body.className = 'comment-card-body';
     body.textContent = comment.comment;
 
-    const time = document.createElement('time');
-    time.className = 'comment-card-time';
-    time.textContent = formatRelativeTime(comment.created_at);
-    time.dateTime = new Date(comment.created_at).toISOString();
-
     item.appendChild(header);
     item.appendChild(body);
-    item.appendChild(time);
     list.appendChild(item);
   });
 
@@ -4610,6 +4710,8 @@ function updateSidebar() {
   if (!sidebar || !title || !count || !footer) return;
 
   sidebar.setAttribute('data-mode', state.mode);
+  sidebar.setAttribute('aria-busy', isJobHandlingInProgress(state.activeJob) ? 'true' : 'false');
+  renderSidebarStatusCard();
   if (isCommentMode()) {
     title.textContent = 'Comments';
     count.hidden = false;
@@ -4620,7 +4722,7 @@ function updateSidebar() {
     return;
   }
 
-  title.textContent = 'Component Details';
+  title.textContent = 'Component details';
   count.hidden = true;
   footer.hidden = true;
   updateDetails();
@@ -4640,11 +4742,12 @@ function commentTargetName(target) {
 }
 
 function addPendingComment() {
+  if (isCommentEditingLocked()) return;
   const txt = $('commentText').value.trim();
   if (!txt || !state.pendingTarget) return;
-  if (state.activeJob && ['completed', 'failed', 'blocked'].indexOf(state.activeJob.state) !== -1) {
+  if (state.activeJob && state.activeJob.state === 'completed') {
     state.activeJob = null;
-    updateStatusBar();
+    updateSidebar();
   }
   state.comments.push({
     id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
@@ -4666,7 +4769,7 @@ function commentDialogHasDraft() {
 
 function updateCommentComposerState() {
   const submit = $('commentAdd');
-  if (submit) submit.disabled = !commentDialogHasDraft();
+  if (submit) submit.disabled = !commentDialogHasDraft() || isCommentEditingLocked();
 }
 
 function clearDiscardPrompt() {
@@ -4906,6 +5009,7 @@ function finishCloseCommentDialog() {
 }
 
 function openCommentDialog(target, anchor) {
+  if (isCommentEditingLocked()) return;
   const dialog = $('commentDialog');
   if (state.commentCloseTimer) {
     clearTimeout(state.commentCloseTimer);
@@ -4997,9 +5101,16 @@ function isPendingTargetMatch(el) {
 async function submitPayload() {
   const payload = buildCommentPayload();
   if (!payload.comments.length) return;
+  state.lastSubmittedPayload = payload;
 
   if (!HANDOFF.bridge_url || !HANDOFF.output_root) {
-    showPayloadFallback(payload, 'The local bridge is not configured in this diagram.');
+    applyJobStatus({
+      state: 'failed',
+      message: 'The local bridge is not configured in this diagram.',
+      error: 'The local bridge is not configured in this diagram.',
+      submitted_comment_count: payload.comments.length,
+      needs_refresh: false,
+    });
     return;
   }
 
@@ -5024,6 +5135,7 @@ async function submitPayload() {
         applyJobStatus({
           state: 'received',
           message: 'Another comment update is already in progress. Refreshing status…',
+          submitted_comment_count: payload.comments.length,
           needs_refresh: false,
         });
         hydrateLatestStatus();
@@ -5033,9 +5145,7 @@ async function submitPayload() {
     }
 
     const accepted = await response.json();
-    state.comments = [];
     $('payloadOverlay').className = 'overlay';
-    updateSidebar();
     applyJobStatus({
       job_id: accepted.job_id,
       state: accepted.state,
@@ -5053,10 +5163,11 @@ async function submitPayload() {
   } catch (err) {
     applyJobStatus({
       state: 'failed',
-      message: 'The update hit a problem. Open the agent to review the error.',
+      message: 'The update hit a problem.',
+      error: String(err && err.message ? err.message : 'Could not reach the local bridge.'),
+      submitted_comment_count: payload.comments.length,
       needs_refresh: false,
     });
-    showPayloadFallback(payload, String(err && err.message ? err.message + '. ' : 'Could not reach the local bridge. '));
   } finally {
     state.submitInFlight = false;
     render();
@@ -5080,7 +5191,6 @@ function render() {
   updateHeader();
   updateBreadcrumbs();
   updateSidebar();
-  updateStatusBar();
 
   const view = currentView();
   if (!view) return;
@@ -5111,6 +5221,7 @@ $('themeToggle').addEventListener('click', function () {
 $('submitBtn').addEventListener('click', submitPayload);
 
 $('commentDialogOverlay').addEventListener('click', function (e) {
+  if (isCommentEditingLocked()) return;
   if (e.target !== $('commentDialogOverlay')) return;
   const underlying = elementUnderPopoverClick(e);
   if (!underlying) return;
@@ -5128,6 +5239,7 @@ $('commentDialogOverlay').addEventListener('click', function (e) {
 });
 
 $('canvas').addEventListener('click', function (e) {
+  if (isCommentEditingLocked()) return;
   if (!isCommentMode()) return;
   if (!e.target.closest('#canvas')) return;
   if (underlyingInteractionTarget(e.target)) return;
