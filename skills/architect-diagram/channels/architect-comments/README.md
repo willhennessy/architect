@@ -77,7 +77,7 @@ claude \
   --strict-mcp-config \
   --dangerously-load-development-channels server:architect-comments \
   --permission-mode auto \
-  --append-system-prompt "When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+  --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 ```
 
 ### 5) Approve the development-channel prompt and verify the connection
@@ -141,7 +141,7 @@ claude \
   --mcp-config /ABSOLUTE/PATH/TO/mcp.json \
   --dangerously-load-development-channels server:architect-comments \
   --permission-mode auto \
-  --append-system-prompt "When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, and implement the requested updates directly. Use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+  --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 ```
 
 After Claude starts, run `/mcp` and confirm `architect-comments` is connected before submitting a batch.
@@ -153,7 +153,7 @@ The channel exposes two MCP tools:
 
 Recommended Claude behavior for a normal feedback batch:
 
-1. Call `update_feedback_status` with `state=acknowledged`
+1. Treat the visible channel line as the acknowledgment and call `update_feedback_status` with `state=acknowledged` without posting a second chat acknowledgment
 2. Inspect the referenced artifacts and call `update_feedback_status` with `state=analyzing`
 3. Edit the architecture artifacts
 4. Call `finalize_feedback_update` with `output_root` and `bridge_url`

@@ -194,38 +194,26 @@ function formatComment(comment, index) {
   return `${index + 1}. [${target}] ${body}`;
 }
 
-function buildFeedbackContent(body) {
-  const comments = Array.isArray(body.comments) ? body.comments : [];
-  const header = [
-    "Architect feedback batch received.",
-    "",
-    `Job: ${body.job_id || "unknown"}`,
-    `Bridge URL: ${body.bridge_url || ""}`,
-    `Output root: ${body.output_root || ""}`,
-    `Diagram revision: ${body.diagram_revision_id || ""}`,
-    "",
-    "Comments:",
-  ];
-  const lines = comments.length
+function buildCommentLines(comments) {
+  return comments.length
     ? comments.map((comment, index) => formatComment(comment, index))
     : ["1. No comments were included."];
-  const footer = [
-    "",
-    "Please:",
-    "1. Acknowledge receipt to the user immediately and call update_feedback_status with state=acknowledged.",
-    "2. Inspect the referenced job and output root to gather the needed context, then call update_feedback_status with state=analyzing.",
-    "3. Implement the requested updates directly instead of stopping at a plan, unless you are blocked or the feedback is genuinely ambiguous or high-risk.",
-    "4. Keep edits contract-safe. Use canonical model kinds like `database`, not `datastore`.",
-    "5. After editing, call finalize_feedback_update with the output_root and bridge_url instead of guessing render commands.",
-    "6. If finalize succeeds, call update_feedback_status with state=completed and the exact message: \"Refresh the page to see updates.\"",
-    "7. If you are blocked or validation fails, report it with update_feedback_status using state=blocked or state=failed and a concise reason.",
-    "8. When you tell the user what changed, summarize the actual edits you wrote. Do not imply bidirectionality unless the relationship is truly bidirectional in the model.",
-  ];
-  return [...header, ...lines, ...footer].join("\n");
+}
+
+function buildFeedbackContent(body) {
+  const comments = Array.isArray(body.comments) ? body.comments : [];
+  if (comments.length === 1) {
+    return "Got it, let me noodle on this comment.";
+  }
+  if (comments.length > 1) {
+    return `Got it, let me noodle on these ${comments.length} comments.`;
+  }
+  return "Got it, let me noodle on these comments.";
 }
 
 function buildChannelEvent(body) {
   const comments = Array.isArray(body.comments) ? body.comments : [];
+  const commentLines = buildCommentLines(comments);
   return {
     meta: sanitizeMeta({
       event_type: String(body.event_type || "architect_feedback_batch"),
@@ -235,6 +223,8 @@ function buildChannelEvent(body) {
       output_root: body.output_root || "",
       diagram_revision_id: body.diagram_revision_id || "",
       comment_count: String(comments.length),
+      comments_json: comments,
+      comments_summary: commentLines,
     }),
     content: buildFeedbackContent(body),
   };
@@ -664,8 +654,8 @@ const mcp = new Server(
     },
     instructions:
       "Messages arrive as <channel source=\"architect-comments\" ...>. " +
-      "When a feedback batch arrives, acknowledge it in the active Claude session, " +
-      "inspect the referenced output root and job details, and implement the requested updates directly. " +
+      "When a feedback batch arrives, treat the channel line itself as the user-visible acknowledgment and do not add a second acknowledgment message before you start work. " +
+      "Read the referenced job details from the channel attributes, including bridge_url, output_root, diagram_revision_id, and comments_json, then implement the requested updates directly. " +
       "Do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk. " +
       "Use update_feedback_status to report progress back to the browser bridge in a compact, implementation-aware voice. " +
       "After you edit the artifacts, call finalize_feedback_update instead of guessing shell commands so validation and rendering stay deterministic. " +

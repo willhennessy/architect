@@ -192,7 +192,7 @@ if (( CLAUDE_LAUNCH_VIA_NPX )); then
   LAUNCH_CMD_DISPLAY+=" -y @anthropic-ai/claude-code"
 fi
 
-CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 
 if (( WITH_SKILL )); then
   echo "Configuring run-local Architect marketplace and plugin..."

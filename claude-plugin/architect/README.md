@@ -30,10 +30,10 @@ Start Claude with the Architect channel enabled:
 ```bash
 claude \
   --channels plugin:architect@claude-plugins-official \
-  --append-system-prompt "When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+  --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 ```
 
-`--append-system-prompt` is required to guarantee Claude responds to comments.
+`--append-system-prompt` is required to guarantee Claude responds to comments without adding a redundant second acknowledgment in chat.
 
 In Claude:
 

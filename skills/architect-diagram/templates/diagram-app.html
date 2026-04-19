@@ -220,7 +220,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 12px 24px;
+      padding: 12px 16px;
       min-height: 58px;
       box-sizing: border-box;
       background: var(--color-bg-app);
@@ -1299,7 +1299,7 @@
       .topbar {
         align-items: flex-start;
         flex-direction: column;
-        padding: 14px 18px;
+        padding: 14px 12px;
       }
 
       .subtitle {
@@ -2090,6 +2090,8 @@ const state = {
   activeJob: null,
   eventSource: null,
   pollTimer: null,
+  autoRefreshTimer: null,
+  autoRefreshJobId: null,
   commentCloseTimer: null,
   discardPromptArmed: false,
   discardPromptTimer: null,
@@ -2623,6 +2625,20 @@ function stopStatusSubscriptions() {
   }
 }
 
+function scheduleAutoRefresh(status) {
+  if (!status || status.state !== 'completed' || !status.has_final_result) return;
+  const jobId = String(status.job_id || '');
+  if (!jobId) return;
+  if (state.autoRefreshJobId === jobId) return;
+  state.autoRefreshJobId = jobId;
+  if (state.autoRefreshTimer) {
+    clearTimeout(state.autoRefreshTimer);
+  }
+  state.autoRefreshTimer = setTimeout(function () {
+    window.location.reload();
+  }, 350);
+}
+
 function showPayloadFallback(payload, reason) {
   const bridgeDetail = HANDOFF.bridge_url
     ? ' Expected bridge: ' + HANDOFF.bridge_url + '.'
@@ -2659,6 +2675,7 @@ function applyJobStatus(status) {
   state.activeJob = status;
   updateSubmitButton();
   updateStatusBar();
+  scheduleAutoRefresh(status);
 
   if (status.state === 'completed' || status.state === 'failed' || status.state === 'blocked') {
     stopStatusSubscriptions();
