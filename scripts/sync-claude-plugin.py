@@ -16,9 +16,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_ROOT = REPO_ROOT / "claude-plugin" / "architect"
 
 SKILL_SOURCES = {
-    REPO_ROOT / "skills" / "architect-discover" / "SKILL.md": (
-        PLUGIN_ROOT / "skills" / "architect-discover" / "SKILL.md",
-        "discover",
+    REPO_ROOT / "skills" / "architect-init" / "SKILL.md": (
+        PLUGIN_ROOT / "skills" / "architect-init" / "SKILL.md",
+        "init",
     ),
     REPO_ROOT / "skills" / "architect-plan" / "SKILL.md": (
         PLUGIN_ROOT / "skills" / "architect-plan" / "SKILL.md",
@@ -64,7 +64,7 @@ DIRECT_COPIES = {
 }
 
 ALLOWED_SKILL_DIRS = {
-    "architect-discover",
+    "architect-init",
     "architect-plan",
     "architect-diagram",
     "architect-diagram-prompt",

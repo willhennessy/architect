@@ -1,6 +1,6 @@
 ---
 name: diagram
-description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-discover has generated architecture artifacts.
+description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-init has generated architecture artifacts.
 ---
 
 Use this skill only after architecture artifacts already exist.

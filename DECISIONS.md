@@ -228,7 +228,7 @@ We do not pretend the no-append path is validated when it is not. Internal eval 
 The repo contains internal eval skills like `run-plan-eval` and `run-architecture-eval` that are useful for maintainers but confusing for marketplace users. Even though the plugin sync path was already only copying the four user-facing skills, it did not actively prune stale extra skill directories from an existing plugin snapshot.
 
 **Decision**  
-Treat the public plugin bundle as a strict allowlist. The plugin ships only `architect-plan`, `architect-discover`, `architect-diagram`, `architect-diagram-prompt`, plus shared references. The sync script now removes any other skill directories from `claude-plugin/architect/skills/`, including internal eval skills.
+Treat the public plugin bundle as a strict allowlist. The plugin ships only `architect-plan`, `architect-init`, `architect-diagram`, `architect-diagram-prompt`, plus shared references. The sync script now removes any other skill directories from `claude-plugin/architect/skills/`, including internal eval skills.
 
 **Consequences**  
 Marketplace users see a cleaner slash-command surface, and old plugin snapshots cannot accidentally keep maintainer-only skills alive. Internal eval skills remain in the repo, just not in the public plugin distribution.

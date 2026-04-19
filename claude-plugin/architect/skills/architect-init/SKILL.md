@@ -1,5 +1,5 @@
 ---
-name: discover
+name: init
 description: Discover and model the architecture of an unfamiliar codebase, emit a canonical architecture model plus derived structured view files for multiple audiences, then automatically hand off to architect-diagram for the interactive HTML diagram. Use this skill when asked to explore a repository, identify runtime boundaries, data ownership, key workflows, or generate architecture artifacts from source code.
 ---
 
@@ -72,7 +72,7 @@ If the user specifies a different output path, honor it.
 - If a capability supports multiple real transports or deployment boundaries, prefer an explicit mode split or a neutral protocol label over one precise but incomplete claim.
 - If storage interfaces or first-class APIs expose persisted entities, include them in data-ownership analysis even when they are not the star of a workflow view.
 - After each draft or final artifact generation pass, automatically invoke `architect-diagram` using the same output root so the rendered HTML diagram stays in sync with the latest artifacts.
-- Keep the skill boundary explicit: `architect-discover` owns discovery and artifact generation; `architect-diagram` owns `diagram.html` rendering.
+- Keep the skill boundary explicit: `architect-init` owns discovery and artifact generation; `architect-diagram` owns `diagram.html` rendering.
 
 ## Evidence Hierarchy
 
