@@ -220,6 +220,8 @@ Emit only views that improve understanding:
 - usually: `container`
 - only when useful: `component-*`, `sequence-*`, `deployment`
 
+Every container should support drill-down when it has meaningful, evidenced internal boundaries.
+
 ### 8) Write summary and optional diff
 
 Write `summary.md` using the fixed shared structure.
