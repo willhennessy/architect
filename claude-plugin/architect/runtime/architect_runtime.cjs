@@ -24,8 +24,6 @@ const svgFragmentScript = path.join(pluginRoot, "scripts", "generate-svg-fragmen
 const renderDiagramScript = path.join(pluginRoot, "scripts", "render-diagram-html.py");
 const htmlValidatorScript = path.join(pluginRoot, "scripts", "validate-diagram-html.sh");
 const jobIndexPath = path.join(pluginData, "job-index.json");
-const channelAckTimeoutMs = Number.parseInt(process.env.ARCHITECT_CHANNEL_ACK_TIMEOUT_MS || "20000", 10);
-const channelAckTimeoutMessage = "The agent did not acknowledge this update. Confirm Claude is running with the installed Architect plugin channel enabled, then submit again.";
 const runtimeDirName = ".out";
 
 const STATE_ORDER = [
@@ -158,12 +156,6 @@ function diagramPathFor(outputRoot) {
   return path.join(architectureDir(outputRoot), "diagram.html");
 }
 
-function timestampMs(value) {
-  if (!value) return null;
-  const parsed = Date.parse(String(value));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function stateIndex(state) {
   return STATE_ORDER.indexOf(String(state || ""));
 }
@@ -235,7 +227,6 @@ class JobStore {
     this.records = new Map();
     this.subscribers = new Map();
     this.outputRootActiveJobs = new Map();
-    this.receivedTimeouts = new Map();
   }
 
   async ensureLoaded() {
@@ -282,12 +273,8 @@ class JobStore {
     const latest = await readJson(latestPath, null);
     if (!latest || typeof latest !== "object") return null;
     if (!latest.status_path) return null;
-    let status = await readJson(latest.status_path, null);
+    const status = await readJson(latest.status_path, null);
     if (!status || typeof status !== "object") return null;
-    if (this.isReceivedTimedOut(status)) {
-      const record = this.recordFromStatus(latest.status_path, status, outputRoot);
-      status = await this.expireReceivedJob(record, status);
-    }
     return status;
   }
 
@@ -351,20 +338,6 @@ class JobStore {
     return { record, status };
   }
 
-  clearReceivedTimeout(jobId) {
-    const timeout = this.receivedTimeouts.get(jobId);
-    if (!timeout) return;
-    clearTimeout(timeout);
-    this.receivedTimeouts.delete(jobId);
-  }
-
-  isReceivedTimedOut(status) {
-    if (!status || status.state !== "received") return false;
-    const receivedAt = timestampMs(status.timestamps && status.timestamps.received_at);
-    if (receivedAt === null) return false;
-    return Date.now() - receivedAt >= channelAckTimeoutMs;
-  }
-
   async writeStatusSnapshot(record, status) {
     const statusPath = path.join(record.job_dir, "status.json");
     await writeJson(statusPath, status);
@@ -383,41 +356,6 @@ class JobStore {
       sendStatusEvent(response, status);
     }
     return status;
-  }
-
-  async expireReceivedJob(record, current = null) {
-    const existing = current || (await readJson(path.join(record.job_dir, "status.json"), {})) || {};
-    if (!existing || existing.state !== "received" || !this.isReceivedTimedOut(existing)) {
-      return existing;
-    }
-    this.clearReceivedTimeout(record.job_id);
-    const timestamps = existing.timestamps && typeof existing.timestamps === "object" ? existing.timestamps : {};
-    if (!timestamps.received_at) timestamps.received_at = utcNowIso();
-    timestamps.failed_at = utcNowIso();
-    const status = {
-      ...existing,
-      ...defaultStatusFields("failed"),
-      error: "agent_ack_timeout",
-      job_id: record.job_id,
-      state: "failed",
-      message: channelAckTimeoutMessage,
-      timestamps,
-      diagram_path: diagramPathFor(record.output_root),
-      output_root: record.output_root,
-    };
-    return await this.writeStatusSnapshot(record, status);
-  }
-
-  armReceivedTimeout(record) {
-    this.clearReceivedTimeout(record.job_id);
-    const timeout = setTimeout(async () => {
-      try {
-        await this.expireReceivedJob(record);
-      } catch (error) {
-        log("failed to expire unacknowledged job", { job_id: record.job_id, error: String(error) });
-      }
-    }, channelAckTimeoutMs);
-    this.receivedTimeouts.set(record.job_id, timeout);
   }
 
   async updateStatus(record, state, message, extraFields = {}) {
@@ -453,10 +391,6 @@ class JobStore {
       diagram_path: diagramPathFor(record.output_root),
       output_root: record.output_root,
     };
-
-    if (state !== "received") {
-      this.clearReceivedTimeout(record.job_id);
-    }
     return await this.writeStatusSnapshot(record, status);
   }
 
@@ -796,10 +730,7 @@ function requestHandler(server) {
         sendJson(res, 404, { error: "job not found" });
         return;
       }
-      let status = await readJson(path.join(record.job_dir, "status.json"), {});
-      if (store.isReceivedTimedOut(status)) {
-        status = await store.expireReceivedJob(record, status);
-      }
+      const status = await readJson(path.join(record.job_dir, "status.json"), {});
       sendJson(res, 200, status || {});
       return;
     }
@@ -936,7 +867,6 @@ function requestHandler(server) {
           bridge_url: bridgeBaseUrl(server),
           comments: record.payload.comments || [],
         });
-        store.armReceivedTimeout(record);
       } catch (error) {
         await store.updateStatus(
           record,
