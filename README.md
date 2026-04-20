@@ -80,8 +80,8 @@ For `architect-plan`, the intended UX is:
 ./scripts/new-manual-eval.sh --repo-url <git-url> [--name <run-name>]
 ```
 
-Creates an isolated run directory and launches Claude in `auto` mode.
-When `--with-skill` is used, it also snapshots the Architect plugin, wires a run-local development marketplace, installs `architect@...` locally for that run, and launches Claude with the plugin and development channel enabled.
+Creates an isolated run directory and launches Claude in `plan` mode.
+When `--with-skill` is used, it snapshots the selected skill dirs for reference, syncs the repo-local Architect plugin bundle, installs `architect@architect-local` from the repo-local development marketplace, and launches Claude with the Architect development channel enabled in `plan` mode.
 
 Useful options:
 
@@ -140,14 +140,16 @@ Plugin user guide:
 Internal local development path:
 
 1. sync the plugin bundle with `python3 scripts/sync-claude-plugin.py`
-2. add the repo-local development marketplace and install `architect@architect-local`
-3. start Claude from the installed plugin identity, not `--plugin-dir`, for live channel testing
-4. enable the Architect development channel for that session with `plugin:architect@architect-local`
-5. append the Architect channel handoff system prompt so Claude acts on inbound comment events in the same session
+2. add the repo-local development marketplace with `claude plugin marketplace add /Users/will/code/architect/claude-plugin --scope local`
+3. install `architect@architect-local` with `claude plugin install architect@architect-local --scope local`
+4. start Claude from the installed plugin identity, not `--plugin-dir`, for live channel testing
+5. enable the Architect development channel for that session with `--dangerously-load-development-channels plugin:architect@architect-local`
+6. append the Architect channel handoff system prompt so Claude acts on inbound comment events in the same session
    `--append-system-prompt` is required to guarantee Claude responds to comments.
-6. run `/architect:init` or `/architect:plan`
-7. submit comments from `architecture/diagram.html`
-8. let the same Claude session own the update loop, progress reporting, validation, and rerender
+7. use `--permission-mode plan` for the live plan/feedback loop
+8. run `/architect:init` or `/architect:plan`
+9. submit comments from `architecture/diagram.html`
+10. let the same Claude session own the update loop, progress reporting, validation, and rerender
 
 The first `/mcp` connect may take a little longer on a cold start because the plugin bootstraps its runtime dependencies during MCP launch, but it should not require a manual reconnect anymore.
 
