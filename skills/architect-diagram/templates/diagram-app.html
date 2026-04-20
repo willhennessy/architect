@@ -1726,6 +1726,34 @@
       cursor: zoom-in;
     }
 
+    .diagram-tooltip {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 160;
+      max-width: min(320px, calc(100vw - 24px));
+      padding: 8px 10px;
+      border: 1px solid var(--color-border-default);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--color-bg-surface-elevated) 96%, var(--color-bg-app));
+      color: var(--color-text-primary);
+      font-size: 12px;
+      line-height: 1.35;
+      letter-spacing: -0.01em;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate3d(0, 0, 0);
+      transition:
+        opacity 70ms linear,
+        visibility 70ms linear;
+    }
+
+    .diagram-tooltip[data-visible="true"] {
+      opacity: 1;
+      visibility: visible;
+    }
+
     .comment-mode-on #canvas,
     .comment-mode-on #canvas * {
       cursor: crosshair;
@@ -2117,6 +2145,7 @@
     </div>
   </div>
 </div>
+<div id="edgeTooltip" class="diagram-tooltip" role="tooltip" aria-hidden="true"></div>
 
 <script>
 const DATA = __DIAGRAM_DATA_JSON__;
@@ -2192,6 +2221,9 @@ const state = {
   commentCloseTimer: null,
   discardPromptArmed: false,
   discardPromptTimer: null,
+  edgeTooltipTimer: null,
+  edgeTooltipPending: null,
+  edgeTooltipRelationshipId: null,
 };
 
 let uiTransitionToken = 0;
@@ -2354,6 +2386,18 @@ const NODE_HEADER_BAND_HEIGHT = 19;
 const NODE_HEADER_TEXT_NUDGE_Y = 0.75;
 const EDGE_EGRESS_STUB = 18;
 const ROUTING_EPSILON = 0.25;
+const EDGE_LABEL_MIN_PATH_LENGTH = 84;
+const EDGE_LABEL_MEASURE_X = -10000;
+const EDGE_LABEL_MEASURE_Y = -10000;
+const EDGE_LABEL_NORMAL_OFFSETS = [12, -12, 18, -18, 24, -24];
+const EDGE_LABEL_TANGENT_SHIFTS = [0, -18, 18];
+const EDGE_LABEL_SAMPLE_RATIOS = [0.5, 0.38, 0.62, 0.28, 0.72];
+const EDGE_LABEL_COLLISION_PAD_X = 8;
+const EDGE_LABEL_COLLISION_PAD_Y = 5;
+const EDGE_LABEL_SEGMENT_SAMPLE_STEP = 12;
+const EDGE_TOOLTIP_VIEWPORT_PAD = 12;
+const EDGE_TOOLTIP_CURSOR_GAP = 10;
+const EDGE_TOOLTIP_HOVER_DELAY = 140;
 
 const SVG_COLOR_REMAP = {
   '#0b1220': THEME.bgPrimary,
@@ -2739,6 +2783,7 @@ function setMode(mode, shouldRender, options) {
   }
   return withUiTransition(function () {
     state.mode = nextMode;
+    dismissEdgeTooltip();
     if (nextMode !== 'comment') {
       closeCommentDialog({ instant: true, animate: false });
     }
@@ -3770,6 +3815,392 @@ function finalizeEdgeLabelMask(labelGroup) {
   if (!labelGroup) return;
 }
 
+function updateEdgeLabelPosition(labelGroup, tx, ty) {
+  if (!labelGroup) return;
+  const text = labelGroup.querySelector('text');
+  if (!text) return;
+
+  const tspans = Array.from(text.querySelectorAll('tspan'));
+  const lineHeight = 13;
+  const lineCount = tspans.length || 1;
+  const startY = ty - ((lineCount - 1) * lineHeight) / 2;
+  text.setAttribute('x', String(tx));
+  text.setAttribute('y', String(startY));
+
+  if (!tspans.length) {
+    text.setAttribute('dominant-baseline', 'middle');
+    return;
+  }
+
+  tspans.forEach(function (tspan, idx) {
+    tspan.setAttribute('x', String(tx));
+    tspan.setAttribute('y', String(startY + idx * lineHeight));
+    tspan.setAttribute('dominant-baseline', 'middle');
+  });
+}
+
+function svgViewBoxRect(svg) {
+  if (!svg) return null;
+  const raw = String(svg.getAttribute('viewBox') || '').trim().split(/\s+/).map(Number);
+  if (raw.length === 4 && raw.every(function (value) { return isFinite(value); })) {
+    return { x: raw[0], y: raw[1], width: raw[2], height: raw[3] };
+  }
+  const width = parseFloat(svg.getAttribute('width') || '0');
+  const height = parseFloat(svg.getAttribute('height') || '0');
+  if (isFinite(width) && isFinite(height) && width > 0 && height > 0) {
+    return { x: 0, y: 0, width: width, height: height };
+  }
+  return null;
+}
+
+function inflateRect(rect, padX, padY) {
+  if (!rect) return null;
+  const dx = isFinite(padX) ? padX : 0;
+  const dy = isFinite(padY) ? padY : dx;
+  return {
+    x: rect.x - dx,
+    y: rect.y - dy,
+    width: rect.width + dx * 2,
+    height: rect.height + dy * 2
+  };
+}
+
+function rectsIntersect(a, b) {
+  if (!a || !b) return false;
+  return !(
+    a.x + a.width <= b.x
+    || b.x + b.width <= a.x
+    || a.y + a.height <= b.y
+    || b.y + b.height <= a.y
+  );
+}
+
+function rectContainsPoint(rect, point) {
+  if (!rect || !point) return false;
+  return (
+    point.x >= rect.x
+    && point.x <= rect.x + rect.width
+    && point.y >= rect.y
+    && point.y <= rect.y + rect.height
+  );
+}
+
+function rectInsideBounds(rect, bounds, margin) {
+  if (!rect || !bounds) return false;
+  const pad = isFinite(margin) ? margin : 0;
+  return (
+    rect.x >= bounds.x + pad
+    && rect.y >= bounds.y + pad
+    && rect.x + rect.width <= bounds.x + bounds.width - pad
+    && rect.y + rect.height <= bounds.y + bounds.height - pad
+  );
+}
+
+function geometryAtLength(geometry, length) {
+  try {
+    return geometry.getPointAtLength(length);
+  } catch (_err) {
+    return null;
+  }
+}
+
+function geometryTotalLength(geometry) {
+  try {
+    const total = geometry.getTotalLength();
+    return isFinite(total) ? total : 0;
+  } catch (_err) {
+    return 0;
+  }
+}
+
+function sampleGeometryPoints(geometry, spacing) {
+  const totalLength = geometryTotalLength(geometry);
+  if (!totalLength) return [];
+
+  const step = Math.max(6, spacing || EDGE_LABEL_SEGMENT_SAMPLE_STEP);
+  const samples = [];
+  for (let distance = 0; distance <= totalLength; distance += step) {
+    const point = geometryAtLength(geometry, Math.min(distance, totalLength));
+    if (point) samples.push({ x: point.x, y: point.y });
+  }
+  const finalPoint = geometryAtLength(geometry, totalLength);
+  if (finalPoint) {
+    const previous = samples[samples.length - 1];
+    if (!previous || Math.hypot(finalPoint.x - previous.x, finalPoint.y - previous.y) > 0.5) {
+      samples.push({ x: finalPoint.x, y: finalPoint.y });
+    }
+  }
+  return samples;
+}
+
+function relationshipVisibleGeometry(group) {
+  if (!group) return null;
+  return Array.from(group.querySelectorAll('path,line,polyline')).find(function (shape) {
+    if (shape.closest('[data-edge-label="true"]')) return false;
+    const stroke = String(shape.getAttribute('stroke') || '').trim().toLowerCase();
+    return stroke && stroke !== 'none' && stroke !== 'transparent';
+  }) || null;
+}
+
+function relationshipLabelText(group) {
+  if (!group) return '';
+  const relId = group.getAttribute('data-relationship-id') || '';
+  const rel = relId ? relationshipsById.get(relId) : null;
+  return normalizeEdgeLabelText(
+    (rel && rel.label)
+    || group.getAttribute('data-target-label')
+    || relId
+    || 'Relationship'
+  );
+}
+
+function ensureRelationshipTooltip(group, text) {
+  if (!group) return '';
+  const tooltipText = normalizeEdgeLabelText(text) || 'Relationship';
+  group.setAttribute('data-tooltip-text', tooltipText);
+  group.setAttribute('aria-label', tooltipText);
+  group.querySelectorAll('title').forEach(function (title) { title.remove(); });
+  return tooltipText;
+}
+
+function removeRelationshipLabel(group) {
+  if (!group) return;
+  group.querySelectorAll('[data-edge-label="true"]').forEach(function (el) {
+    el.remove();
+  });
+}
+
+function hideEdgeTooltip() {
+  const tooltip = $('edgeTooltip');
+  if (!tooltip) return;
+  tooltip.setAttribute('data-visible', 'false');
+  tooltip.setAttribute('aria-hidden', 'true');
+  tooltip.textContent = '';
+  state.edgeTooltipRelationshipId = null;
+}
+
+function clearEdgeTooltipTimer() {
+  if (state.edgeTooltipTimer) {
+    clearTimeout(state.edgeTooltipTimer);
+    state.edgeTooltipTimer = null;
+  }
+  state.edgeTooltipPending = null;
+}
+
+function dismissEdgeTooltip() {
+  clearEdgeTooltipTimer();
+  hideEdgeTooltip();
+}
+
+function clampTooltipPosition(left, top, rect) {
+  return {
+    left: clamp(left, EDGE_TOOLTIP_VIEWPORT_PAD, window.innerWidth - rect.width - EDGE_TOOLTIP_VIEWPORT_PAD),
+    top: clamp(top, EDGE_TOOLTIP_VIEWPORT_PAD, window.innerHeight - rect.height - EDGE_TOOLTIP_VIEWPORT_PAD),
+  };
+}
+
+function positionEdgeTooltip(clientX, clientY) {
+  const tooltip = $('edgeTooltip');
+  if (!tooltip || tooltip.getAttribute('data-visible') !== 'true') return;
+
+  const rect = tooltip.getBoundingClientRect();
+  const next = clampTooltipPosition(
+    clientX - rect.width / 2,
+    clientY - rect.height - EDGE_TOOLTIP_CURSOR_GAP,
+    rect
+  );
+  tooltip.style.left = String(Math.round(next.left)) + 'px';
+  tooltip.style.top = String(Math.round(next.top)) + 'px';
+}
+
+function showEdgeTooltip(text, clientX, clientY, relationshipId) {
+  const tooltipText = normalizeEdgeLabelText(text);
+  if (!tooltipText || isCommentMode()) {
+    dismissEdgeTooltip();
+    return;
+  }
+
+  const tooltip = $('edgeTooltip');
+  if (!tooltip) return;
+  tooltip.textContent = tooltipText;
+  tooltip.setAttribute('data-visible', 'true');
+  tooltip.setAttribute('aria-hidden', 'false');
+  state.edgeTooltipRelationshipId = relationshipId || null;
+  positionEdgeTooltip(clientX, clientY);
+}
+
+function scheduleEdgeTooltip(text, clientX, clientY, relationship) {
+  const tooltipText = normalizeEdgeLabelText(text);
+  const relationshipId = relationship && relationship.getAttribute('data-relationship-id');
+  if (!tooltipText || !relationshipId || isCommentMode()) {
+    dismissEdgeTooltip();
+    return;
+  }
+
+  const tooltip = $('edgeTooltip');
+  if (
+    tooltip
+    && tooltip.getAttribute('data-visible') === 'true'
+    && state.edgeTooltipRelationshipId === relationshipId
+  ) {
+    showEdgeTooltip(tooltipText, clientX, clientY, relationshipId);
+    return;
+  }
+
+  if (state.edgeTooltipPending && state.edgeTooltipPending.relationshipId === relationshipId) {
+    state.edgeTooltipPending.clientX = clientX;
+    state.edgeTooltipPending.clientY = clientY;
+    state.edgeTooltipPending.text = tooltipText;
+    return;
+  }
+
+  clearEdgeTooltipTimer();
+  hideEdgeTooltip();
+  state.edgeTooltipPending = {
+    relationshipId: relationshipId,
+    text: tooltipText,
+    clientX: clientX,
+    clientY: clientY,
+  };
+  state.edgeTooltipTimer = setTimeout(function () {
+    const pending = state.edgeTooltipPending;
+    clearEdgeTooltipTimer();
+    if (!pending) return;
+    showEdgeTooltip(pending.text, pending.clientX, pending.clientY, pending.relationshipId);
+  }, EDGE_TOOLTIP_HOVER_DELAY);
+}
+
+function relationshipLabelCandidates(geometry, totalLength) {
+  const tangentDelta = 8;
+  const candidates = [];
+  EDGE_LABEL_SAMPLE_RATIOS.forEach(function (ratio) {
+    const anchorLength = Math.max(tangentDelta, Math.min(totalLength - tangentDelta, totalLength * ratio));
+    const centerPoint = geometryAtLength(geometry, anchorLength);
+    const before = geometryAtLength(geometry, Math.max(0, anchorLength - tangentDelta));
+    const after = geometryAtLength(geometry, Math.min(totalLength, anchorLength + tangentDelta));
+    if (!centerPoint || !before || !after) return;
+
+    const dx = after.x - before.x;
+    const dy = after.y - before.y;
+    const magnitude = Math.hypot(dx, dy) || 1;
+    const tangent = { x: dx / magnitude, y: dy / magnitude };
+    const normal = { x: -tangent.y, y: tangent.x };
+
+    EDGE_LABEL_NORMAL_OFFSETS.forEach(function (normalOffset) {
+      EDGE_LABEL_TANGENT_SHIFTS.forEach(function (tangentShift) {
+        candidates.push({
+          x: centerPoint.x + normal.x * normalOffset + tangent.x * tangentShift,
+          y: centerPoint.y + normal.y * normalOffset + tangent.y * tangentShift,
+          weight: Math.abs(normalOffset) + Math.abs(tangentShift) + Math.abs(ratio - 0.5) * 100
+        });
+      });
+    });
+  });
+  return candidates.sort(function (a, b) { return a.weight - b.weight; });
+}
+
+function edgeLabelCollides(rect, relationshipInfo, allRelationships, nodeRects, placedLabelRects) {
+  if (!rect) return true;
+
+  if (nodeRects.some(function (nodeRect) { return rectsIntersect(rect, nodeRect); })) return true;
+  if (placedLabelRects.some(function (labelRect) { return rectsIntersect(rect, labelRect); })) return true;
+
+  return allRelationships.some(function (other) {
+    const points = other.samplePoints || [];
+    const sampleRect = other.id === relationshipInfo.id
+      ? inflateRect(rect, 1, 1)
+      : inflateRect(rect, 3, 3);
+    return points.some(function (point) {
+      return rectContainsPoint(sampleRect, point);
+    });
+  });
+}
+
+function layoutRelationshipLabels(svg) {
+  if (!svg) return;
+
+  const viewBounds = svgViewBoxRect(svg);
+  const nodeRects = Array.from(svg.querySelectorAll('[data-element-id]'))
+    .map(function (group) { return inflateRect(elementBBox(group), 8, 6); })
+    .filter(Boolean);
+
+  const relationships = Array.from(svg.querySelectorAll('[data-relationship-id]')).map(function (group) {
+    const geometry = relationshipVisibleGeometry(group);
+    const labelText = relationshipLabelText(group);
+    const id = group.getAttribute('data-relationship-id') || '';
+    ensureRelationshipTooltip(group, labelText);
+    return {
+      id: id,
+      group: group,
+      geometry: geometry,
+      labelText: labelText,
+      totalLength: geometry ? geometryTotalLength(geometry) : 0,
+      samplePoints: geometry ? sampleGeometryPoints(geometry, EDGE_LABEL_SEGMENT_SAMPLE_STEP) : []
+    };
+  }).filter(function (info) {
+    return info.geometry;
+  }).sort(function (a, b) {
+    if (b.totalLength !== a.totalLength) return b.totalLength - a.totalLength;
+    return a.labelText.length - b.labelText.length;
+  });
+
+  const placedLabelRects = [];
+  relationships.forEach(function (info) {
+    removeRelationshipLabel(info.group);
+
+    if (!info.labelText || info.totalLength < EDGE_LABEL_MIN_PATH_LENGTH) return;
+
+    const measuringGroup = appendEdgeLabel(info.group, EDGE_LABEL_MEASURE_X, EDGE_LABEL_MEASURE_Y, info.labelText);
+    if (!measuringGroup) return;
+
+    const measured = elementBBox(measuringGroup);
+    if (!measured || !measured.width || !measured.height) {
+      measuringGroup.remove();
+      return;
+    }
+
+    if (info.totalLength < Math.max(EDGE_LABEL_MIN_PATH_LENGTH, measured.width * 0.8)) {
+      measuringGroup.remove();
+      return;
+    }
+
+    const candidates = relationshipLabelCandidates(info.geometry, info.totalLength);
+    let chosenRect = null;
+    for (let idx = 0; idx < candidates.length; idx += 1) {
+      const candidate = candidates[idx];
+      updateEdgeLabelPosition(measuringGroup, candidate.x, candidate.y);
+      const currentRect = inflateRect(elementBBox(measuringGroup), EDGE_LABEL_COLLISION_PAD_X, EDGE_LABEL_COLLISION_PAD_Y);
+      if (!currentRect) continue;
+      if (!rectInsideBounds(currentRect, viewBounds, 2)) continue;
+      if (edgeLabelCollides(currentRect, info, relationships, nodeRects, placedLabelRects)) continue;
+      chosenRect = currentRect;
+      break;
+    }
+
+    if (!chosenRect) {
+      measuringGroup.remove();
+      return;
+    }
+
+    placedLabelRects.push(chosenRect);
+  });
+}
+
+function finalizeDiagramSvg(svg, view) {
+  if (!svg) return;
+  applySvgTheme(svg, view);
+  wireSvgInteractions(svg, view);
+  layoutRelationshipLabels(svg);
+
+  if (window.requestAnimationFrame) {
+    window.requestAnimationFrame(function () {
+      if (!svg.isConnected) return;
+      layoutRelationshipLabels(svg);
+      if (state.pendingTarget) applyCommentTargetIndicators(svg);
+    });
+  }
+}
+
 function nodeHeaderBandPath(x, y, width, height, radius) {
   const usableHeight = Math.max(Number(height) || 0, 0);
   const usableRadius = Math.min(Number(radius) || 0, width / 2, usableHeight);
@@ -4337,6 +4768,8 @@ function applyDrillabilityAffordances(svg) {
 }
 
 function wireSvgInteractions(svg, view) {
+  dismissEdgeTooltip();
+
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
     el.classList.add('diagram-node');
     if (state.mode === 'explore' && el.getAttribute('data-element-id') === state.selectedId) {
@@ -4367,6 +4800,7 @@ function wireSvgInteractions(svg, view) {
   applyCommentTargetIndicators(svg);
 
   svg.addEventListener('click', function (ev) {
+    dismissEdgeTooltip();
     const interactionTarget = underlyingInteractionTarget(ev.target);
     const element = interactionTarget && interactionTarget.hasAttribute('data-element-id') ? interactionTarget : null;
 
@@ -4394,6 +4828,32 @@ function wireSvgInteractions(svg, view) {
 
     setSelectedId(id, { animate: true });
   });
+
+  svg.addEventListener('pointermove', function (ev) {
+    const interactionTarget = underlyingInteractionTarget(ev.target);
+    const relationship = interactionTarget && interactionTarget.hasAttribute('data-relationship-id') ? interactionTarget : null;
+    if (!relationship || isCommentMode()) {
+      dismissEdgeTooltip();
+      return;
+    }
+    const text = relationship.getAttribute('data-tooltip-text') || relationshipLabelText(relationship);
+    scheduleEdgeTooltip(text, ev.clientX, ev.clientY, relationship);
+  });
+
+  svg.addEventListener('pointerover', function (ev) {
+    const interactionTarget = underlyingInteractionTarget(ev.target);
+    const relationship = interactionTarget && interactionTarget.hasAttribute('data-relationship-id') ? interactionTarget : null;
+    if (!relationship || isCommentMode()) {
+      dismissEdgeTooltip();
+      return;
+    }
+    const text = relationship.getAttribute('data-tooltip-text') || relationshipLabelText(relationship);
+    scheduleEdgeTooltip(text, ev.clientX, ev.clientY, relationship);
+  });
+
+  svg.addEventListener('pointerleave', function () {
+    dismissEdgeTooltip();
+  });
 }
 
 function drawDiagramView(view) {
@@ -4412,9 +4872,8 @@ function drawDiagramView(view) {
         svg.setAttribute('data-view-id', view.id);
       }
       stripConfidenceLabelsFromSvg(svg);
-      applySvgTheme(svg, view);
-      wireSvgInteractions(svg, view);
       content.appendChild(svg);
+      finalizeDiagramSvg(svg, view);
       return;
     }
   }
@@ -4571,8 +5030,8 @@ function drawDiagramView(view) {
     svg.appendChild(g);
   });
 
-  wireSvgInteractions(svg, view);
   content.appendChild(svg);
+  finalizeDiagramSvg(svg, view);
 }
 
 function drawSequenceView(view) {
@@ -5518,6 +5977,7 @@ function truncate(s, n) {
 }
 
 function render() {
+  dismissEdgeTooltip();
   updateHeader();
   updateBreadcrumbs();
   updateSidebar();
@@ -5603,10 +6063,12 @@ $('commentText').addEventListener('keydown', function (e) {
 });
 
 window.addEventListener('resize', function () {
+  dismissEdgeTooltip();
   if (state.pendingTarget) positionCommentDialog();
 });
 
 $('canvas').addEventListener('scroll', function () {
+  dismissEdgeTooltip();
   if (state.pendingTarget) positionCommentDialog();
 });
 
