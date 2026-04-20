@@ -2352,6 +2352,8 @@ const relationshipStrokeWidth = 1.5;
 const relationshipStrokeWidthSelected = 2;
 const NODE_HEADER_BAND_HEIGHT = 19;
 const NODE_HEADER_TEXT_NUDGE_Y = 0.75;
+const EDGE_EGRESS_STUB = 18;
+const ROUTING_EPSILON = 0.25;
 
 const SVG_COLOR_REMAP = {
   '#0b1220': THEME.bgPrimary,
@@ -3537,6 +3539,202 @@ function wrapEdgeLabelLines(text) {
   return best ? best.lines : [normalized];
 }
 
+function stableNumberForText(text) {
+  return String(text || '').split('').reduce(function (sum, char) {
+    return sum + char.charCodeAt(0);
+  }, 0);
+}
+
+function boxCenter(box) {
+  return {
+    x: box.x + box.w / 2,
+    y: box.y + box.h / 2
+  };
+}
+
+function preferredPortSide(src, dst) {
+  const srcCenter = boxCenter(src);
+  const dstCenter = boxCenter(dst);
+
+  const gapEast = dst.x - (src.x + src.w);
+  const gapWest = src.x - (dst.x + dst.w);
+  const gapSouth = dst.y - (src.y + src.h);
+  const gapNorth = src.y - (dst.y + dst.h);
+
+  const horizontalGap = Math.max(gapEast, gapWest, 0);
+  const verticalGap = Math.max(gapSouth, gapNorth, 0);
+
+  if (horizontalGap <= ROUTING_EPSILON && verticalGap <= ROUTING_EPSILON) {
+    const dx = dstCenter.x - srcCenter.x;
+    const dy = dstCenter.y - srcCenter.y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'east' : 'west';
+    return dy >= 0 ? 'south' : 'north';
+  }
+
+  if (horizontalGap >= verticalGap) return dstCenter.x >= srcCenter.x ? 'east' : 'west';
+  return dstCenter.y >= srcCenter.y ? 'south' : 'north';
+}
+
+function sideAnchorPoint(box, side) {
+  const center = boxCenter(box);
+  if (side === 'north') return { x: center.x, y: box.y };
+  if (side === 'south') return { x: center.x, y: box.y + box.h };
+  if (side === 'west') return { x: box.x, y: center.y };
+  return { x: box.x + box.w, y: center.y };
+}
+
+function offsetPointForSide(point, side, distance) {
+  if (side === 'north') return { x: point.x, y: point.y - distance };
+  if (side === 'south') return { x: point.x, y: point.y + distance };
+  if (side === 'west') return { x: point.x - distance, y: point.y };
+  return { x: point.x + distance, y: point.y };
+}
+
+function collapseOrthogonalPoints(points) {
+  const deduped = [];
+  (points || []).forEach(function (point) {
+    if (!point) return;
+    const prev = deduped[deduped.length - 1];
+    if (prev && Math.hypot(point.x - prev.x, point.y - prev.y) <= ROUTING_EPSILON) return;
+    deduped.push({ x: point.x, y: point.y });
+  });
+
+  if (deduped.length <= 2) return deduped;
+
+  const collapsed = [deduped[0]];
+  for (let idx = 1; idx < deduped.length - 1; idx += 1) {
+    const prev = collapsed[collapsed.length - 1];
+    const cur = deduped[idx];
+    const next = deduped[idx + 1];
+    const sameX = Math.abs(prev.x - cur.x) <= ROUTING_EPSILON && Math.abs(cur.x - next.x) <= ROUTING_EPSILON;
+    const sameY = Math.abs(prev.y - cur.y) <= ROUTING_EPSILON && Math.abs(cur.y - next.y) <= ROUTING_EPSILON;
+    if (sameX || sameY) continue;
+    collapsed.push(cur);
+  }
+  collapsed.push(deduped[deduped.length - 1]);
+  return collapsed;
+}
+
+function relationshipRoutePoints(srcBox, dstBox, relId) {
+  const srcSide = preferredPortSide(srcBox, dstBox);
+  const dstSide = preferredPortSide(dstBox, srcBox);
+  const start = sideAnchorPoint(srcBox, srcSide);
+  const end = sideAnchorPoint(dstBox, dstSide);
+  const startStub = offsetPointForSide(start, srcSide, EDGE_EGRESS_STUB);
+  const endStub = offsetPointForSide(end, dstSide, EDGE_EGRESS_STUB);
+  const offset = ((stableNumberForText(relId) % 5) - 2) * 10;
+  let points;
+
+  if ((srcSide === 'east' || srcSide === 'west') && (dstSide === 'east' || dstSide === 'west')) {
+    const midX = (startStub.x + endStub.x) / 2 + offset;
+    points = [
+      start,
+      startStub,
+      { x: midX, y: startStub.y },
+      { x: midX, y: endStub.y },
+      endStub,
+      end
+    ];
+    return collapseOrthogonalPoints(points);
+  }
+
+  if ((srcSide === 'north' || srcSide === 'south') && (dstSide === 'north' || dstSide === 'south')) {
+    const midY = (startStub.y + endStub.y) / 2 + offset;
+    points = [
+      start,
+      startStub,
+      { x: startStub.x, y: midY },
+      { x: endStub.x, y: midY },
+      endStub,
+      end
+    ];
+    return collapseOrthogonalPoints(points);
+  }
+
+  if (srcSide === 'east' || srcSide === 'west') {
+    const midY = (startStub.y + endStub.y) / 2 + offset;
+    points = [
+      start,
+      startStub,
+      { x: startStub.x, y: midY },
+      { x: endStub.x, y: midY },
+      endStub,
+      end
+    ];
+    return collapseOrthogonalPoints(points);
+  }
+
+  const midX = (startStub.x + endStub.x) / 2 + offset;
+  points = [
+    start,
+    startStub,
+    { x: midX, y: startStub.y },
+    { x: midX, y: endStub.y },
+    endStub,
+    end
+  ];
+  return collapseOrthogonalPoints(points);
+}
+
+function roundedPolylinePathData(points, radius) {
+  const pathPoints = points || [];
+  const cornerRadius = isFinite(radius) ? radius : 10;
+  if (pathPoints.length < 2) return '';
+
+  const path = ['M ' + pathPoints[0].x.toFixed(1) + ' ' + pathPoints[0].y.toFixed(1)];
+  for (let idx = 1; idx < pathPoints.length - 1; idx += 1) {
+    const prev = pathPoints[idx - 1];
+    const cur = pathPoints[idx];
+    const next = pathPoints[idx + 1];
+
+    const inDx = cur.x - prev.x;
+    const inDy = cur.y - prev.y;
+    const outDx = next.x - cur.x;
+    const outDy = next.y - cur.y;
+    const inLen = Math.hypot(inDx, inDy) || 1;
+    const outLen = Math.hypot(outDx, outDy) || 1;
+    const r = Math.min(cornerRadius, inLen / 2, outLen / 2);
+
+    const sx = cur.x - (inDx / inLen) * r;
+    const sy = cur.y - (inDy / inLen) * r;
+    const ex = cur.x + (outDx / outLen) * r;
+    const ey = cur.y + (outDy / outLen) * r;
+
+    path.push('L ' + sx.toFixed(1) + ' ' + sy.toFixed(1));
+    path.push('Q ' + cur.x.toFixed(1) + ' ' + cur.y.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1));
+  }
+
+  const last = pathPoints[pathPoints.length - 1];
+  path.push('L ' + last.x.toFixed(1) + ' ' + last.y.toFixed(1));
+  return path.join(' ');
+}
+
+function labelPlacementForPolyline(points) {
+  const pathPoints = points || [];
+  if (pathPoints.length < 2) return { x: 0, y: 0 };
+
+  let best = null;
+  for (let idx = 0; idx < pathPoints.length - 1; idx += 1) {
+    const start = pathPoints[idx];
+    const end = pathPoints[idx + 1];
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    if (!best || length > best.length) {
+      best = { length: length, start: start, end: end };
+    }
+  }
+  if (!best) return { x: 0, y: 0 };
+
+  const lx = (best.start.x + best.end.x) / 2;
+  const ly = (best.start.y + best.end.y) / 2;
+  const length = best.length || 1;
+  const nx = -((best.end.y - best.start.y) / length);
+  const ny = (best.end.x - best.start.x) / length;
+  return {
+    x: lx + nx * 8,
+    y: ly + ny * 8
+  };
+}
+
 function appendEdgeLabel(edgeGroup, tx, ty, labelText) {
   const lines = wrapEdgeLabelLines(labelText);
   if (!lines.length) return null;
@@ -4279,22 +4477,17 @@ function drawDiagramView(view) {
     const a = layout.byId.get(edge.source_id);
     const b = layout.byId.get(edge.target_id);
     if (!a || !b) return;
-
-    const x1 = a.x + a.w / 2;
-    const y1 = a.y + a.h / 2;
-    const x2 = b.x + b.w / 2;
-    const y2 = b.y + b.h / 2;
+    const routePoints = relationshipRoutePoints(a, b, edge.id || '');
+    const pathData = roundedPolylinePathData(routePoints, 10);
+    const labelPoint = labelPlacementForPolyline(routePoints);
 
     const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     edgeGroup.setAttribute('data-relationship-id', edge.id || '');
     edgeGroup.setAttribute('data-view-id', view.id);
     edgeGroup.setAttribute('data-target-label', edge.label || edge.id || 'relationship');
 
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', String(x1));
-    line.setAttribute('y1', String(y1));
-    line.setAttribute('x2', String(x2));
-    line.setAttribute('y2', String(y2));
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('d', pathData);
     line.setAttribute('stroke', edgeColor);
     line.setAttribute(
       'stroke-width',
@@ -4303,14 +4496,12 @@ function drawDiagramView(view) {
         : String(relationshipStrokeWidth)
     );
     line.setAttribute('opacity', '0.9');
+    line.setAttribute('fill', 'none');
     line.setAttribute('marker-end', 'url(#arrow)');
     edgeGroup.appendChild(line);
 
-    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    hit.setAttribute('x1', String(x1));
-    hit.setAttribute('y1', String(y1));
-    hit.setAttribute('x2', String(x2));
-    hit.setAttribute('y2', String(y2));
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hit.setAttribute('d', pathData);
     hit.setAttribute('stroke', 'transparent');
     hit.setAttribute('stroke-width', '14');
     hit.setAttribute('fill', 'none');
@@ -4318,9 +4509,7 @@ function drawDiagramView(view) {
 
     svg.appendChild(edgeGroup);
     if (MODE === 'rich' && edge.label) {
-      const tx = (x1 + x2) / 2;
-      const ty = (y1 + y2) / 2;
-      const labelGroup = appendEdgeLabel(edgeGroup, tx, ty, edge.label);
+      const labelGroup = appendEdgeLabel(edgeGroup, labelPoint.x, labelPoint.y, edge.label);
       finalizeEdgeLabelMask(labelGroup);
     }
   });

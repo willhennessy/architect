@@ -77,6 +77,8 @@ CARD_MIN_W = 180.0
 CARD_MAX_W = 320.0
 NODE_HEADER_BAND_H = 19.0
 NODE_HEADER_TEXT_NUDGE_Y = 0.75
+EDGE_EGRESS_STUB = 18.0
+ROUTING_EPSILON = 0.25
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
@@ -741,34 +743,107 @@ def choose_layout(
     return generic_layout(nodes)
 
 
-def anchor_point(src: Box, dst: Box) -> Tuple[float, float]:
-    cx = src.x + src.w / 2.0
-    cy = src.y + src.h / 2.0
-    dx = dst.x + dst.w / 2.0 - cx
-    dy = dst.y + dst.h / 2.0 - cy
+def box_center(box: Box) -> Tuple[float, float]:
+    return box.x + box.w / 2.0, box.y + box.h / 2.0
 
-    if dx == 0 and dy == 0:
-        return cx, cy
 
-    tx = (src.w / 2.0) / abs(dx) if dx != 0 else float("inf")
-    ty = (src.h / 2.0) / abs(dy) if dy != 0 else float("inf")
-    t = min(tx, ty)
-    return cx + dx * t, cy + dy * t
+def preferred_port_side(src: Box, dst: Box) -> str:
+    src_cx, src_cy = box_center(src)
+    dst_cx, dst_cy = box_center(dst)
+
+    gap_east = dst.x - (src.x + src.w)
+    gap_west = src.x - (dst.x + dst.w)
+    gap_south = dst.y - (src.y + src.h)
+    gap_north = src.y - (dst.y + dst.h)
+
+    horizontal_gap = max(gap_east, gap_west, 0.0)
+    vertical_gap = max(gap_south, gap_north, 0.0)
+
+    if horizontal_gap <= ROUTING_EPSILON and vertical_gap <= ROUTING_EPSILON:
+        dx = dst_cx - src_cx
+        dy = dst_cy - src_cy
+        if abs(dx) >= abs(dy):
+            return "east" if dx >= 0 else "west"
+        return "south" if dy >= 0 else "north"
+
+    if horizontal_gap >= vertical_gap:
+        return "east" if dst_cx >= src_cx else "west"
+    return "south" if dst_cy >= src_cy else "north"
+
+
+def anchor_point(box: Box, side: str) -> Tuple[float, float]:
+    cx, cy = box_center(box)
+    if side == "north":
+        return cx, box.y
+    if side == "south":
+        return cx, box.y + box.h
+    if side == "west":
+        return box.x, cy
+    return box.x + box.w, cy
+
+
+def offset_point(point: Tuple[float, float], side: str, distance: float) -> Tuple[float, float]:
+    x, y = point
+    if side == "north":
+        return x, y - distance
+    if side == "south":
+        return x, y + distance
+    if side == "west":
+        return x - distance, y
+    return x + distance, y
+
+
+def collapse_orthogonal_points(points: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    deduped: List[Tuple[float, float]] = []
+    for x, y in points:
+        if deduped and math.hypot(x - deduped[-1][0], y - deduped[-1][1]) <= ROUTING_EPSILON:
+            continue
+        deduped.append((x, y))
+
+    if len(deduped) <= 2:
+        return deduped
+
+    collapsed: List[Tuple[float, float]] = [deduped[0]]
+    for idx in range(1, len(deduped) - 1):
+        px, py = collapsed[-1]
+        cx, cy = deduped[idx]
+        nx, ny = deduped[idx + 1]
+        same_x = abs(px - cx) <= ROUTING_EPSILON and abs(cx - nx) <= ROUTING_EPSILON
+        same_y = abs(py - cy) <= ROUTING_EPSILON and abs(cy - ny) <= ROUTING_EPSILON
+        if same_x or same_y:
+            continue
+        collapsed.append((cx, cy))
+    collapsed.append(deduped[-1])
+    return collapsed
 
 
 def orthogonal_points(rel_id: str, src: Box, dst: Box) -> List[Tuple[float, float]]:
-    x1, y1 = anchor_point(src, dst)
-    x2, y2 = anchor_point(dst, src)
-    dx = x2 - x1
-    dy = y2 - y1
+    src_side = preferred_port_side(src, dst)
+    dst_side = preferred_port_side(dst, src)
+    start = anchor_point(src, src_side)
+    end = anchor_point(dst, dst_side)
+    start_stub = offset_point(start, src_side, EDGE_EGRESS_STUB)
+    end_stub = offset_point(end, dst_side, EDGE_EGRESS_STUB)
     offset = ((stable_number(rel_id) % 5) - 2) * 10.0
 
-    if abs(dx) >= abs(dy):
-        mid_x = (x1 + x2) / 2.0 + offset
-        return [(x1, y1), (mid_x, y1), (mid_x, y2), (x2, y2)]
+    if src_side in {"east", "west"} and dst_side in {"east", "west"}:
+        mid_x = (start_stub[0] + end_stub[0]) / 2.0 + offset
+        points = [start, start_stub, (mid_x, start_stub[1]), (mid_x, end_stub[1]), end_stub, end]
+        return collapse_orthogonal_points(points)
 
-    mid_y = (y1 + y2) / 2.0 + offset
-    return [(x1, y1), (x1, mid_y), (x2, mid_y), (x2, y2)]
+    if src_side in {"north", "south"} and dst_side in {"north", "south"}:
+        mid_y = (start_stub[1] + end_stub[1]) / 2.0 + offset
+        points = [start, start_stub, (start_stub[0], mid_y), (end_stub[0], mid_y), end_stub, end]
+        return collapse_orthogonal_points(points)
+
+    if src_side in {"east", "west"}:
+        mid_y = (start_stub[1] + end_stub[1]) / 2.0 + offset
+        points = [start, start_stub, (start_stub[0], mid_y), (end_stub[0], mid_y), end_stub, end]
+        return collapse_orthogonal_points(points)
+
+    mid_x = (start_stub[0] + end_stub[0]) / 2.0 + offset
+    points = [start, start_stub, (mid_x, start_stub[1]), (mid_x, end_stub[1]), end_stub, end]
+    return collapse_orthogonal_points(points)
 
 
 def rounded_polyline(points: Sequence[Tuple[float, float]], radius: float = 10.0) -> str:
