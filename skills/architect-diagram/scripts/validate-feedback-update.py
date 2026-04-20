@@ -128,7 +128,10 @@ def read_yaml(path: Path) -> Dict[str, Any]:
 def list_view_files(views_dir: Path) -> List[Path]:
     if not views_dir.exists() or not views_dir.is_dir():
         raise SystemExit(f"Missing views directory: {views_dir}")
-    return sorted([p for p in views_dir.iterdir() if p.suffix in {".yaml", ".yml"}])
+    return sorted(
+        [p for p in views_dir.rglob("*") if p.is_file() and p.suffix in {".yaml", ".yml"}],
+        key=lambda path: path.relative_to(views_dir).as_posix(),
+    )
 
 
 def is_blank(value: Any) -> bool:
@@ -325,7 +328,7 @@ def validate_views(output_root: Path, element_kinds: Dict[str, str], relationshi
     views_dir = output_root / "architecture" / "views"
     for path in list_view_files(views_dir):
         data = read_yaml(path)
-        view_label = f"architecture/views/{path.name}"
+        view_label = f"architecture/views/{path.relative_to(views_dir).as_posix()}"
         view_type = str(data.get("type") or data.get("view_type") or "").strip().lower().replace("-", "_")
 
         explicit_element_ids = data.get("element_ids")

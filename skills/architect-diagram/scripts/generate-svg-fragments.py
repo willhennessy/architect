@@ -87,8 +87,13 @@ def load_yaml(path: Path) -> Dict[str, Any]:
 def compute_revision_id(output_root: Path) -> str:
     arch = output_root / "architecture"
     parts: List[bytes] = []
-    for path in sorted((arch / "views").glob("*.y*ml")):
-        parts.append(path.name.encode("utf-8"))
+    views_dir = arch / "views"
+    view_files = sorted(
+        [path for path in views_dir.rglob("*") if path.is_file() and path.suffix in {".yaml", ".yml"}],
+        key=lambda path: path.relative_to(arch).as_posix(),
+    )
+    for path in view_files:
+        parts.append(path.relative_to(arch).as_posix().encode("utf-8"))
         parts.append(path.read_bytes())
     for name in ("manifest.yaml", "model.yaml", "summary.md", "diff.yaml"):
         path = arch / name
@@ -1053,7 +1058,10 @@ def main() -> int:
         )
         rels[edge.id] = edge
 
-    for vf in sorted(views_dir.glob("*.y*ml")):
+    for vf in sorted(
+        [path for path in views_dir.rglob("*") if path.is_file() and path.suffix in {".yaml", ".yml"}],
+        key=lambda path: path.relative_to(views_dir).as_posix(),
+    ):
         view = load_yaml(vf)
         if normalize_view_type(str(view.get("type", ""))) == "sequence":
             continue

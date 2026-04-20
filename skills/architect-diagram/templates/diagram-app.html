@@ -709,6 +709,7 @@
       flex: 1 1 auto;
       min-height: 0;
       display: flex;
+      padding-block: 0;
       overflow: hidden;
       background: transparent;
     }
@@ -795,6 +796,7 @@
       flex: 1 1 auto;
       border: none;
       border-radius: 0;
+      padding-block: 0;
       background: transparent;
       overflow: hidden;
       isolation: isolate;
@@ -804,7 +806,7 @@
       width: 100%;
       height: 100%;
       overflow: auto;
-      padding: 16px 18px 18px;
+      padding: 0 18px;
       position: relative;
       scroll-behavior: smooth;
       background: var(--color-bg-app);
@@ -1347,9 +1349,6 @@
         margin: 0;
       }
 
-      #canvas {
-        padding-top: 18px;
-      }
     }
 
     .overlay {
@@ -2478,6 +2477,64 @@ function viewsList() {
 }
 
 function buildViewHierarchyData() {
+  const rawHierarchy = DATA.view_hierarchy || null;
+  if (rawHierarchy && Array.isArray(rawHierarchy.items) && rawHierarchy.items.length) {
+    const childrenByViewId = new Map();
+    const parentByViewId = new Map();
+    const depthByViewId = new Map();
+    const knownViewIds = new Set();
+
+    viewsList().forEach(function (view) {
+      childrenByViewId.set(view.id, []);
+      knownViewIds.add(view.id);
+    });
+
+    const rawParents = rawHierarchy.parent_by_view_id || {};
+    Object.keys(rawParents).forEach(function (childId) {
+      const parentId = rawParents[childId];
+      if (!knownViewIds.has(childId) || !knownViewIds.has(parentId) || childId === parentId) return;
+      parentByViewId.set(childId, parentId);
+      const children = childrenByViewId.get(parentId) || [];
+      if (!children.includes(childId)) children.push(childId);
+      childrenByViewId.set(parentId, children);
+    });
+
+    const items = [];
+    const visited = new Set();
+    rawHierarchy.items.forEach(function (entry) {
+      const viewId = String(entry && (entry.view_id || entry.viewId) || '');
+      if (!viewId || visited.has(viewId) || !viewsById.has(viewId)) return;
+      visited.add(viewId);
+      const depth = Math.max(0, Number(entry && entry.depth) || 0);
+      depthByViewId.set(viewId, depth);
+      items.push({
+        viewId: viewId,
+        depth: depth,
+        view: viewsById.get(viewId),
+      });
+    });
+
+    const orphanIds = [];
+    viewsList().forEach(function (view) {
+      if (visited.has(view.id)) return;
+      orphanIds.push(view.id);
+      if (!depthByViewId.has(view.id)) depthByViewId.set(view.id, 0);
+      items.push({
+        viewId: view.id,
+        depth: depthByViewId.get(view.id),
+        view: view,
+      });
+    });
+
+    return {
+      items: items,
+      childrenByViewId: childrenByViewId,
+      parentByViewId: parentByViewId,
+      depthByViewId: depthByViewId,
+      orphanIds: orphanIds,
+    };
+  }
+
   const childrenByViewId = new Map();
   const parentByViewId = new Map();
 

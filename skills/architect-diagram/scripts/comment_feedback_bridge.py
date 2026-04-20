@@ -204,8 +204,9 @@ def diagram_html_path(output_root: Path) -> Path:
 def compute_revision_id(output_root: Path) -> str:
     arch = architecture_dir(output_root)
     parts: List[bytes] = []
-    for path in sorted((arch / "views").glob("*.y*ml")):
-        parts.append(path.name.encode("utf-8"))
+    views_dir = arch / "views"
+    for path in list_view_files(views_dir):
+        parts.append(path.relative_to(arch).as_posix().encode("utf-8"))
         parts.append(path.read_bytes())
     for name in ("manifest.yaml", "model.yaml", "summary.md", "diff.yaml"):
         path = arch / name
@@ -249,7 +250,10 @@ def default_status_fields(state: str) -> Dict[str, Any]:
 
 
 def list_view_files(views_dir: Path) -> List[Path]:
-    return sorted([p for p in views_dir.iterdir() if p.suffix in {".yaml", ".yml"}])
+    return sorted(
+        [p for p in views_dir.rglob("*") if p.is_file() and p.suffix in {".yaml", ".yml"}],
+        key=lambda path: path.relative_to(views_dir).as_posix(),
+    )
 
 
 @dataclass
