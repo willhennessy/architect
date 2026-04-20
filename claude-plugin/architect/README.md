@@ -9,6 +9,8 @@ This is the new primary packaging path for:
 - `/architect:diagram`
 - `/architect:diagram-prompt`
 
+Architect plugin commands follow the pattern `/architect:<command>`.
+
 It also owns the live comment loop:
 
 1. `architecture/diagram.html` submits comments to the plugin runtime on `http://127.0.0.1:8765`

@@ -49,26 +49,26 @@ Always treat `skills/references/architecture-contract.md` as source of truth for
 
 In chat with the agent, use skill commands like:
 
-- `/architect-plan ...`
-- `/architect-init ...`
-- `/architect-diagram ...`
-- `/architect-diagram-prompt ...`
+- `/architect:plan ...`
+- `/architect:init ...`
+- `/architect:diagram ...`
+- `/architect:diagram-prompt ...`
 - `/run-plan-eval ...`
 - `/run-architecture-eval ...`
 
 Typical workflow:
 
-1. Run `architect-plan` or `architect-init`
-2. Let that skill automatically hand off to `architect-diagram` to generate `architecture/diagram.html`
-3. Run `architect-diagram` directly only when you want diagram-only regeneration from existing artifacts
-4. Run `architect-diagram-prompt` only if you explicitly need `architecture/diagram-prompt.md`
+1. Run `/architect:plan` or `/architect:init`
+2. Let that skill automatically hand off to `/architect:diagram` to generate `architecture/diagram.html`
+3. Run `/architect:diagram` directly only when you want diagram-only regeneration from existing artifacts
+4. Run `/architect:diagram-prompt` only if you explicitly need `architecture/diagram-prompt.md`
 
 For `architect-plan`, the intended UX is:
 
 - Claude first behaves like a normal planning conversation
 - Architect writes hidden artifacts only after the first serious visible plan draft
 - diagrams are conditional for large/complex plans, not automatic for every prompt
-- direct `/architect-plan` should not front-load repo exploration or contract-reading before drafting the visible plan
+- direct `/architect:plan` should not front-load repo exploration or contract-reading before drafting the visible plan
 
 ---
 
