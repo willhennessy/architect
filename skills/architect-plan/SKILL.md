@@ -1,6 +1,6 @@
 ---
 name: architect-plan
-description: Augment native planning by turning user intent, constraints, assumptions, and tradeoffs into canonical architecture artifacts and an interactive diagram to help the user visualize the system design and provide feedback. Works in tandem with Claude's native Plan Mode. Use when planning a complex, large scale system design.
+description: Architecture planning sidecar for Claude's native Plan Mode. Turn product requirements, constraints, team size, timeline, assumptions, and tradeoffs into canonical architecture artifacts and, when useful, an interactive diagram. Strongly consider this skill in Plan Mode when a user is planning a new or changing software system and asks for the architecture, system design, service breakdown, or technical plan before implementation, including prompts like "propose the architecture", "design the system", or "help me plan the architecture."
 ---
 
 Use this skill for planning-mode architecture design.
