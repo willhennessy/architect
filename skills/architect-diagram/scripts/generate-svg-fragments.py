@@ -70,6 +70,8 @@ class LayoutResult:
 
 VIEW_MARGIN_X = 64.0
 VIEW_MARGIN_Y = 56.0
+COMPACT_VIEW_MARGIN_X = 24.0
+WIDE_LAYOUT_WIDTH_THRESHOLD = 1200.0
 COLUMN_GAP = 68.0
 ROW_GAP = 34.0
 BOUNDARY_PAD = 28.0
@@ -743,6 +745,52 @@ def choose_layout(
     return generic_layout(nodes)
 
 
+def trim_horizontal_layout_padding(layout: LayoutResult) -> LayoutResult:
+    if layout.width < WIDE_LAYOUT_WIDTH_THRESHOLD:
+        return layout
+
+    left_edges = [box.x for box in layout.boxes.values()]
+    right_edges = [box.x + box.w for box in layout.boxes.values()]
+    left_edges.extend(boundary.x for boundary in layout.boundaries)
+    right_edges.extend(boundary.x + boundary.w for boundary in layout.boundaries)
+    if not left_edges or not right_edges:
+        return layout
+
+    current_left = min(left_edges)
+    current_right = layout.width - max(right_edges)
+    trim_left = max(0.0, current_left - COMPACT_VIEW_MARGIN_X)
+    trim_right = max(0.0, current_right - COMPACT_VIEW_MARGIN_X)
+    if trim_left <= ROUTING_EPSILON and trim_right <= ROUTING_EPSILON:
+        return layout
+
+    shifted_boxes = {
+        nid: Box(
+            x=box.x - trim_left,
+            y=box.y,
+            w=box.w,
+            h=box.h,
+        )
+        for nid, box in layout.boxes.items()
+    }
+    shifted_boundaries = [
+        Boundary(
+            x=boundary.x - trim_left,
+            y=boundary.y,
+            w=boundary.w,
+            h=boundary.h,
+            label=boundary.label,
+            tone=boundary.tone,
+        )
+        for boundary in layout.boundaries
+    ]
+    return LayoutResult(
+        width=layout.width - trim_left - trim_right,
+        height=layout.height,
+        boxes=shifted_boxes,
+        boundaries=shifted_boundaries,
+    )
+
+
 def box_center(box: Box) -> Tuple[float, float]:
     return box.x + box.w / 2.0, box.y + box.h / 2.0
 
@@ -1041,7 +1089,7 @@ def render_view_fragment(
     if not nodes:
         return
 
-    layout = choose_layout(view, nodes, model_elements)
+    layout = trim_horizontal_layout_padding(choose_layout(view, nodes, model_elements))
     edges = collect_view_edges(view, model_edges, visible_ids)
 
     edge_markup: List[str] = []
