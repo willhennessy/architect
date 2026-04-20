@@ -911,6 +911,38 @@
       bottom: 0;
     }
 
+    .sidebar[data-mode="comment"] .sidebar-header {
+      height: auto;
+      min-height: 44px;
+      padding: 12px 16px;
+    }
+
+    .sidebar[data-mode="comment"] .sidebar-title {
+      color: var(--color-text-primary);
+    }
+
+    .sidebar[data-mode="comment"] .sidebar-count {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      color: var(--color-text-tertiary);
+      min-width: 0;
+      padding: 0;
+    }
+
+    .sidebar[data-mode="comment"] .sidebar-status-region {
+      gap: 0;
+      padding: 0;
+    }
+
+    .sidebar[data-mode="comment"] .sidebar-body {
+      padding: 0;
+    }
+
+    .sidebar[data-mode="comment"] .sidebar-footer {
+      padding: 12px 16px 16px;
+    }
+
     .btn-submit-comments {
       width: 100%;
       background: var(--color-text-primary);
@@ -935,59 +967,48 @@
     .comment-status-card {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      padding: 14px 15px;
-      border-radius: 18px;
-      border: 1px solid color-mix(in srgb, var(--color-border-default) 88%, transparent);
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 96%, transparent), color-mix(in srgb, var(--color-bg-sidebar) 88%, transparent));
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--color-border-subtle);
+      background: var(--color-bg-sidebar);
     }
 
     .comment-status-card[data-tone="pending"] {
-      border-color: color-mix(in srgb, var(--color-border-default) 94%, transparent);
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 94%, transparent), color-mix(in srgb, var(--color-selected-bg) 48%, var(--color-bg-surface)));
+      background: color-mix(in srgb, var(--color-bg-sidebar) 82%, var(--color-bg-surface));
     }
 
     .comment-status-card[data-tone="success"] {
-      border-color: color-mix(in srgb, var(--color-status-success) 28%, var(--color-border-default));
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--color-status-success) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-status-success) 9%, var(--color-bg-sidebar)));
+      background: color-mix(in srgb, var(--color-status-success) 16%, var(--color-bg-surface));
     }
 
     .comment-status-card[data-tone="failed"] {
-      border-color: color-mix(in srgb, var(--color-status-error) 28%, var(--color-border-default));
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--color-status-error) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-status-error) 9%, var(--color-bg-sidebar)));
+      background: color-mix(in srgb, var(--color-status-error) 16%, var(--color-bg-surface));
     }
 
     .comment-status-card-main {
       display: flex;
       align-items: flex-start;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
     }
 
     .comment-status-icon {
-      width: 28px;
-      height: 28px;
+      width: 18px;
+      height: 18px;
       flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 999px;
+      margin-top: 1px;
       color: var(--color-text-primary);
-      background: color-mix(in srgb, var(--color-bg-surface-raised) 88%, transparent);
     }
 
     .comment-status-card[data-tone="success"] .comment-status-icon {
       color: var(--color-status-success);
-      background: color-mix(in srgb, var(--color-status-success) 14%, var(--color-bg-surface-raised));
     }
 
     .comment-status-card[data-tone="failed"] .comment-status-icon {
       color: var(--color-status-error);
-      background: color-mix(in srgb, var(--color-status-error) 14%, var(--color-bg-surface-raised));
     }
 
     .comment-status-icon svg {
@@ -1001,8 +1022,8 @@
       width: 14px;
       height: 14px;
       border-radius: 999px;
-      border: 2px solid currentColor;
-      border-right-color: transparent;
+      border: 1.5px solid color-mix(in srgb, var(--color-border-default) 82%, var(--color-border-strong));
+      border-top-color: var(--color-text-primary);
       animation: status-spin 0.9s linear infinite;
     }
 
@@ -1010,22 +1031,24 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      flex: 1 1 auto;
+      gap: 2px;
     }
 
     .comment-status-title {
       margin: 0;
       color: var(--color-text-primary);
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.35;
-      font-weight: 600;
+      font-weight: 500;
       text-wrap: pretty;
     }
 
     .comment-status-title[data-animated="true"]::after {
       content: "";
       display: inline-block;
-      width: 1.35em;
+      width: 1.2em;
+      margin-left: 1px;
       text-align: left;
       animation: status-dots 1.25s steps(4, end) infinite;
     }
@@ -1033,9 +1056,25 @@
     .comment-status-subtitle {
       margin: 0;
       color: var(--color-text-secondary);
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.45;
       text-wrap: pretty;
+    }
+
+    .comment-status-card[data-tone="success"] .comment-status-title {
+      color: var(--color-status-success);
+    }
+
+    .comment-status-card[data-tone="success"] .comment-status-subtitle {
+      color: color-mix(in srgb, var(--color-status-success) 82%, var(--color-text-primary));
+    }
+
+    .comment-status-card[data-tone="failed"] .comment-status-title {
+      color: var(--color-status-error);
+    }
+
+    .comment-status-card[data-tone="failed"] .comment-status-subtitle {
+      color: color-mix(in srgb, var(--color-status-error) 84%, var(--color-text-primary));
     }
 
     .comment-status-actions {
@@ -1045,6 +1084,39 @@
       flex-wrap: wrap;
     }
 
+    .comment-status-primary-action {
+      background: var(--color-status-error);
+      border: none;
+      border-radius: 10px;
+      color: var(--color-bg-surface);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+    }
+
+    .comment-status-primary-action:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--color-status-error) 90%, var(--color-text-primary));
+      border-color: transparent;
+    }
+
+    .comment-status-secondary-action {
+      background: none;
+      border: none;
+      border-radius: 0;
+      color: var(--color-status-error);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .comment-status-secondary-action:hover:not(:disabled) {
+      background: none;
+      border-color: transparent;
+      color: color-mix(in srgb, var(--color-status-error) 82%, var(--color-text-primary));
+    }
+
     .comment-list {
       list-style: none;
       padding: 0;
@@ -1052,12 +1124,12 @@
     }
 
     .comment-list.is-pending {
-      opacity: 0.62;
+      opacity: 0.6;
       pointer-events: none;
     }
 
     .comment-card {
-      padding: 14px 15px;
+      padding: 12px 16px;
       margin: 0;
       position: relative;
       animation: comment-card-in 320ms var(--ease-out) both;
@@ -1072,27 +1144,27 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 8px;
+      gap: 10px;
+      margin-bottom: 6px;
     }
 
     .comment-card-target {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       min-width: 0;
       padding: 0;
       font-size: 12px;
       font-weight: 500;
-      color: var(--color-text-secondary);
+      color: var(--color-text-primary);
       line-height: 1.4;
       text-wrap: pretty;
     }
 
     .comment-card-target::before {
       content: "";
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       flex: 0 0 auto;
       border-radius: 999px;
       background: var(--comment-tone, var(--color-signal));
@@ -1146,8 +1218,7 @@
     }
 
     .sidebar[data-mode="comment"] .empty-state {
-      padding-left: 8px;
-      padding-right: 8px;
+      padding: 52px 20px;
     }
 
     .empty-state p {
@@ -2829,7 +2900,7 @@ function statusIconMarkup(tone) {
     return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"></circle><path d="M4.2 8.2 6.65 10.65 11.8 5.5" stroke="var(--color-text-inverse)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
   }
   if (tone === 'failed') {
-    return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8.83 1.18 14.8 12.2A1 1 0 0 1 13.92 13.7H2.08A1 1 0 0 1 1.2 12.2L7.17 1.18A1 1 0 0 1 8.83 1.18Z" fill="currentColor"></path><path d="M8 4.65v4.1" stroke="var(--color-text-inverse)" stroke-width="1.5" stroke-linecap="round"></path><circle cx="8" cy="11.25" r=".9" fill="var(--color-text-inverse)"></circle></svg>';
+    return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"></circle><path d="M8 4.5v4" stroke="var(--color-text-inverse)" stroke-width="1.5" stroke-linecap="round"></path><circle cx="8" cy="11.1" r=".8" fill="var(--color-text-inverse)"></circle></svg>';
   }
   return '';
 }
@@ -2837,6 +2908,12 @@ function statusIconMarkup(tone) {
 function renderSidebarStatusCard() {
   const region = $('sidebarStatusRegion');
   if (!region) return;
+
+  if (!isCommentMode()) {
+    region.hidden = true;
+    region.innerHTML = '';
+    return;
+  }
 
   region.hidden = !state.activeJob;
   region.innerHTML = '';
@@ -2887,13 +2964,14 @@ function renderSidebarStatusCard() {
     actions.className = 'comment-status-actions';
 
     const retry = document.createElement('button');
-    retry.className = 'btn-primary';
+    retry.className = 'comment-status-primary-action';
     retry.type = 'button';
     retry.textContent = 'Retry';
     retry.disabled = state.submitInFlight || state.comments.length === 0;
     retry.addEventListener('click', submitPayload);
 
     const details = document.createElement('button');
+    details.className = 'comment-status-secondary-action';
     details.type = 'button';
     details.textContent = 'Details';
     details.addEventListener('click', showFailureDetails);
@@ -4695,6 +4773,12 @@ function commentToneForTarget(target) {
   if (!target) return THEME.signal;
   if (target.element_id) {
     return colorForKind((nodesById.get(target.element_id) || {}).kind);
+  }
+  if (target.relationship_id) {
+    const rel = relationshipsById.get(target.relationship_id);
+    const sourceNode = rel ? nodesById.get(rel.source_id) : null;
+    const targetNode = rel ? nodesById.get(rel.target_id) : null;
+    return colorForKind((sourceNode || targetNode || {}).kind);
   }
   return THEME.brand;
 }
