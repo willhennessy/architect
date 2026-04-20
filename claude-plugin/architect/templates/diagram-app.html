@@ -128,7 +128,7 @@
       --color-brand: #C99A5B;
       --color-brand-hover: #D8AB6E;
       --color-signal: #5FB3AB;
-      --color-signal-hover: #72C2BA;
+      --color-signal-hover: #4F9E96;
       --color-status-success: #7FAE73;
       --color-status-error: #C97060;
       --color-modal-scrim: rgba(0, 0, 0, 0.6);
@@ -611,7 +611,7 @@
       outline-offset: 2px;
     }
 
-    button:hover:not(:disabled):not(.btn-submit-comments):not(.mode-toggle-segment):not(.breadcrumb-item):not(.theme-toggle):not(.view-overview-trigger):not(.view-overview-item) {
+    button:hover:not(:disabled):not(.btn-submit-comments):not(.btn-comment-submit):not(.mode-toggle-segment):not(.breadcrumb-item):not(.theme-toggle):not(.view-overview-trigger):not(.view-overview-item) {
       border-color: var(--color-border-strong);
       background: var(--color-hover-bg);
     }
@@ -857,7 +857,7 @@
       height: 44px;
       box-sizing: border-box;
       padding: 10px 22px;
-      border-bottom: 1px solid var(--color-border-subtle);
+      border-bottom: 1px solid var(--color-border-default);
       background: var(--color-bg-surface);
     }
 
@@ -875,7 +875,7 @@
       color: var(--color-text-secondary);
       font-size: 12px;
       background: var(--color-bg-surface-elevated);
-      border: 1px solid var(--color-border-subtle);
+      border: 1px solid var(--color-border-default);
       padding: 4px 10px;
       border-radius: 999px;
       min-width: 30px;
@@ -1135,7 +1135,7 @@
     }
 
     .comment-card + .comment-card {
-      border-top: 1px solid var(--color-border-subtle);
+      border-top: 1px solid var(--color-border-default);
     }
 
     .comment-card-header {
@@ -1476,7 +1476,7 @@
       max-width: calc(100vw - 32px);
       max-height: none;
       overflow: visible;
-      padding: 16px;
+      padding: 14px;
       border-radius: 22px;
       isolation: isolate;
       transform-origin: var(--comment-origin-x, 50%) var(--comment-origin-y, 50%);
@@ -1638,12 +1638,6 @@
       gap: 8px;
     }
 
-    .comment-popover-footer {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 14px;
-    }
-
     .comment-popover-hint {
       display: none;
       margin: 10px 0 0;
@@ -1658,8 +1652,83 @@
       display: block;
     }
 
+    .comment-input-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      padding: 4px 4px 4px 4px;
+      border: 1px solid var(--color-border-input);
+      border-radius: 18px;
+      background: var(--color-bg-surface);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .comment-input-wrap:focus-within {
+      border-color: var(--color-signal);
+      box-shadow: 0 0 0 3px var(--color-signal-glow);
+    }
+
+    .comment-popover .modal-header {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .comment-popover .modal-textarea {
+      width: 100%;
+      min-height: 0;
+      max-height: 160px;
+      border: none;
+      background: transparent;
+      border-radius: 0;
+      padding: 7px 4px 7px 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      resize: none;
+      margin: 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .comment-popover .modal-textarea:focus {
+      outline: none;
+      border: none;
+    }
+
+    .comment-input-wrap.is-single-line .btn-comment-submit {
+      align-self: center;
+    }
+
     .btn-comment-submit {
-      min-height: 42px;
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      min-height: 0;
+      padding: 0;
+      border-radius: 50%;
+      border: none;
+      background: var(--color-signal);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 120ms ease, opacity 120ms ease;
+    }
+
+    .btn-comment-submit:hover:not(:disabled) {
+      background: var(--color-signal-hover);
+    }
+
+    .btn-comment-submit:disabled {
+      background: color-mix(in srgb, var(--color-text-tertiary) 40%, transparent);
+      color: var(--color-text-tertiary);
+      cursor: not-allowed;
+    }
+
+    .btn-comment-submit svg {
+      display: block;
     }
 
     .comment-target-ring {
@@ -2099,11 +2168,15 @@
   <div class="dialog dialog-floating comment-popover" id="commentDialog" data-placement="right">
     <div class="comment-popover-pointer" id="commentPointer" aria-hidden="true"></div>
     <h3 id="commentTitle" class="modal-header">Comment</h3>
-    <textarea id="commentText" class="modal-textarea" placeholder="Feedback for Claude..."></textarea>
-    <p id="commentHint" class="comment-popover-hint" aria-live="polite"></p>
-    <div class="comment-popover-footer">
-      <button id="commentAdd" class="dialog-primary btn-primary btn-comment-submit" disabled>Add</button>
+    <div class="comment-input-wrap">
+      <textarea id="commentText" class="modal-textarea" placeholder="Add a comment" rows="1"></textarea>
+      <button id="commentAdd" class="btn-comment-submit" disabled aria-label="Submit comment">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 13V3M8 3L3 8M8 3L13 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
+    <p id="commentHint" class="comment-popover-hint" aria-live="polite"></p>
   </div>
 </div>
 
@@ -4856,6 +4929,23 @@ function updateCommentComposerState() {
   if (submit) submit.disabled = !commentDialogHasDraft() || isCommentEditingLocked();
 }
 
+function autosizeCommentTextarea() {
+  const textarea = $('commentText');
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  const styles = window.getComputedStyle(textarea);
+  const lineHeight = parseFloat(styles.lineHeight) || 0;
+  const paddingTop = parseFloat(styles.paddingTop) || 0;
+  const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+  const singleLineHeight = lineHeight + paddingTop + paddingBottom;
+  const nextHeight = Math.min(textarea.scrollHeight, 160);
+  textarea.style.height = nextHeight + 'px';
+  const inputWrap = textarea.closest('.comment-input-wrap');
+  if (inputWrap) {
+    inputWrap.classList.toggle('is-single-line', textarea.scrollHeight <= singleLineHeight + 1);
+  }
+}
+
 function clearDiscardPrompt() {
   if (state.discardPromptTimer) {
     clearTimeout(state.discardPromptTimer);
@@ -5104,6 +5194,7 @@ function openCommentDialog(target, anchor) {
   state.pendingPlacement = 'right';
   $('commentTitle').textContent = commentTargetName(target);
   $('commentText').value = '';
+  $('commentText').style.height = 'auto';
   clearDiscardPrompt();
   updateCommentComposerState();
   applyCommentTargetIndicators(currentDiagramSvg());
@@ -5112,6 +5203,7 @@ function openCommentDialog(target, anchor) {
   window.requestAnimationFrame(function () {
     positionCommentDialog();
     dialog.setAttribute('data-animate-state', 'open');
+    autosizeCommentTextarea();
     $('commentText').focus();
   });
 }
@@ -5339,6 +5431,7 @@ $('commentAdd').addEventListener('click', addPendingComment);
 
 $('commentText').addEventListener('input', function () {
   clearDiscardPrompt();
+  autosizeCommentTextarea();
   updateCommentComposerState();
 });
 
