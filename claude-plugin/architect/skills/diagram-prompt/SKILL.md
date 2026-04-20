@@ -37,8 +37,8 @@ Required:
 
 ## Workflow
 
-1. Read [../architect-diagram/references/diagram-output-contract.md](../architect-diagram/references/diagram-output-contract.md)
-2. Read [../architect-diagram/references/interactive-diagram-prompt.md](../architect-diagram/references/interactive-diagram-prompt.md)
+1. Read [../diagram/references/diagram-output-contract.md](../diagram/references/diagram-output-contract.md)
+2. Read [../diagram/references/interactive-diagram-prompt.md](../diagram/references/interactive-diagram-prompt.md)
 3. Load architecture artifacts under `<output-root>/architecture/`
 4. Generate `<output-root>/architecture/diagram-prompt.md` per contract
 5. Validate checklist items related to `diagram-prompt.md`

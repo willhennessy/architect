@@ -17,19 +17,19 @@ PLUGIN_ROOT = REPO_ROOT / "claude-plugin" / "architect"
 
 SKILL_SOURCES = {
     REPO_ROOT / "skills" / "architect-init" / "SKILL.md": (
-        PLUGIN_ROOT / "skills" / "architect-init" / "SKILL.md",
+        PLUGIN_ROOT / "skills" / "init" / "SKILL.md",
         "init",
     ),
     REPO_ROOT / "skills" / "architect-plan" / "SKILL.md": (
-        PLUGIN_ROOT / "skills" / "architect-plan" / "SKILL.md",
+        PLUGIN_ROOT / "skills" / "plan" / "SKILL.md",
         "plan",
     ),
     REPO_ROOT / "skills" / "architect-diagram" / "SKILL.md": (
-        PLUGIN_ROOT / "skills" / "architect-diagram" / "SKILL.md",
+        PLUGIN_ROOT / "skills" / "diagram" / "SKILL.md",
         "diagram",
     ),
     REPO_ROOT / "skills" / "architect-diagram-prompt" / "SKILL.md": (
-        PLUGIN_ROOT / "skills" / "architect-diagram-prompt" / "SKILL.md",
+        PLUGIN_ROOT / "skills" / "diagram-prompt" / "SKILL.md",
         "diagram-prompt",
     ),
 }
@@ -38,13 +38,13 @@ DIRECT_COPIES = {
     REPO_ROOT / "skills" / "references" / "architecture-contract.md":
         PLUGIN_ROOT / "skills" / "references" / "architecture-contract.md",
     REPO_ROOT / "skills" / "architect-diagram" / "references" / "diagram-output-contract.md":
-        PLUGIN_ROOT / "skills" / "architect-diagram" / "references" / "diagram-output-contract.md",
+        PLUGIN_ROOT / "skills" / "diagram" / "references" / "diagram-output-contract.md",
     REPO_ROOT / "skills" / "architect-diagram" / "references" / "html-diagram-spec.md":
-        PLUGIN_ROOT / "skills" / "architect-diagram" / "references" / "html-diagram-spec.md",
+        PLUGIN_ROOT / "skills" / "diagram" / "references" / "html-diagram-spec.md",
     REPO_ROOT / "skills" / "architect-diagram" / "references" / "svg-fragment-spec.md":
-        PLUGIN_ROOT / "skills" / "architect-diagram" / "references" / "svg-fragment-spec.md",
+        PLUGIN_ROOT / "skills" / "diagram" / "references" / "svg-fragment-spec.md",
     REPO_ROOT / "skills" / "architect-diagram" / "references" / "interactive-diagram-prompt.md":
-        PLUGIN_ROOT / "skills" / "architect-diagram" / "references" / "interactive-diagram-prompt.md",
+        PLUGIN_ROOT / "skills" / "diagram" / "references" / "interactive-diagram-prompt.md",
     REPO_ROOT / "skills" / "architect-diagram" / "templates" / "diagram-app.html":
         PLUGIN_ROOT / "templates" / "diagram-app.html",
     REPO_ROOT / "skills" / "architect-diagram" / "scripts" / "render-diagram-html.py":
@@ -64,10 +64,10 @@ DIRECT_COPIES = {
 }
 
 ALLOWED_SKILL_DIRS = {
-    "architect-init",
-    "architect-plan",
-    "architect-diagram",
-    "architect-diagram-prompt",
+    "init",
+    "plan",
+    "diagram",
+    "diagram-prompt",
     "references",
 }
 
@@ -82,6 +82,11 @@ COMMAND_REPLACEMENTS = [
 ]
 
 
+SKILL_LINK_REPLACEMENTS = [
+    ("../architect-diagram/", "../diagram/"),
+]
+
+
 def replace_skill_name(text: str, new_name: str) -> str:
     return re.sub(r"(?m)^name:\s*.+$", f"name: {new_name}", text, count=1)
 
@@ -89,6 +94,8 @@ def replace_skill_name(text: str, new_name: str) -> str:
 def transform_skill_text(text: str, new_name: str) -> str:
     text = replace_skill_name(text, new_name)
     for old, new in COMMAND_REPLACEMENTS:
+        text = text.replace(old, new)
+    for old, new in SKILL_LINK_REPLACEMENTS:
         text = text.replace(old, new)
     return text
 
