@@ -16,8 +16,8 @@ Help Will evolve Architect quickly while preserving:
 
 1. Read:
    - `README.md`
-   - `skills/references/architecture-contract.md`
    - relevant skill `SKILL.md` files for the task
+   - `skills/references/architecture-contract.md` only when touching artifact schema/validation, or after the first visible draft in `architect-plan` Plan Mode UX work
 2. Identify scope:
    - plan/discover logic?
    - diagram/rendering logic?
@@ -31,6 +31,11 @@ Help Will evolve Architect quickly while preserving:
 4. Confirm where outputs were written:
 - `evals/manual-docsign-tests/run-XXX/`
 - `evals/manual-docsign-tests/diagram-<n>.html`
+
+Exception for `architect-plan` Plan Mode UX work:
+
+- do not front-load contract reading or repo exploration before the first visible architecture draft
+- the goal is to preserve native Claude planning behavior first, then externalize hidden artifacts second
 
 ---
 

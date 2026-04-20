@@ -1,15 +1,67 @@
 ---
 name: plan
-description: Generate a planning-time architecture proposal (before implementation) from user intent, constraints, assumptions, and tradeoffs; iterate with engineer feedback until explicit approval; emit canonical architecture artifacts and automatically render an HTML diagram via architect-diagram. Use when the user is designing a new system or major feature and wants architecture steering - especially use in Plan Mode.
+description: Augment native planning by turning user intent, constraints, assumptions, and tradeoffs into canonical architecture artifacts and an interactive diagram to help the user visualize the system design and provide feedback. Works in tandem with Claude's native Plan Mode. Use when planning a complex, large scale system design.
 ---
 
 Use this skill for planning-mode architecture design.
 
 This skill must emit the same artifact schema as `architect-init`.
 
+## Plan Mode++ Contract (critical)
+
+This skill is a planning sidecar, not a replacement planner.
+
+- Direct slash invocation must still feel like normal planning:
+  - if the user explicitly invokes `/architect-plan` or `/architect:plan`, do **not** treat that as permission to skip normal planning behavior
+  - do **not** start by writing `architecture/*.yaml` files
+  - when high-impact architecture choices are unresolved, ask 1-3 focused architecture-shaping questions first, with clear recommendations when possible
+  - produce the first serious visible architecture draft before writing hidden artifacts
+- Preserve Claude's native Plan Mode behavior:
+  - keep Claude's normal questioning pattern before planning
+  - keep Claude's normal planning structure, tone, and approval flow
+  - keep Claude's natural use of tables, ASCII/system breakdowns, and long-form architecture sections when Claude would normally choose them
+  - keep `Open Decisions` visible when the design is not yet locked
+- Do **not** introduce an Architect-owned visible planning framework:
+  - no bespoke Architect response template
+  - no second approval loop
+  - no artifact walkthrough dump unless the user explicitly asks for artifact detail
+- Treat artifact generation as mostly behind-the-scenes work.
+- Use a two-track output model:
+  - hidden track: contract-conformant architecture artifacts
+  - visible track: ordinary Claude Plan Mode output
+- The user-facing response should remain Claude's normal plan. Architect should add only a small diagram handoff when a diagram is actually produced.
+- Do **not** let the hidden artifact schema leak into the visible plan by default:
+  - avoid artifact-oriented headings such as `Canonical Architecture Model`, `Repo Archetype`, `Data Ownership`, or `Files to Create` unless the user explicitly asks for artifact detail
+  - do not expose stable IDs, coverage hints, evidence IDs, output-root details, or artifact file inventories in the visible plan
+- Only surface `manifest.yaml`, `model.yaml`, `views/*.yaml`, `summary.md`, or validation details when:
+  - the user explicitly asks for them, or
+  - they are needed to explain a blocker or important tradeoff
+- `summary.md` may still contain structured sections such as `Key Decisions`, but that artifact structure must **not** dictate the assistant's user-facing response shape.
+- In native Plan Mode, stay in native Plan Mode for the planning conversation.
+- For diagram generation in native Plan Mode:
+  - finish the normal Plan Mode response first
+  - ask the handoff question at the end:
+    `Do you want to review an interactive <strong><span style="color: #2563eb;">architecture diagram</span></strong>?`
+  - prefer to place that CTA as the final user-visible sentence
+  - if the environment emits a recap, summary, or `/plan` preview after the main draft, include the CTA there so it still lands at the very end
+  - if the user says yes, `draw the diagram`, or any equivalent affirmative response, treat that as explicit approval to write the architecture artifacts and render the diagram in the current Plan Mode session
+  - treat that same approval as permission for the full diagram-generation pass in the current session:
+    - required file writes and edits for architecture artifacts
+    - required bash/script commands for validation and rendering
+    - appending the diagram link section to the Plan Mode document when present
+  - stay in Plan Mode and proceed with the writes; do **not** ask the user to exit Plan Mode first, and do **not** preemptively assume writes are blocked
+  - do **not** ask the user to separately approve the plan in order to write artifacts or render the diagram
+  - it is acceptable to think or say, in effect, "Plan Mode is still active but the user approved. Let me write the architecture artifacts and render the diagram."
+  - do **not** mention internal tool names such as `ExitPlanMode`, and do **not** describe tool availability
+  - do **not** ask for additional per-command approval for those diagram operations once the user has said yes
+  - only if an actual write/edit/bash action is denied after trying should you fall back to a plain user-facing handoff to exit Plan Mode
+- When used outside native Plan Mode with a separate "behave like Plan Mode" system prompt, continue following this same sidecar contract.
+
 ## Required Output Contract
 
-Before writing outputs, read [../references/architecture-contract.md](../references/architecture-contract.md) and follow it exactly.
+Before writing hidden artifact outputs, read [../references/architecture-contract.md](../references/architecture-contract.md) and follow it exactly.
+
+Do **not** front-load this contract read before the first visible architecture draft in normal plan-mode use.
 
 Default output path:
 
@@ -39,6 +91,8 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 
 - Keep implementation out of scope. This skill stops at architecture artifacts + rendered diagram outputs.
 - Do not require a repository scan for normal plan-mode use.
+- For greenfield planning or direct `/architect-plan` invocation, do **not** start by exploring the current project directory, reading repo docs, reading the architecture contract, reading examples/evals, or spawning Explore agents unless the user explicitly asks for repo-aware tailoring or artifact-only regeneration.
+- The host planner owns the visible planning conversation. This skill owns artifact generation only.
 - Build one canonical model first, then derive views.
 - Use explicit confidence levels: `confirmed`, `strong_inference`, `weak_inference`.
 - For planning-only runs, set `evidence_basis: plan` in `manifest.yaml`.
@@ -47,7 +101,8 @@ If critical constraints are missing, record unknowns explicitly instead of inven
   - default `proposed`
   - set `approved` only when the user explicitly approves
   - do not auto-transition to `implementing`; the end user decides when implementation starts
-- Run an explicit engineer feedback/revision loop until approval.
+  - do not require `architecture_state: approved` before writing artifacts or rendering the diagram; `proposed` is the normal review state
+- Follow the host planner's feedback/revision loop instead of creating a second one.
 - Preserve stable IDs across revisions for unchanged architecture concepts.
 - Do not collapse distinct responsibilities into one generic container when separation is a key decision (for example: keep webhook, notification, and audit processing distinct unless there is explicit rationale to merge).
 - `summary.md` must include a **Key Decisions** section, and each key decision should include explicit coverage hints using `covers: <id1,id2,...>` referencing element/relationship/view IDs when possible.
@@ -55,15 +110,68 @@ If critical constraints are missing, record unknowns explicitly instead of inven
   - `${CLAUDE_PLUGIN_ROOT}/scripts/decision-coverage-check.py`
   - `${CLAUDE_PLUGIN_ROOT}/scripts/container-decomposition-check.py`
   - `${CLAUDE_PLUGIN_ROOT}/scripts/semantic-diff-gate.py` (when a baseline model exists)
-- Record unknowns; do not fabricate precision.
+- Record unknowns; do NOT fabricate precision. This is critical.
 - Follow C4 boundary rules and avoid mixed abstraction levels in one view.
-- In Plan Mode, do **not** present ASCII architecture diagrams as the primary visualization.
-- After every draft/revision of architecture artifacts, automatically invoke `architect-diagram` so HTML diagram rendering is a fluid part of planning.
+- Do not suppress Claude's normal use of tables or ASCII/system breakdowns in the visible plan.
+- Do not mirror the artifact schema or `summary.md` structure in the visible plan unless the user explicitly asks for artifact detail.
+- Do not replace a natural architecture plan with canonical-model tables simply because the artifacts exist behind the scenes.
+- Do not make `Write(architecture/...)` the first visible action of the skill unless the user explicitly asked for artifact-only regeneration.
+- If focused questions are needed and a special question tool is unavailable, ask the questions plainly in chat. Do **not** narrate internal tool availability, deferred tool state, or hidden control flow.
+- Do not narrate internal exploration steps such as "reading the contract," "exploring current project state," or "internalizing patterns" in the visible response.
+- Avoid meta transition lines such as "I have enough context to proceed," "Let me write the plan now," or similar status narration when moving from defaults/questions into the architecture draft.
+- Use `architect-diagram` only after the first serious architecture draft, and only when a diagram materially improves the plan:
+  - render for large systems, multiple runtime boundaries, async flows, or cross-system integrations
+  - render when the architecture is large or ambiguous enough that a visual will reduce confusion
+  - render when the user explicitly asks for a diagram
+  - skip rendering when the plan is simple enough that a diagram would add little value
+- If a diagram is rendered, keep the user-visible mention to one compact appended section.
 - Use demo mode in `architect-diagram` when explicit demo-quality output is requested; otherwise keep default fallback-friendly rendering behavior for iterative runs.
 
 ## Workflow
 
-### 1) Frame scope and mode
+### 1) Ask focused architecture-shaping questions when needed
+
+Before writing any hidden artifacts or reading any artifact contracts/examples, decide whether there are unresolved high-impact choices that would materially change the plan.
+
+Normal greenfield/direct-plan behavior:
+
+- start from the user's prompt, constraints, and any immediately obvious context
+- ask focused questions when they materially change the architecture
+- do **not** begin with repo exploration or contract study just to "get oriented"
+
+Examples:
+
+- platform/language choice
+- tenancy model
+- compliance/security bar
+- sequencing vs parallelism in the workflow
+- public API vs internal/admin-only product assumptions
+
+If those choices are unresolved:
+
+- ask 1-3 focused questions first
+- keep the questions short and decisive
+- recommend a default when possible
+
+If the necessary choices are already clear from context, skip this step.
+
+### 2) Produce the first visible architecture draft
+
+Write the visible plan in ordinary Claude style before writing hidden artifacts.
+
+Visible-plan rules:
+
+- keep the response user-facing and decision-oriented
+- use Claude's natural structure
+- keep `Open Decisions` visible when the design is not yet locked
+- do not expose artifact schema, IDs, evidence keys, file inventories, or contract mechanics
+- do not mention internal repo exploration, contract-reading, tool availability, or hidden artifact workflow
+
+Only after this first serious visible draft exists should you start externalizing hidden artifacts.
+
+### 3) Frame hidden artifact scope and mode
+
+Only now, if you are actually going to write hidden artifacts, read `../references/architecture-contract.md` and conform to it.
 
 Define:
 
@@ -74,7 +182,7 @@ Define:
 
 If existing architecture artifacts are provided in update mode, preserve stable IDs and emit `diff.yaml`.
 
-### 2) Build planning evidence ledger
+### 4) Build planning evidence ledger
 
 Create an internal ledger of planning evidence IDs before writing YAML.
 
@@ -87,7 +195,7 @@ Recommended IDs:
 
 Map each modeled claim to at least one evidence ID.
 
-### 3) Model runtime boundaries + ownership
+### 5) Model runtime boundaries + ownership
 
 Define canonical elements and relationships from planning input:
 
@@ -98,13 +206,13 @@ Define canonical elements and relationships from planning input:
 
 Use conservative confidence for uncertain claims.
 
-### 4) Write canonical model
+### 6) Write canonical model
 
 Write `architecture/model.yaml` first.
 
 Do not write view-local facts that conflict with the canonical model.
 
-### 5) Derive minimal useful views
+### 7) Derive minimal useful views
 
 Emit only views that improve understanding:
 
@@ -112,7 +220,7 @@ Emit only views that improve understanding:
 - usually: `container`
 - only when useful: `component-*`, `sequence-*`, `deployment`
 
-### 6) Write summary and optional diff
+### 8) Write summary and optional diff
 
 Write `summary.md` using the fixed shared structure.
 
@@ -122,9 +230,11 @@ In `summary.md`, ensure **Key Decisions** uses explicit coverage hints where pos
 
 In update mode, write `diff.yaml`.
 
-### 7) Render diagram outputs (required)
+This structure is for the hidden artifact package only. Do **not** copy these artifact headings or coverage-hint patterns into the visible Claude plan by default.
 
-Immediately after writing/updating architecture artifacts, invoke `architect-diagram` using the same output root.
+### 9) Render diagram outputs when the draft is ready
+
+After the first serious architecture draft, decide whether the plan is complex enough that a visual adds clarity. If yes, invoke `architect-diagram` using the same output root.
 
 Expected default visible output in the artifact package:
 
@@ -134,23 +244,33 @@ Optional (only if explicitly requested by user):
 
 - `architecture/diagram-prompt.md` via `architect-diagram-prompt`
 
-Present the rendered diagram as part of the same planning response. The diagram step must feel automatic, not user-triggered.
+If you render a diagram and workspace writes are available, surface it in the planning response as one compact appended section, for example:
 
-### 8) Engineer feedback and revision loop
+```md
+## Architecture Diagram
+[Open architecture diagram](/absolute/path/to/architecture/diagram.html)
+Comment directly on the diagram to give me feedback on the plan. I'll reply to your comments here.
+```
 
-After producing a draft:
+Keep this section short. Do not turn the overall response into an artifact tour.
 
-- present the architecture artifacts, rendered diagram, rationale, and unknowns to the engineer
-- ask for targeted feedback on boundaries, ownership, risks, and tradeoffs
-- apply feedback and regenerate artifacts
-- rerun Step 7 so diagram output stays in sync with latest architecture
+If the environment has created a Plan Mode document for the current plan, append the same short `Architecture Diagram` section to that document after `architecture/diagram.html` has been rendered, so the plan document itself links to the HTML file.
+
+If workspace writes are blocked in native Plan Mode, do **not** replace this with a "deferred" note. Finish the normal plan, then ask the exact handoff question from the Plan Mode++ contract.
+
+### 10) Stay synchronized with the host planning loop
+
+After producing a draft or revision:
+
+- let the host planner handle the user-facing feedback loop
+- apply planning feedback to the artifacts and rerender the diagram when the architecture changes
 - keep `architecture_state: proposed` during iteration
 - preserve stable IDs for unchanged elements and relationships
 - run Step 9 validation after each revision
 
-Repeat until the engineer explicitly approves.
+Do not start a second approval loop. The host planner owns approval.
 
-### 9) Validate
+### 11) Validate
 
 Before presenting for approval or finishing any iteration, verify:
 
@@ -166,7 +286,7 @@ Before presenting for approval or finishing any iteration, verify:
 - semantic drift gate passes when a baseline model exists:
   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/semantic-diff-gate.py --baseline <previous>/architecture/model.yaml --current <output-root>/architecture/model.yaml`
   - by default, do not allow name-stable ID shifts unless explicitly justified.
-- `architecture/diagram.html` exists and corresponds to the current artifact set
+- when a diagram was rendered, `architecture/diagram.html` exists and corresponds to the current artifact set
 - if requested, `architecture/diagram-prompt.md` exists and corresponds to the current artifact set
 
 ## Handoffs
@@ -184,8 +304,8 @@ Complete only when:
 2. `manifest.yaml` includes `generated_by_skill: architect-plan`
 3. planning evidence is explicit in `evidence` and confidence fields
 4. `architecture_state` is present and accurately reflects explicit user approval state
-5. engineer feedback has been incorporated through at least one explicit feedback/revision cycle when feedback is provided
-6. `architecture/diagram.html` has been generated for the current approved/proposed revision
+5. feedback from the host planning loop has been incorporated when feedback is provided
+6. when the plan is large/complex enough or the user requested a diagram, `architecture/diagram.html` has been generated for the current approved/proposed revision
 7. if requested, `architecture/diagram-prompt.md` has been generated for the current approved/proposed revision
 8. decision coverage check passes in strict mode for current artifacts
 9. container decomposition policy check passes in strict mode for current artifacts
