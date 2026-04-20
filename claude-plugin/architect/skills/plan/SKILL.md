@@ -63,6 +63,13 @@ Before writing hidden artifact outputs, read [../references/architecture-contrac
 
 Do **not** front-load this contract read before the first visible architecture draft in normal plan-mode use.
 
+Resolve the contract through the skill-relative reference path only.
+
+- In the repo checkout, use `../references/architecture-contract.md`.
+- In plugin installs, use the mirrored skill reference shipped with the plugin at `skills/references/architecture-contract.md`.
+- If that lookup fails, stop and report the missing contract path.
+- Do **not** run a repo-wide search for alternate contract files, artifact examples, `manifest.yaml`, `model.yaml`, or nearby architecture outputs.
+
 Default output path:
 
 - `architecture/manifest.yaml`
@@ -92,6 +99,7 @@ If critical constraints are missing, record unknowns explicitly instead of inven
 - Keep implementation out of scope. This skill stops at architecture artifacts + rendered diagram outputs.
 - Do not require a repository scan for normal plan-mode use.
 - For greenfield planning or direct `/architect-plan` invocation, do **not** start by exploring the current project directory, reading repo docs, reading the architecture contract, reading examples/evals, or spawning Explore agents unless the user explicitly asks for repo-aware tailoring or artifact-only regeneration.
+- Unless the user explicitly asks for examples or eval analysis, do **not** read from `evals/`, `examples/`, `iteration-*`, `skill-snapshot/`, or similar archive/snapshot directories to infer the contract or bootstrap artifacts.
 - The host planner owns the visible planning conversation. This skill owns artifact generation only.
 - Build one canonical model first, then derive views.
 - Use explicit confidence levels: `confirmed`, `strong_inference`, `weak_inference`.
