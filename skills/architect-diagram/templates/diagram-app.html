@@ -1814,6 +1814,7 @@
     }
 
     #canvas,
+    #sidebar,
     #sidebarBody,
     #sidebarTitle,
     #sidebarCount,
@@ -1830,24 +1831,23 @@
       view-transition-name: active-tab;
     }
 
-    html[data-ui-transition="mode"] #sidebarBody,
-    html[data-ui-transition="mode"] #sidebarTitle,
-    html[data-ui-transition="mode"] #sidebarCount,
-    html[data-ui-transition="mode"] #sidebarFooter,
     html[data-ui-transition="mode"] #canvas {
-      view-transition-name: mode-surface;
+      view-transition-name: mode-canvas;
     }
 
-    html[data-ui-transition="detail"] #sidebarBody,
-    html[data-ui-transition="detail"] #sidebarTitle,
-    html[data-ui-transition="detail"] #sidebarCount {
-      view-transition-name: detail-panel;
+    html[data-ui-transition="mode"] #sidebar {
+      view-transition-name: mode-sidebar;
+    }
+
+    html[data-ui-transition="detail"] #sidebar {
+      view-transition-name: detail-sidebar;
     }
 
     ::view-transition-group(canvas-stage),
     ::view-transition-group(active-tab),
-    ::view-transition-group(mode-surface),
-    ::view-transition-group(detail-panel) {
+    ::view-transition-group(mode-canvas),
+    ::view-transition-group(mode-sidebar),
+    ::view-transition-group(detail-sidebar) {
       animation-duration: var(--duration-slow);
       animation-timing-function: var(--ease-drawer);
     }
@@ -1874,19 +1874,21 @@
       animation: canvas-slide-in-left 360ms var(--ease-drawer) both;
     }
 
-    html[data-ui-transition="mode"]::view-transition-old(mode-surface) {
+    html[data-ui-transition="mode"]::view-transition-old(mode-canvas),
+    html[data-ui-transition="mode"]::view-transition-old(mode-sidebar) {
       animation: surface-fade-out 180ms var(--ease-out) both;
     }
 
-    html[data-ui-transition="mode"]::view-transition-new(mode-surface) {
+    html[data-ui-transition="mode"]::view-transition-new(mode-canvas),
+    html[data-ui-transition="mode"]::view-transition-new(mode-sidebar) {
       animation: surface-fade-in 260ms var(--ease-drawer) both;
     }
 
-    html[data-ui-transition="detail"]::view-transition-old(detail-panel) {
+    html[data-ui-transition="detail"]::view-transition-old(detail-sidebar) {
       animation: detail-out 160ms var(--ease-out) both;
     }
 
-    html[data-ui-transition="detail"]::view-transition-new(detail-panel) {
+    html[data-ui-transition="detail"]::view-transition-new(detail-sidebar) {
       animation: detail-in 220ms var(--ease-out) both;
     }
 
@@ -4186,19 +4188,33 @@ function layoutRelationshipLabels(svg) {
   });
 }
 
+function scheduleRelationshipLabelRelayout(svg) {
+  if (!svg || !svg.isConnected) return;
+  if (!svg.querySelector('[data-relationship-id]')) return;
+
+  const fonts = document.fonts;
+  if (!fonts || !fonts.ready || typeof fonts.ready.then !== 'function') return;
+  if (fonts.status === 'loaded') return;
+
+  const token = String((Number(svg.getAttribute('data-edge-label-layout-token') || '0') + 1));
+  svg.setAttribute('data-edge-label-layout-token', token);
+
+  fonts.ready.then(function () {
+    if (!svg.isConnected) return;
+    if (svg.getAttribute('data-edge-label-layout-token') !== token) return;
+    layoutRelationshipLabels(svg);
+    if (state.pendingTarget) applyCommentTargetIndicators(svg);
+  }).catch(function () {
+    // ignore font loading failures; initial label placement is already rendered
+  });
+}
+
 function finalizeDiagramSvg(svg, view) {
   if (!svg) return;
   applySvgTheme(svg, view);
   wireSvgInteractions(svg, view);
   layoutRelationshipLabels(svg);
-
-  if (window.requestAnimationFrame) {
-    window.requestAnimationFrame(function () {
-      if (!svg.isConnected) return;
-      layoutRelationshipLabels(svg);
-      if (state.pendingTarget) applyCommentTargetIndicators(svg);
-    });
-  }
+  scheduleRelationshipLabelRelayout(svg);
 }
 
 function nodeHeaderBandPath(x, y, width, height, radius) {
