@@ -88,6 +88,7 @@ Do not skip this step.
 - stable IDs for unchanged concepts
 - no invented entities/relationships outside available evidence
 - explicit unknowns/assumptions
+- every container should support drill-down when it has meaningful, evidenced internal boundaries
 
 ### Plan quality checks (when touching plan flow)
 - decision coverage check
