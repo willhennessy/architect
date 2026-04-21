@@ -227,11 +227,13 @@ def default_kind_fields(kind: str) -> Tuple[str, str, bool]:
         return ("context", "external", True)
     if kind in {"software_system", "system"}:
         return ("context", "process", False)
-    if kind in {"database", "queue", "cache", "container"}:
-        return ("container", "process", False)
+    if kind in {"database", "queue", "cache"}:
+        return ("container", "data_store", False)
+    if kind == "container":
+        return ("container", "deployable", False)
     if kind == "component":
         return ("component", "internal_module", False)
-    return ("container", "process", False)
+    return ("container", "deployable", False)
 
 
 def allowed_in_view(view_type: str, kind: str) -> bool:

@@ -113,6 +113,13 @@ NORMALIZATION_HINTS = {
     "worker": "container",
 }
 
+RUNTIME_BOUNDARY_NORMALIZATION_HINTS = {
+    "database": "data_store",
+    "datastore": "data_store",
+    "store": "data_store",
+    "network": "network_zone",
+}
+
 
 def read_yaml(path: Path) -> Dict[str, Any]:
     if not path.exists():
@@ -251,7 +258,13 @@ def validate_model(output_root: Path, errors: List[str], warnings: List[str]) ->
 
         runtime_boundary = str(element.get("runtime_boundary") or "")
         if runtime_boundary and runtime_boundary not in RUNTIME_BOUNDARIES:
-            add_error(errors, path, f"invalid runtime_boundary `{runtime_boundary}`")
+            hint = RUNTIME_BOUNDARY_NORMALIZATION_HINTS.get(runtime_boundary.lower())
+            if hint:
+                warnings.append(
+                    f"{path}: legacy runtime_boundary `{runtime_boundary}`; normalize to `{hint}`"
+                )
+            else:
+                add_error(errors, path, f"invalid runtime_boundary `{runtime_boundary}`")
 
         if kind == "component" and is_blank(element.get("parent_id")):
             add_error(errors, path, "component elements must set `parent_id`")
@@ -344,6 +357,18 @@ def validate_views(output_root: Path, element_kinds: Dict[str, str], relationshi
                     errors,
                     view_label,
                     f"element `{ref}` has kind `{element_kinds.get(ref)}` which is not allowed in `{view_type}` views",
+                )
+        if view_type == "system_context" and explicit_element_ids:
+            has_system_of_interest = any(
+                element_kinds.get(ref) in {"software_system", "system"}
+                for ref in explicit_element_ids
+                if ref in element_ids
+            )
+            if not has_system_of_interest:
+                add_error(
+                    errors,
+                    view_label,
+                    "system_context views must include at least one `software_system` element for the system of interest",
                 )
 
         explicit_relationship_ids = data.get("relationship_ids")
