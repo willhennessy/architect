@@ -10,6 +10,7 @@ Behavior:
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -25,9 +26,20 @@ VIEW_PRIORITY = {
     "deployment": 3,
     "sequence": 4,
 }
+SYSTEM_LIKE_KINDS = {"software_system", "system"}
+CONTEXT_EXTERNAL_KINDS = {"person", "external_system"}
 
 SVG_FRAGMENT_METADATA = "_metadata.json"
 RUNTIME_DIR = ".out"
+BRAND_ASSET_SOURCES = {
+    "__BRAND_LOGO_SRC__": ("architect-logo.png", "image/png"),
+    "__FAVICON_ICO_SRC__": ("favicon.ico", "image/x-icon"),
+    "__FAVICON_16_SRC__": ("favicon-16.png", "image/png"),
+    "__FAVICON_32_SRC__": ("favicon-32.png", "image/png"),
+    "__FAVICON_48_SRC__": ("favicon-48.png", "image/png"),
+    "__FAVICON_64_SRC__": ("favicon-64.png", "image/png"),
+    "__FAVICON_180_SRC__": ("favicon-180.png", "image/png"),
+}
 
 
 class RenderError(RuntimeError):
@@ -182,6 +194,7 @@ def normalize_element(el: Dict[str, Any]) -> Dict[str, Any]:
         "tags": el.get("tags") or [],
         "parent_id": el.get("parent_id") or None,
         "c4_level": el.get("c4_level") or "",
+        "synthetic": bool(el.get("synthetic")),
     }
 
 
@@ -228,6 +241,80 @@ def normalize_relationship(rel: Dict[str, Any]) -> Dict[str, Any]:
     }
     normalized["detailable"] = relationship_has_sidebar_details(normalized)
     return normalized
+
+
+def normalized_kind(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def is_system_like_node(node: Dict[str, Any]) -> bool:
+    return normalized_kind(node.get("kind")) in SYSTEM_LIKE_KINDS
+
+
+def is_internal_model_element(node: Dict[str, Any] | None) -> bool:
+    if not isinstance(node, dict):
+        return False
+    kind = normalized_kind(node.get("kind"))
+    return bool(kind) and kind not in CONTEXT_EXTERNAL_KINDS and not bool(node.get("external"))
+
+
+def synthetic_system_id(view_id: str) -> str:
+    token = "".join(ch if ch.isalnum() else "-" for ch in str(view_id or "system-context")).strip("-")
+    return f"synthetic-system--{token or 'system-context'}"
+
+
+def build_synthetic_system_node(view_id: str, system_name: str) -> Dict[str, Any]:
+    return {
+        "id": synthetic_system_id(view_id),
+        "name": system_name,
+        "kind": "software_system",
+        "description": f"System of interest for {system_name}.",
+        "technology": "",
+        "confidence": "confirmed",
+        "tags": ["system-of-interest", "synthetic"],
+        "parent_id": None,
+        "c4_level": "context",
+        "synthetic": True,
+    }
+
+
+def adapt_system_context_view(
+    view_id: str,
+    nodes: List[Dict[str, Any]],
+    rels: List[Dict[str, Any]],
+    elements_by_id: Dict[str, Dict[str, Any]],
+    system_name: str,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any] | None]:
+    system_nodes = [node for node in nodes if is_system_like_node(node)]
+    synthetic_node: Dict[str, Any] | None = None
+    if system_nodes:
+        system_anchor_id = str(system_nodes[0].get("id") or "")
+    else:
+        synthetic_node = build_synthetic_system_node(view_id, system_name)
+        nodes = nodes + [synthetic_node]
+        system_anchor_id = synthetic_node["id"]
+
+    visible_ids = {str(node.get("id") or "") for node in nodes if str(node.get("id") or "")}
+    adapted_edges: List[Dict[str, Any]] = []
+    seen: Set[tuple[str, str, str]] = set()
+    for rel in rels:
+        source_id = str(rel.get("source_id") or "")
+        target_id = str(rel.get("target_id") or "")
+        if source_id not in visible_ids and is_internal_model_element(elements_by_id.get(source_id)):
+            source_id = system_anchor_id
+        if target_id not in visible_ids and is_internal_model_element(elements_by_id.get(target_id)):
+            target_id = system_anchor_id
+        if source_id not in visible_ids or target_id not in visible_ids or source_id == target_id:
+            continue
+        dedupe_key = (source_id, target_id, str(rel.get("label") or ""))
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        adapted = dict(rel)
+        adapted["source_id"] = source_id
+        adapted["target_id"] = target_id
+        adapted_edges.append(adapted)
+    return nodes, adapted_edges, synthetic_node
 
 
 def normalize_view(data: Dict[str, Any], source_path: Path, views_root: Path) -> Dict[str, Any]:
@@ -372,7 +459,7 @@ def build_view_hierarchy(payload_views: List[Dict[str, Any]], drill_map: Dict[st
 
     for view in payload_views:
         view_id = str(view.get("id") or "")
-        if not view_id or view_id in parent_by_view_id:
+        if not view_id:
             continue
         seen_child_ids: Set[str] = set()
         for node in (view.get("nodes") or []):
@@ -461,6 +548,23 @@ def relationships_for_view(
     return selected
 
 
+def build_view_perf_profile(
+    view_id: str,
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+    svg_fragment: str | None,
+) -> Dict[str, Any]:
+    fragment = svg_fragment or ""
+    return {
+        "view_id": view_id,
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "svg_bytes": len(fragment.encode("utf-8")) if fragment else 0,
+        "svg_text_count": fragment.count("<text") if fragment else 0,
+        "has_svg_fragment": bool(fragment),
+    }
+
+
 def build_payload(
     manifest: Dict[str, Any],
     model: Dict[str, Any],
@@ -474,12 +578,15 @@ def build_payload(
 
     elements_by_id = {e["id"]: e for e in all_elements if e.get("id")}
     rels_by_id = {r["id"]: r for r in all_relationships if r.get("id")}
+    system_name = manifest.get("system_name") or model.get("system_name") or "Architecture"
+    system_subtitle = str(manifest.get("overall_summary") or system_name)
 
     if not chosen_views:
         raise RenderError("No usable views found to render.")
 
     payload_views: List[Dict[str, Any]] = []
     used_element_ids: Set[str] = set()
+    synthetic_elements: Dict[str, Dict[str, Any]] = {}
 
     for view in chosen_views:
         vtype = view.get("type")
@@ -487,6 +594,7 @@ def build_payload(
         title = view.get("title") or view_id
 
         if vtype == "sequence":
+            svg_fragment = svg_fragments.get(view_id)
             steps = []
             for st in (view.get("steps") or []):
                 if not isinstance(st, dict):
@@ -513,7 +621,8 @@ def build_payload(
                     "title": title,
                     "kind": "sequence",
                     "steps": sorted(steps, key=lambda s: s.get("order", 10**9)),
-                    "svg_fragment": svg_fragments.get(view_id),
+                    "svg_fragment": svg_fragment,
+                    "perf": build_view_perf_profile(view_id, [], steps, svg_fragment),
                     "source_relpath": view.get("source_relpath") or "",
                 }
             )
@@ -532,10 +641,22 @@ def build_payload(
                 parent_id = view.get("parent_container_id")
                 nodes = [e for e in all_elements if e.get("parent_id") == parent_id] if parent_id else [e for e in all_elements if e.get("c4_level") == "component"]
 
-        used_element_ids.update([n["id"] for n in nodes if n.get("id")])
         node_ids = {n["id"] for n in nodes if n.get("id")}
 
         rels = relationships_for_view(view, rels_by_id, all_relationships, node_ids)
+        if vtype == "system_context":
+            nodes, rels, synthetic_node = adapt_system_context_view(
+                str(view_id),
+                nodes,
+                rels,
+                elements_by_id,
+                system_name,
+            )
+            if synthetic_node:
+                synthetic_elements[synthetic_node["id"]] = synthetic_node
+            node_ids = {n["id"] for n in nodes if n.get("id")}
+
+        used_element_ids.update([n["id"] for n in nodes if n.get("id")])
         edges = []
         for r in rels:
             if not (r.get("source_id") and r.get("target_id")):
@@ -556,6 +677,7 @@ def build_payload(
                 }
             )
 
+        svg_fragment = svg_fragments.get(view_id)
         payload_views.append(
             {
                 "id": view_id,
@@ -565,7 +687,8 @@ def build_payload(
                 "nodes": sorted(nodes, key=lambda n: (n.get("name") or n.get("id") or "")),
                 "edges": edges,
                 "parent_container_id": view.get("parent_container_id") or None,
-                "svg_fragment": svg_fragments.get(view_id),
+                "svg_fragment": svg_fragment,
+                "perf": build_view_perf_profile(view_id, nodes, edges, svg_fragment),
                 "source_relpath": view.get("source_relpath") or "",
             }
         )
@@ -596,9 +719,12 @@ def build_payload(
 
     used_element_ids.update(drill_map.keys())
     payload_elements = [elements_by_id[eid] for eid in sorted(used_element_ids) if eid in elements_by_id]
-
-    system_name = manifest.get("system_name") or model.get("system_name") or "Architecture"
-    system_subtitle = str(manifest.get("overall_summary") or system_name)
+    existing_payload_ids = {str(element.get("id") or "") for element in payload_elements}
+    payload_elements.extend(
+        synthetic_elements[eid]
+        for eid in sorted(synthetic_elements)
+        if eid not in existing_payload_ids
+    )
     view_hierarchy = build_view_hierarchy(payload_views, drill_map)
 
     return {
@@ -626,10 +752,26 @@ def load_views(views_dir: Path) -> List[Dict[str, Any]]:
     return out
 
 
-def render_html(template_path: Path, payload: Dict[str, Any], mode: str) -> str:
+def load_brand_assets(skill_root: Path) -> Dict[str, str]:
+    asset_dir = skill_root / "templates" / "assets" / "branding"
+    replacements: Dict[str, str] = {}
+
+    for placeholder, (filename, mime_type) in BRAND_ASSET_SOURCES.items():
+        asset_path = asset_dir / filename
+        if not asset_path.exists():
+            raise RenderError(f"Brand asset missing: {asset_path}")
+        encoded = base64.b64encode(asset_path.read_bytes()).decode("ascii")
+        replacements[placeholder] = f"data:{mime_type};base64,{encoded}"
+
+    return replacements
+
+
+def render_html(template_path: Path, payload: Dict[str, Any], mode: str, brand_assets: Dict[str, str]) -> str:
     template = template_path.read_text(encoding="utf-8")
     html = template.replace("__DIAGRAM_DATA_JSON__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__DIAGRAM_MODE__", mode)
+    for placeholder, value in brand_assets.items():
+        html = html.replace(placeholder, value)
     return html
 
 
@@ -677,11 +819,12 @@ def main() -> int:
         ],
     }
 
-    template_path = Path(__file__).resolve().parents[1] / "templates" / "diagram-app.html"
+    skill_root = Path(__file__).resolve().parents[1]
+    template_path = skill_root / "templates" / "diagram-app.html"
     if not template_path.exists():
         raise RenderError(f"Template missing: {template_path}")
 
-    html = render_html(template_path, payload, args.mode)
+    html = render_html(template_path, payload, args.mode, load_brand_assets(skill_root))
     out_html = diagram_html_path(output_root)
     out_html.parent.mkdir(parents=True, exist_ok=True)
     out_html.write_text(html, encoding="utf-8")
