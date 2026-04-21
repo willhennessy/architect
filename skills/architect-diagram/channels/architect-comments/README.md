@@ -16,7 +16,7 @@
 
 </div>
 
-![Architect comment channel hero showing the DocSign containers view with the comment composer open](../../../../docs/assets/architect-hero-docsign-comment-modal.png)
+![Architect comment channel hero showing the containers view and component details panel](../../../../docs/assets/readme-hero-image.png)
 
 Use this when you are debugging the transport layer itself. If you just want Architect to work inside Claude Code, start with the packaged plugin runtime instead. The plugin is the primary product path. This channel server is the "show me the pipes" path.
 

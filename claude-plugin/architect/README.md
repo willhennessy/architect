@@ -2,7 +2,7 @@
 
 Claude Architect is an interactive architecture layer for Plan Mode. It transforms Claude's text plan into a visual diagram that you can inspect, annotate, and revise with your agent in real time
 
-![Architect hero showing the DocSign containers view with the comment composer open](docs/assets/architect-hero-docsign-comment-modal.png)
+![Architect hero showing the containers view and component details panel](docs/assets/readme-hero-image.png)
 
 This creates a steering loop that feels more like a whiteboard session:
 
@@ -16,11 +16,11 @@ This creates a steering loop that feels more like a whiteboard session:
 ### 1. Install the plugin
 
 ```bash
-claude plugin marketplace add willhennessy/architect
+claude plugin marketplace add https://github.com/willhennessy/architect.git
 claude plugin install architect@plugins
 ```
 
-### 2. Start Claude with two flags
+### 2. Start Claude
 
 ```bash
 claude --dangerously-load-development-channels plugin:architect@plugins
@@ -28,12 +28,20 @@ claude --dangerously-load-development-channels plugin:architect@plugins
 
 ### 3. Plan a new project
 
-Inside Claude:
-
 1. Switch to Plan Mode
-2. Run `/architect:plan` for a new system or `/architect:init` for an existing repo
-3. After writing a plan, Claude will ask if you want an interactive diagram. Say yes.
+2. Run `/architect:plan` with your design prompt
+3. After drafting the plan, Claude will ask if you want an interactive diagram. Say yes.
 4. Open `./architecture/diagram.html` in your browser
+
+Or if you're working in an existing repo run `/architect:init`.
+
+## Skills
+
+| Name                | Description                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `architect-plan`    | Enhance Plan Mode with a visual, interactive architecture diagram.                                            |
+| `architect-init`    | Generate a diagram and structured architecture files for an existing codebase.                                |
+| `architect-diagram` | Render `diagram.html` from existing architecture artifacts. In normal flows you should not need to call this. |
 
 ## How it works
 
