@@ -1013,28 +1013,11 @@ def wrap_edge_label_lines(text: str) -> List[str]:
 def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str = "var(--color-border-strong)") -> str:
     points = orthogonal_points(edge.id, src_box, dst_box)
     path_data = rounded_polyline(points)
-    lx, ly, _angle = label_for_polyline(points)
-    label_lines = wrap_edge_label_lines(edge.label or edge.id)
-    label_markup = ""
-    if label_lines:
-        line_height = 13.0
-        start_y = ly - ((len(label_lines) - 1) * line_height) / 2.0
-        text_markup = "\n".join(
-            f"      <text x=\"{lx:.1f}\" y=\"{start_y + idx * line_height:.1f}\" text-anchor=\"middle\" dominant-baseline=\"middle\" "
-            f"font-size=\"11\" fill=\"var(--color-text-tertiary)\">{esc(line)}</text>"
-            for idx, line in enumerate(label_lines)
-        )
-        label_markup = (
-            f"\n    <g class=\"edge-label\" data-edge-label=\"true\">\n"
-            f"{text_markup}\n"
-            f"    </g>"
-        )
     return (
         f"<g data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" "
         f"data-target-label=\"{esc(edge.label or edge.id)}\">\n"
         f"    <path d=\"{path_data}\" stroke=\"{color}\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#arrow)\" />\n"
-        f"    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" />"
-        f"{label_markup}\n"
+        f"    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" />\n"
         f"  </g>"
     )
 

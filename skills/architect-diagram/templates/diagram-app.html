@@ -5187,7 +5187,6 @@ function drawDiagramView(view) {
     if (!a || !b) return;
     const routePoints = relationshipRoutePoints(a, b, edge.id || '');
     const pathData = roundedPolylinePathData(routePoints, 10);
-    const labelPoint = labelPlacementForPolyline(routePoints);
 
     const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     edgeGroup.setAttribute('data-relationship-id', edge.id || '');
@@ -5216,10 +5215,6 @@ function drawDiagramView(view) {
     edgeGroup.appendChild(hit);
 
     svg.appendChild(edgeGroup);
-    if (MODE === 'rich' && edge.label) {
-      const labelGroup = appendEdgeLabel(edgeGroup, labelPoint.x, labelPoint.y, edge.label);
-      finalizeEdgeLabelMask(labelGroup);
-    }
   });
 
   // nodes
