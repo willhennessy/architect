@@ -120,7 +120,7 @@ Apply these defaults:
 
 If the correct answer is "this repo is a library, not a deployable system", say so and adjust outputs accordingly.
 
-Use the smallest artifact set that still explains the runtime truth. Do not produce component or deployment views by default if they add no explanatory value.
+Use the smallest artifact set that still explains the runtime truth. Every container should support drill-down when it has meaningful, evidenced internal boundaries. Do not produce component or deployment views by default if they add no explanatory value.
 
 ## Discovery Workflow
 

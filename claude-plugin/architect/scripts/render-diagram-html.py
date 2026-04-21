@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Set
 
 import yaml
@@ -68,7 +68,10 @@ def diagram_data_path(output_root: Path) -> Path:
 def list_view_files(views_dir: Path) -> List[Path]:
     if not views_dir.exists() or not views_dir.is_dir():
         raise RenderError(f"Missing views directory: {views_dir}")
-    return sorted([p for p in views_dir.iterdir() if p.suffix in {".yaml", ".yml"}])
+    return sorted(
+        [p for p in views_dir.rglob("*") if p.is_file() and p.suffix in {".yaml", ".yml"}],
+        key=lambda path: path.relative_to(views_dir).as_posix(),
+    )
 
 
 def normalize_svg_fragment(text: str) -> str:
@@ -127,8 +130,9 @@ def load_svg_fragments(output_root: Path, views: List[Dict[str, Any]], svg_dir_n
 def compute_revision_id(output_root: Path) -> str:
     arch = architecture_dir(output_root)
     parts: List[bytes] = []
-    for path in sorted((arch / "views").glob("*.y*ml")):
-        parts.append(path.name.encode("utf-8"))
+    views_dir = arch / "views"
+    for path in list_view_files(views_dir):
+        parts.append(path.relative_to(arch).as_posix().encode("utf-8"))
         parts.append(path.read_bytes())
     for name in ("manifest.yaml", "model.yaml", "summary.md", "diff.yaml"):
         path = arch / name
@@ -226,7 +230,7 @@ def normalize_relationship(rel: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-def normalize_view(data: Dict[str, Any], source_path: Path) -> Dict[str, Any]:
+def normalize_view(data: Dict[str, Any], source_path: Path, views_root: Path) -> Dict[str, Any]:
     vtype = canon_view_type(data.get("type") or data.get("view_type"))
     vid = data.get("id") or source_path.stem
 
@@ -264,6 +268,151 @@ def normalize_view(data: Dict[str, Any], source_path: Path) -> Dict[str, Any]:
         "participant_ids": participant_ids,
         "steps": steps,
         "parent_container_id": data.get("parent_container_id") or data.get("parent_container") or None,
+        "source_relpath": source_path.relative_to(views_root).as_posix(),
+    }
+
+
+def normalize_source_relpath(relpath: Any) -> str:
+    return str(relpath or "").strip().replace("\\", "/").strip("/")
+
+
+def singularize_path_segment(segment: str) -> str:
+    token = str(segment or "").strip()
+    if len(token) <= 1:
+        return token
+    if token.endswith("ies") and len(token) > 3:
+        return token[:-3] + "y"
+    if token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
+def candidate_parent_view_paths(source_relpath: str) -> List[str]:
+    normalized = normalize_source_relpath(source_relpath)
+    if not normalized:
+        return []
+
+    path = PurePosixPath(normalized)
+    dir_parts = list(path.parts[:-1])
+    if not dir_parts:
+        return []
+
+    candidates: List[str] = []
+    seen: Set[str] = set()
+
+    for depth in range(len(dir_parts), 0, -1):
+        ancestor_parts = dir_parts[:depth]
+        parent_dir_parts = ancestor_parts[:-1]
+        dir_name = ancestor_parts[-1]
+        base_names = [dir_name]
+        singular_name = singularize_path_segment(dir_name)
+        if singular_name and singular_name not in base_names:
+            base_names.append(singular_name)
+
+        for base_name in base_names:
+            for suffix in (".yaml", ".yml"):
+                candidate = PurePosixPath(*parent_dir_parts, f"{base_name}{suffix}").as_posix()
+                if candidate not in seen:
+                    seen.add(candidate)
+                    candidates.append(candidate)
+
+        for index_name in ("index.yaml", "index.yml"):
+            candidate = PurePosixPath(*ancestor_parts, index_name).as_posix()
+            if candidate not in seen:
+                seen.add(candidate)
+                candidates.append(candidate)
+
+    return candidates
+
+
+def find_path_parent_view_id(
+    view: Dict[str, Any],
+    view_id_by_source_relpath: Dict[str, str],
+) -> str | None:
+    view_id = str(view.get("id") or "")
+    for candidate in candidate_parent_view_paths(str(view.get("source_relpath") or "")):
+        parent_id = view_id_by_source_relpath.get(candidate.lower())
+        if parent_id and parent_id != view_id:
+            return parent_id
+    return None
+
+
+def build_view_hierarchy(payload_views: List[Dict[str, Any]], drill_map: Dict[str, str]) -> Dict[str, Any]:
+    ordered_view_ids = [str(view.get("id") or "") for view in payload_views if str(view.get("id") or "")]
+    view_id_set = set(ordered_view_ids)
+    children_by_view_id: Dict[str, List[str]] = {view_id: [] for view_id in ordered_view_ids}
+    parent_by_view_id: Dict[str, str] = {}
+
+    def link_parent_child(parent_id: str, child_id: str) -> bool:
+        if not parent_id or not child_id or parent_id == child_id:
+            return False
+        if parent_id not in view_id_set or child_id not in view_id_set:
+            return False
+        existing_parent = parent_by_view_id.get(child_id)
+        if existing_parent and existing_parent != parent_id:
+            return False
+        parent_by_view_id[child_id] = parent_id
+        children = children_by_view_id.setdefault(parent_id, [])
+        if child_id not in children:
+            children.append(child_id)
+        return True
+
+    view_id_by_source_relpath: Dict[str, str] = {}
+    for view in payload_views:
+        view_id = str(view.get("id") or "")
+        relpath = normalize_source_relpath(view.get("source_relpath"))
+        if view_id and relpath and relpath.lower() not in view_id_by_source_relpath:
+            view_id_by_source_relpath[relpath.lower()] = view_id
+
+    for view in payload_views:
+        view_id = str(view.get("id") or "")
+        parent_id = find_path_parent_view_id(view, view_id_by_source_relpath)
+        if parent_id:
+            link_parent_child(parent_id, view_id)
+
+    for view in payload_views:
+        view_id = str(view.get("id") or "")
+        if not view_id or view_id in parent_by_view_id:
+            continue
+        seen_child_ids: Set[str] = set()
+        for node in (view.get("nodes") or []):
+            if not isinstance(node, dict):
+                continue
+            child_id = drill_map.get(str(node.get("id") or ""))
+            if not child_id or child_id == view_id or child_id in seen_child_ids:
+                continue
+            seen_child_ids.add(child_id)
+            link_parent_child(view_id, child_id)
+
+    items: List[Dict[str, Any]] = []
+    visited: Set[str] = set()
+
+    def visit(view_id: str, depth: int) -> None:
+        if not view_id or view_id in visited or view_id not in view_id_set:
+            return
+        visited.add(view_id)
+        items.append({"view_id": view_id, "depth": depth})
+        for child_id in children_by_view_id.get(view_id, []):
+            visit(child_id, depth + 1)
+
+    for view_id in ordered_view_ids:
+        if view_id not in parent_by_view_id:
+            visit(view_id, 0)
+
+    orphan_ids: List[str] = []
+    for view_id in ordered_view_ids:
+        if view_id in visited:
+            continue
+        orphan_ids.append(view_id)
+        visit(view_id, 0)
+
+    depth_by_view_id = {entry["view_id"]: entry["depth"] for entry in items}
+    return {
+        "items": items,
+        "children_by_view_id": children_by_view_id,
+        "parent_by_view_id": parent_by_view_id,
+        "depth_by_view_id": depth_by_view_id,
+        "orphan_ids": orphan_ids,
     }
 
 
@@ -365,6 +514,7 @@ def build_payload(
                     "kind": "sequence",
                     "steps": sorted(steps, key=lambda s: s.get("order", 10**9)),
                     "svg_fragment": svg_fragments.get(view_id),
+                    "source_relpath": view.get("source_relpath") or "",
                 }
             )
             continue
@@ -416,6 +566,7 @@ def build_payload(
                 "edges": edges,
                 "parent_container_id": view.get("parent_container_id") or None,
                 "svg_fragment": svg_fragments.get(view_id),
+                "source_relpath": view.get("source_relpath") or "",
             }
         )
 
@@ -448,6 +599,7 @@ def build_payload(
 
     system_name = manifest.get("system_name") or model.get("system_name") or "Architecture"
     system_subtitle = str(manifest.get("overall_summary") or system_name)
+    view_hierarchy = build_view_hierarchy(payload_views, drill_map)
 
     return {
         "system_name": system_name,
@@ -456,6 +608,7 @@ def build_payload(
         "views": payload_views,
         "elements": payload_elements,
         "drill_map": drill_map,
+        "view_hierarchy": view_hierarchy,
         "comment_handoff": {
             "bridge_url": feedback_bridge_url,
             "output_root": str(output_root),
@@ -469,7 +622,7 @@ def build_payload(
 def load_views(views_dir: Path) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for vf in list_view_files(views_dir):
-        out.append(normalize_view(read_yaml(vf), vf))
+        out.append(normalize_view(read_yaml(vf), vf, views_dir))
     return out
 
 
