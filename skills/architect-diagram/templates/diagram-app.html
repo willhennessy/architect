@@ -4861,6 +4861,10 @@ function wireSvgInteractions(svg, view) {
 
   svg.querySelectorAll('[data-element-id]').forEach(function (el) {
     el.classList.add('diagram-node');
+    const node = nodesById.get(el.getAttribute('data-element-id'));
+    if (node && node.synthetic) {
+      el.setAttribute('data-synthetic', 'true');
+    }
     if (state.mode === 'explore' && el.getAttribute('data-element-id') === state.selectedId) {
       el.setAttribute('data-selected', 'true');
     } else {
@@ -5071,6 +5075,9 @@ function drawDiagramView(view) {
     g.setAttribute('data-element-id', node.id);
     g.setAttribute('data-view-id', view.id);
     g.setAttribute('data-target-label', node.name || node.id);
+    if (node.synthetic) {
+      g.setAttribute('data-synthetic', 'true');
+    }
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', String(box.x));
@@ -5964,6 +5971,9 @@ function underlyingInteractionTarget(el) {
 function commentTargetFromInteractionTarget(targetEl) {
   if (!targetEl) return null;
   const viewId = targetEl.getAttribute('data-view-id') || state.viewId;
+  if (targetEl.getAttribute('data-synthetic') === 'true') {
+    return canvasCommentTarget(viewsById.get(viewId) || currentView());
+  }
   if (targetEl.hasAttribute('data-element-id')) {
     return {
       view_id: viewId,
