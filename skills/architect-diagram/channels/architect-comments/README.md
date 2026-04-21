@@ -1,22 +1,37 @@
-# Architect Comments Channel
+<div align="center">
 
-This is the legacy bare-server development channel for Architect comment feedback.
+<h1>Architect Comments Channel</h1>
 
-The primary packaging path is now the plugin runtime at:
+<p><strong>Advanced bare-server path for debugging comment handoff without the plugin wrapper</strong></p>
 
-- `/Users/will/.codex/worktrees/d07d/architect/claude-plugin/architect/README.md`
+<p>This is the expert-mode transport for people who want to inspect the raw channel flow, MCP wiring, and localhost bridge behavior directly.</p>
 
-Use this bare channel server when you want to debug the channel transport directly outside the plugin wrapper.
+<p>
+  <a href="../../../../README.md"><strong>Repo overview</strong></a>
+  ·
+  <a href="../../../../claude-plugin/architect/README.md"><strong>Primary plugin runtime</strong></a>
+  ·
+  <a href="#getting-started"><strong>Getting started</strong></a>
+</p>
 
-It exists so the user's live Claude session can own the full comment-update loop:
+</div>
 
-1. `architecture/diagram.html` submits a batched feedback job to the localhost bridge
-2. the bridge persists the job and forwards it to this channel server
-3. Claude receives a `<channel ...>` event in the active session
-4. Claude acknowledges the feedback, updates bridge job status through the MCP tool, and takes over the update loop
-5. Claude validates and rerenders the same `architecture/diagram.html` through the finalize MCP tool before marking the job complete
+![Architect comment channel hero showing the containers view and component details panel](../../../../docs/assets/readme-hero-image.png)
 
-## Install
+Use this when you are debugging the transport layer itself. If you just want Architect to work inside Claude Code, start with the packaged plugin runtime instead. The plugin is the primary product path. This channel server is the "show me the pipes" path.
+
+## When You Actually Want This
+
+- You are debugging channel delivery outside the plugin wrapper
+- You want to inspect the localhost bridge and job handoff directly
+- You are validating MCP behavior during development
+- You want a known-good bare-server setup for regression work
+
+If none of those sound like your day, use the plugin guide instead: [`claude-plugin/architect/README.md`](../../../../claude-plugin/architect/README.md).
+
+## Getting Started
+
+### 1. Install the local dependency
 
 From this directory:
 
@@ -24,22 +39,9 @@ From this directory:
 npm install
 ```
 
-## Legacy bare-server path (known good)
+### 2. Write a temporary MCP config
 
-This is the **known-good bare-server setup** for Claude handoff today.
-
-It was validated against Claude Code `2.1.111`, the in-repo bridge, and the development channel server in this repo.
-
-### 1) From the repo root, install the channel dependency
-
-```bash
-REPO_ROOT=$(pwd)
-cd "$REPO_ROOT/skills/architect-diagram/channels/architect-comments"
-npm install
-cd "$REPO_ROOT"
-```
-
-### 2) Write a temporary MCP config for Claude
+From the repo root:
 
 ```bash
 REPO_ROOT=$(pwd)
@@ -60,7 +62,7 @@ cat > /tmp/architect-channel-mcp.json <<EOF
 EOF
 ```
 
-### 3) Start the bridge in Claude handoff mode
+### 3. Start the bridge in Claude handoff mode
 
 ```bash
 REPO_ROOT=$(pwd)
@@ -69,7 +71,7 @@ python3 "$REPO_ROOT/skills/architect-diagram/scripts/comment_feedback_bridge.py"
   --channel-handoff-only
 ```
 
-### 4) In a second terminal, start Claude with the development channel enabled
+### 4. Start Claude with the development channel enabled
 
 ```bash
 claude \
@@ -80,35 +82,40 @@ claude \
   --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 ```
 
-### 5) Approve the development-channel prompt and verify the connection
+### 5. Verify the connection
 
-- choose `I am using this for local development`
-- run `/mcp`
-- confirm `architect-comments` shows as connected before submitting comments
+Inside Claude:
 
-### 6) Submit comments from `architecture/diagram.html`
+1. Approve the development channel prompt.
+2. Run `/mcp`.
+3. Confirm `architect-comments` is connected before submitting comments.
 
-Expected result:
+### 6. Submit comments from `architecture/diagram.html`
 
-- the bridge prints the immediate acknowledgement
-- Claude receives an `architect-comments` channel event in the same live session
-- Claude reports progress through `update_feedback_status`
-- Claude uses `finalize_feedback_update`
-- the browser tells the user to refresh the same `architecture/diagram.html`
+Expected behavior:
 
-### Known-good notes
+1. The bridge prints the immediate acknowledgment.
+2. Claude receives an `architect-comments` channel event in the same live session.
+3. Claude reports progress through `update_feedback_status`.
+4. Claude finalizes through `finalize_feedback_update`.
+5. The browser tells you to refresh the same `architecture/diagram.html`.
+
+## Exposed MCP Tools
+
+- `update_feedback_status` - sends acknowledged, analyzing, ready, completed, blocked, or failed updates back to the bridge
+- `finalize_feedback_update` - rerenders `architecture/diagram.html`, preserves the bridge URL when provided, and validates the generated HTML before Claude marks the job done
+
+## Known-Good Notes
 
 - Use `--dangerously-load-development-channels server:architect-comments`
 - Do **not** also pass `--channels server:architect-comments`
 - Use `--permission-mode auto`, not `plan`
 - `claude --help` may not list every Channels-related flag
-- Claude may still print a misleading startup warning about `no MCP server configured with that name`; if `/mcp` shows `architect-comments` connected, the session is good
+- Claude can still print a misleading startup warning about no MCP server configured with that name; if `/mcp` shows the server connected, you are good
 
-## Run with Claude manually
+## Manual Configuration
 
-If you do not want the blessed copy-paste flow above, you can still configure Claude manually.
-
-Create an MCP config that points at this server. Example:
+If you want to wire Claude manually, point an MCP config at `channel.mjs`:
 
 ```json
 {
@@ -126,7 +133,7 @@ Create an MCP config that points at this server. Example:
 }
 ```
 
-Then start Claude with the development channel enabled:
+Then start Claude with:
 
 ```bash
 claude \
@@ -134,37 +141,6 @@ claude \
   --dangerously-load-development-channels server:architect-comments
 ```
 
-If you want Claude to stay idle until a feedback event arrives, add behavior guidance via a system prompt instead of a trailing user prompt:
+## Prefer The Plugin For Normal Use
 
-```bash
-claude \
-  --mcp-config /ABSOLUTE/PATH/TO/mcp.json \
-  --dangerously-load-development-channels server:architect-comments \
-  --permission-mode auto \
-  --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
-```
-
-After Claude starts, run `/mcp` and confirm `architect-comments` is connected before submitting a batch.
-
-The channel exposes two MCP tools:
-
-- `update_feedback_status` — posts progress, ready, completed, blocked, or failed status updates back to the localhost bridge using the `bridge_url` and `job_id` from the channel event
-- `finalize_feedback_update` — runs the hardening validator, rerenders `architecture/diagram.html` with the exact repo render command, preserves the bridge URL when provided, and validates the generated HTML before Claude marks the job complete
-
-Recommended Claude behavior for a normal feedback batch:
-
-1. Treat the visible channel line as the acknowledgment and call `update_feedback_status` with `state=acknowledged` without posting a second chat acknowledgment
-2. Inspect the referenced artifacts and call `update_feedback_status` with `state=analyzing`
-3. Edit the architecture artifacts
-4. Call `finalize_feedback_update` with `output_root` and `bridge_url`
-5. If finalize succeeds, call `update_feedback_status` with `state=completed` and the exact message `Refresh the page to see updates.`
-
-## Run the bridge in Claude handoff mode
-
-```bash
-python3 skills/architect-diagram/scripts/comment_feedback_bridge.py \
-  --claude-channel-url http://127.0.0.1:8788/notify \
-  --channel-handoff-only
-```
-
-With that running, a normal comment submit should create a job and forward the batch into Claude instead of running the deterministic updater. The deterministic worker is now fallback behavior, not the primary product path.
+The packaged plugin is the supported path because it keeps the runtime, comment loop, and Claude session setup in one place. Reach for this bare-server path when you are debugging the machinery, not when you are trying to be productive.
