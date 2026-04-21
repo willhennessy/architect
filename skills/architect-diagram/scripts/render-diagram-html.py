@@ -10,6 +10,7 @@ Behavior:
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -30,6 +31,15 @@ CONTEXT_EXTERNAL_KINDS = {"person", "external_system"}
 
 SVG_FRAGMENT_METADATA = "_metadata.json"
 RUNTIME_DIR = ".out"
+BRAND_ASSET_SOURCES = {
+    "__BRAND_LOGO_SRC__": ("architect-logo.png", "image/png"),
+    "__FAVICON_ICO_SRC__": ("favicon.ico", "image/x-icon"),
+    "__FAVICON_16_SRC__": ("favicon-16.png", "image/png"),
+    "__FAVICON_32_SRC__": ("favicon-32.png", "image/png"),
+    "__FAVICON_48_SRC__": ("favicon-48.png", "image/png"),
+    "__FAVICON_64_SRC__": ("favicon-64.png", "image/png"),
+    "__FAVICON_180_SRC__": ("favicon-180.png", "image/png"),
+}
 
 
 class RenderError(RuntimeError):
@@ -742,10 +752,26 @@ def load_views(views_dir: Path) -> List[Dict[str, Any]]:
     return out
 
 
-def render_html(template_path: Path, payload: Dict[str, Any], mode: str) -> str:
+def load_brand_assets(skill_root: Path) -> Dict[str, str]:
+    asset_dir = skill_root / "templates" / "assets" / "branding"
+    replacements: Dict[str, str] = {}
+
+    for placeholder, (filename, mime_type) in BRAND_ASSET_SOURCES.items():
+        asset_path = asset_dir / filename
+        if not asset_path.exists():
+            raise RenderError(f"Brand asset missing: {asset_path}")
+        encoded = base64.b64encode(asset_path.read_bytes()).decode("ascii")
+        replacements[placeholder] = f"data:{mime_type};base64,{encoded}"
+
+    return replacements
+
+
+def render_html(template_path: Path, payload: Dict[str, Any], mode: str, brand_assets: Dict[str, str]) -> str:
     template = template_path.read_text(encoding="utf-8")
     html = template.replace("__DIAGRAM_DATA_JSON__", json.dumps(payload, ensure_ascii=False))
     html = html.replace("__DIAGRAM_MODE__", mode)
+    for placeholder, value in brand_assets.items():
+        html = html.replace(placeholder, value)
     return html
 
 
@@ -793,11 +819,12 @@ def main() -> int:
         ],
     }
 
-    template_path = Path(__file__).resolve().parents[1] / "templates" / "diagram-app.html"
+    skill_root = Path(__file__).resolve().parents[1]
+    template_path = skill_root / "templates" / "diagram-app.html"
     if not template_path.exists():
         raise RenderError(f"Template missing: {template_path}")
 
-    html = render_html(template_path, payload, args.mode)
+    html = render_html(template_path, payload, args.mode, load_brand_assets(skill_root))
     out_html = diagram_html_path(output_root)
     out_html.parent.mkdir(parents=True, exist_ok=True)
     out_html.write_text(html, encoding="utf-8")

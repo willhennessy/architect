@@ -30,6 +30,25 @@
       }
 
       root.setAttribute('data-theme', theme);
+
+      const faviconDefs = [
+        { rel: 'icon', type: 'image/x-icon', href: '__FAVICON_ICO_SRC__' },
+        { rel: 'shortcut icon', href: '__FAVICON_ICO_SRC__' },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '__FAVICON_16_SRC__' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '__FAVICON_32_SRC__' },
+        { rel: 'icon', type: 'image/png', sizes: '48x48', href: '__FAVICON_48_SRC__' },
+        { rel: 'icon', type: 'image/png', sizes: '64x64', href: '__FAVICON_64_SRC__' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '__FAVICON_180_SRC__' },
+      ];
+
+      for (const attrs of faviconDefs) {
+        const link = document.createElement('link');
+        link.setAttribute('data-brand-icon', 'true');
+        for (const [name, value] of Object.entries(attrs)) {
+          link.setAttribute(name, value);
+        }
+        document.head.appendChild(link);
+      }
     })();
   </script>
   <style>
@@ -244,12 +263,27 @@
       min-width: 0;
     }
 
-    .title {
-      font-weight: 600;
-      font-size: 17px;
-      letter-spacing: -0.01em;
-      color: var(--color-text-primary);
-      white-space: nowrap;
+    .brand-lockup {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+      flex-shrink: 0;
+      border-radius: 14px;
+      background: transparent;
+      border: 1px solid transparent;
+    }
+
+    .brand-logo {
+      display: block;
+      width: auto;
+      height: 30px;
+      max-width: min(44vw, 176px);
+    }
+
+    [data-theme="dark"] .brand-lockup {
+      padding: 6px 10px;
+      background: var(--color-bg-surface-elevated);
+      border-color: var(--color-border-default);
     }
 
     .subtitle {
@@ -1416,6 +1450,10 @@
         padding: 14px 12px;
       }
 
+      .brand-logo {
+        height: 26px;
+      }
+
       .subtitle {
         white-space: normal;
       }
@@ -2135,7 +2173,15 @@
 <div id="app">
   <div class="topbar">
     <div class="brand">
-      <div class="title">Architect</div>
+      <span class="brand-lockup">
+        <img
+          class="brand-logo"
+          src="__BRAND_LOGO_SRC__"
+          alt="Architect"
+          width="1032"
+          height="296"
+        />
+      </span>
       <div class="subtitle" id="systemSubtitle"></div>
     </div>
     <div class="topbar-actions">
