@@ -29,7 +29,7 @@ RUN_NAME_SUFFIX=""
 MARKETPLACE_URL="https://github.com/willhennessy/architect.git"
 PLUGIN_INSTALL_NAME="architect@plugins"
 CLAUDE_MODEL="claude-haiku-4-5"
-CLAUDE_PROMPT="/architect:plan Design a simple news feed web app with frontend and backend. Draw the architecture diagram. Keep your token usage low."
+CLAUDE_PROMPT="/architect:plan Design a simple news feed web app with frontend and backend. Draw the architecture diagram. Generate at least 1 container and 2 components. Keep your token usage low."
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
