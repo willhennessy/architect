@@ -4,7 +4,7 @@ Claude Architect is an interactive architecture layer for Plan Mode. It transfor
 
 ![Architect hero showing the containers view and component details panel](docs/assets/readme-hero-image.png)
 
-This creates a steering loop that feels more like a whiteboard session:
+This creates a steering loop that feels like a whiteboard session:
 
 1. **review the architecture** and see relationships at a glance
 2. **drill down** into containers and components to review each layer
@@ -26,7 +26,7 @@ claude plugin install architect@plugins
 claude --dangerously-load-development-channels plugin:architect@plugins
 ```
 
-### 3. Plan a new project
+### 3. Plan
 
 1. Switch to Plan Mode
 2. Run `/architect:plan` with your design prompt
