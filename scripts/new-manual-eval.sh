@@ -5,6 +5,7 @@ set -euo pipefail
 # Creates a per-run sandbox with:
 #   - copied source skill snapshot for reference
 #   - copied shared skill references (skills/references)
+#   - copied Architect plugin marketplace for isolated local plugin installs
 #   - isolated eval target repo checkout/copy
 
 usage() {
@@ -95,8 +96,9 @@ TARGET_REPO_DIR="$RUN_DIR/repo"
 
 mkdir -p "$RUN_DIR"/{skills,repo,architecture,.claude/skills}
 
-PLUGIN_MARKETPLACE_DIR="$ARCHITECT_ROOT/claude-plugin"
-PLUGIN_DIR="$PLUGIN_MARKETPLACE_DIR/architect"
+PLUGIN_MARKETPLACE_SOURCE_DIR="$ARCHITECT_ROOT/claude-plugin"
+RUN_PLUGIN_MARKETPLACE_DIR="$RUN_DIR/claude-plugin"
+RUN_PLUGIN_DIR="$RUN_PLUGIN_MARKETPLACE_DIR/architect"
 PLUGIN_INSTALL_NAME="architect@architect-local"
 
 if (( WITH_SKILL )); then
@@ -119,10 +121,13 @@ if (( WITH_SKILL )); then
     cp -R "$src" "$dst"
   done
 
-  if [[ ! -d "$PLUGIN_MARKETPLACE_DIR" ]]; then
-    echo "Claude plugin root not found: $PLUGIN_MARKETPLACE_DIR" >&2
+  if [[ ! -d "$PLUGIN_MARKETPLACE_SOURCE_DIR" ]]; then
+    echo "Claude plugin root not found: $PLUGIN_MARKETPLACE_SOURCE_DIR" >&2
     exit 1
   fi
+
+  mkdir -p "$RUN_PLUGIN_MARKETPLACE_DIR"
+  cp -R "$PLUGIN_MARKETPLACE_SOURCE_DIR"/. "$RUN_PLUGIN_MARKETPLACE_DIR"/
 fi
 
 if [[ -n "$REPO_URL" ]]; then
@@ -164,7 +169,7 @@ if (( WITH_SKILL )); then
   echo "Configuring local Architect marketplace and plugin..."
   (
     cd "$RUN_DIR"
-    "${CLAUDE_CMD[@]}" plugin marketplace add "$PLUGIN_MARKETPLACE_DIR" --scope local
+    "${CLAUDE_CMD[@]}" plugin marketplace add "$RUN_PLUGIN_MARKETPLACE_DIR" --scope local
     "${CLAUDE_CMD[@]}" plugin install "$PLUGIN_INSTALL_NAME" --scope local
   )
 fi
@@ -202,12 +207,13 @@ cat >> "$RUN_DIR/notes.md" <<EOF
 
 ## Plugin configuration
 
-- marketplace_dir: $PLUGIN_MARKETPLACE_DIR
+- source_marketplace_dir: $PLUGIN_MARKETPLACE_SOURCE_DIR
+- run_marketplace_dir: $RUN_PLUGIN_MARKETPLACE_DIR
 - plugin_install_name: $PLUGIN_INSTALL_NAME
-- plugin_dir: $PLUGIN_DIR
+- plugin_dir: $RUN_PLUGIN_DIR
 - source skill snapshot: $RUN_DIR/skills
 
-This run syncs the repo-local Architect plugin, installs architect@architect-local, and launches Claude with that plugin enabled.
+This run syncs the repo-local Architect plugin, copies that marketplace into the run directory, installs architect@architect-local from the copied marketplace, and launches Claude with that plugin enabled.
 EOF
 fi
 

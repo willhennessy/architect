@@ -81,7 +81,7 @@ For `architect-plan`, the intended UX is:
 ```
 
 Creates an isolated run directory and launches Claude in `plan` mode.
-When `--with-skill` is used, it snapshots the selected skill dirs for reference, syncs the repo-local Architect plugin bundle, installs `architect@architect-local` from the repo-local development marketplace, and launches Claude with the Architect development channel enabled in `plan` mode.
+When `--with-skill` is used, it snapshots the selected skill dirs for reference, syncs the repo-local Architect plugin bundle, copies that plugin marketplace into the run directory, installs `architect@architect-local` from the copied local marketplace, and launches Claude with the Architect development channel enabled in `plan` mode.
 
 Useful options:
 
