@@ -1688,11 +1688,29 @@
       margin: 0;
       overflow-y: auto;
       flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--color-border-default) 82%, transparent) transparent;
     }
 
     .comment-popover .modal-textarea:focus {
       outline: none;
       border: none;
+    }
+
+    .comment-popover .modal-textarea::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .comment-popover .modal-textarea::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background: color-mix(in srgb, var(--color-border-default) 82%, transparent);
+      background-clip: padding-box;
+    }
+
+    .comment-popover .modal-textarea::-webkit-scrollbar-track,
+    .comment-popover .modal-textarea::-webkit-scrollbar-corner {
+      background: transparent;
     }
 
     .comment-input-wrap.is-single-line .btn-comment-submit {
