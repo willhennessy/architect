@@ -136,7 +136,7 @@ claude plugin install $PLUGIN_INSTALL_NAME --scope local
 
 This run auto-starts Claude in this directory with:
 
-claude --name "$SESSION_NAME" --model "$CLAUDE_MODEL" --permission-mode plan --dangerously-skip-permissions --dangerously-load-development-channels plugin:architect@plugins "$CLAUDE_PROMPT"
+claude --name "$SESSION_NAME" --model "$CLAUDE_MODEL" --permission-mode plan --dangerously-skip-permissions --channels plugin:architect@plugins -- "$CLAUDE_PROMPT"
 
 (Working directory: $RUN_DIR)
 
@@ -173,5 +173,6 @@ exec "${CLAUDE_CMD[@]}" \
   --model "$CLAUDE_MODEL" \
   --permission-mode plan \
   --dangerously-skip-permissions \
-  --dangerously-load-development-channels "plugin:architect@plugins" \
+  --channels "plugin:architect@plugins" \
+  -- \
   "$CLAUDE_PROMPT"
