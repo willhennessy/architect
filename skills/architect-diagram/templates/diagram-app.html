@@ -1431,7 +1431,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 40;
+      z-index: 200;
     }
 
     .overlay.show { display: flex; }
@@ -1440,7 +1440,7 @@
       background: transparent;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
-      z-index: 44;
+      z-index: 204;
     }
 
     .overlay-popover.show { display: block; }
@@ -3068,16 +3068,18 @@ function showFailureDetails() {
   );
 }
 
-function applyJobStatus(status) {
+function applyJobStatus(status, options) {
   if (!status || !status.state) return;
-  if ((status.state !== 'completed' || !status.has_final_result) && state.autoRefreshTimer) {
+  const opts = options || {};
+  const allowAutoRefresh = opts.allowAutoRefresh !== false;
+  if ((status.state !== 'completed' || !status.has_final_result || !allowAutoRefresh) && state.autoRefreshTimer) {
     clearTimeout(state.autoRefreshTimer);
     state.autoRefreshTimer = null;
     state.autoRefreshJobId = null;
   }
   state.activeJob = status;
   updateSidebar();
-  scheduleAutoRefresh(status);
+  if (allowAutoRefresh) scheduleAutoRefresh(status);
 
   if (status.state === 'completed' || status.state === 'failed' || status.state === 'blocked') {
     stopStatusSubscriptions();
@@ -3280,7 +3282,7 @@ function hydrateLatestStatus() {
         updateSidebar();
         return;
       }
-      applyJobStatus(payload.status);
+      applyJobStatus(payload.status, { allowAutoRefresh: false });
       if (payload.status.job_id && ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(payload.status.state) !== -1) {
         subscribeToJob({
           job_id: payload.status.job_id,
