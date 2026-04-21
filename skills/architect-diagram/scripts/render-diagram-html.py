@@ -461,6 +461,23 @@ def relationships_for_view(
     return selected
 
 
+def build_view_perf_profile(
+    view_id: str,
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+    svg_fragment: str | None,
+) -> Dict[str, Any]:
+    fragment = svg_fragment or ""
+    return {
+        "view_id": view_id,
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "svg_bytes": len(fragment.encode("utf-8")) if fragment else 0,
+        "svg_text_count": fragment.count("<text") if fragment else 0,
+        "has_svg_fragment": bool(fragment),
+    }
+
+
 def build_payload(
     manifest: Dict[str, Any],
     model: Dict[str, Any],
@@ -487,6 +504,7 @@ def build_payload(
         title = view.get("title") or view_id
 
         if vtype == "sequence":
+            svg_fragment = svg_fragments.get(view_id)
             steps = []
             for st in (view.get("steps") or []):
                 if not isinstance(st, dict):
@@ -513,7 +531,8 @@ def build_payload(
                     "title": title,
                     "kind": "sequence",
                     "steps": sorted(steps, key=lambda s: s.get("order", 10**9)),
-                    "svg_fragment": svg_fragments.get(view_id),
+                    "svg_fragment": svg_fragment,
+                    "perf": build_view_perf_profile(view_id, [], steps, svg_fragment),
                     "source_relpath": view.get("source_relpath") or "",
                 }
             )
@@ -556,6 +575,7 @@ def build_payload(
                 }
             )
 
+        svg_fragment = svg_fragments.get(view_id)
         payload_views.append(
             {
                 "id": view_id,
@@ -565,7 +585,8 @@ def build_payload(
                 "nodes": sorted(nodes, key=lambda n: (n.get("name") or n.get("id") or "")),
                 "edges": edges,
                 "parent_container_id": view.get("parent_container_id") or None,
-                "svg_fragment": svg_fragments.get(view_id),
+                "svg_fragment": svg_fragment,
+                "perf": build_view_perf_profile(view_id, nodes, edges, svg_fragment),
                 "source_relpath": view.get("source_relpath") or "",
             }
         )
