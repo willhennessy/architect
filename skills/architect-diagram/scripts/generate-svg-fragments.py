@@ -32,6 +32,7 @@ class Node:
     responsibility: str
     external: bool
     parent_id: str | None
+    synthetic: bool = False
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,8 @@ class LayoutResult:
 
 VIEW_MARGIN_X = 64.0
 VIEW_MARGIN_Y = 56.0
+COMPACT_VIEW_MARGIN_X = 24.0
+WIDE_LAYOUT_WIDTH_THRESHOLD = 1200.0
 COLUMN_GAP = 68.0
 ROW_GAP = 34.0
 BOUNDARY_PAD = 28.0
@@ -122,6 +125,10 @@ def clamp(value: float, low: float, high: float) -> float:
 
 def normalize_kind(value: str) -> str:
     return str(value or "").strip().lower()
+
+
+def is_system_like_kind(value: str) -> bool:
+    return normalize_kind(value) in {"software_system", "system"}
 
 
 def normalize_view_type(value: str) -> str:
@@ -207,6 +214,31 @@ def is_store_kind(kind: str) -> bool:
 
 def is_external_kind(kind: str) -> bool:
     return normalize_kind(kind) in {"person", "external_system"}
+
+
+def is_internal_model_node(node: Node | None) -> bool:
+    if node is None:
+        return False
+    return not node.external and normalize_kind(node.kind) not in {"person", "external_system"}
+
+
+def synthetic_system_id(view_id: str) -> str:
+    token = "".join(ch if ch.isalnum() else "-" for ch in str(view_id or "system-context")).strip("-")
+    return f"synthetic-system--{token or 'system-context'}"
+
+
+def build_synthetic_system_node(view_id: str, system_name: str) -> Node:
+    return Node(
+        id=synthetic_system_id(view_id),
+        name=system_name,
+        kind="software_system",
+        technology="",
+        description=f"System of interest for {system_name}.",
+        responsibility="Represents the system of interest when the source view omitted an explicit software system node.",
+        external=False,
+        parent_id=None,
+        synthetic=True,
+    )
 
 
 def is_component_kind(kind: str) -> bool:
@@ -427,6 +459,7 @@ def normalize_nodes(elements: Dict[str, Dict[str, Any]], ids: Sequence[str]) -> 
                 responsibility=str(raw.get("responsibility", "")),
                 external=bool(raw.get("external")),
                 parent_id=str(raw.get("parent_id")) if raw.get("parent_id") else None,
+                synthetic=bool(raw.get("synthetic")),
             )
         )
     return nodes
@@ -743,6 +776,52 @@ def choose_layout(
     return generic_layout(nodes)
 
 
+def trim_horizontal_layout_padding(layout: LayoutResult) -> LayoutResult:
+    if layout.width < WIDE_LAYOUT_WIDTH_THRESHOLD:
+        return layout
+
+    left_edges = [box.x for box in layout.boxes.values()]
+    right_edges = [box.x + box.w for box in layout.boxes.values()]
+    left_edges.extend(boundary.x for boundary in layout.boundaries)
+    right_edges.extend(boundary.x + boundary.w for boundary in layout.boundaries)
+    if not left_edges or not right_edges:
+        return layout
+
+    current_left = min(left_edges)
+    current_right = layout.width - max(right_edges)
+    trim_left = max(0.0, current_left - COMPACT_VIEW_MARGIN_X)
+    trim_right = max(0.0, current_right - COMPACT_VIEW_MARGIN_X)
+    if trim_left <= ROUTING_EPSILON and trim_right <= ROUTING_EPSILON:
+        return layout
+
+    shifted_boxes = {
+        nid: Box(
+            x=box.x - trim_left,
+            y=box.y,
+            w=box.w,
+            h=box.h,
+        )
+        for nid, box in layout.boxes.items()
+    }
+    shifted_boundaries = [
+        Boundary(
+            x=boundary.x - trim_left,
+            y=boundary.y,
+            w=boundary.w,
+            h=boundary.h,
+            label=boundary.label,
+            tone=boundary.tone,
+        )
+        for boundary in layout.boundaries
+    ]
+    return LayoutResult(
+        width=layout.width - trim_left - trim_right,
+        height=layout.height,
+        boxes=shifted_boxes,
+        boundaries=shifted_boundaries,
+    )
+
+
 def box_center(box: Box) -> Tuple[float, float]:
     return box.x + box.w / 2.0, box.y + box.h / 2.0
 
@@ -934,28 +1013,11 @@ def wrap_edge_label_lines(text: str) -> List[str]:
 def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str = "var(--color-border-strong)") -> str:
     points = orthogonal_points(edge.id, src_box, dst_box)
     path_data = rounded_polyline(points)
-    lx, ly, _angle = label_for_polyline(points)
-    label_lines = wrap_edge_label_lines(edge.label or edge.id)
-    label_markup = ""
-    if label_lines:
-        line_height = 13.0
-        start_y = ly - ((len(label_lines) - 1) * line_height) / 2.0
-        text_markup = "\n".join(
-            f"      <text x=\"{lx:.1f}\" y=\"{start_y + idx * line_height:.1f}\" text-anchor=\"middle\" dominant-baseline=\"middle\" "
-            f"font-size=\"11\" fill=\"var(--color-text-tertiary)\">{esc(line)}</text>"
-            for idx, line in enumerate(label_lines)
-        )
-        label_markup = (
-            f"\n    <g class=\"edge-label\" data-edge-label=\"true\">\n"
-            f"{text_markup}\n"
-            f"    </g>"
-        )
     return (
         f"<g data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" "
         f"data-target-label=\"{esc(edge.label or edge.id)}\">\n"
         f"    <path d=\"{path_data}\" stroke=\"{color}\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#arrow)\" />\n"
-        f"    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" />"
-        f"{label_markup}\n"
+        f"    <path d=\"{path_data}\" stroke=\"transparent\" stroke-width=\"14\" fill=\"none\" />\n"
         f"  </g>"
     )
 
@@ -982,9 +1044,10 @@ def draw_node(node: Node, box: Box, view_id: str) -> str:
     x, y, w, h = box.x, box.y, box.w, box.h
     header_h = NODE_HEADER_BAND_H
     lines: List[str] = []
+    synthetic_attr = ' data-synthetic="true"' if node.synthetic else ""
     lines.append(
         f"<g class=\"diagram-node\" data-element=\"{tone}\" data-element-id=\"{esc(node.id)}\" "
-        f"data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(node.name)}\">"
+        f"data-view-id=\"{esc(view_id)}\" data-target-label=\"{esc(node.name)}\"{synthetic_attr}>"
     )
     lines.append(
         f"  <rect x=\"{x:.1f}\" y=\"{y:.1f}\" width=\"{w:.1f}\" height=\"{h:.1f}\" rx=\"12\" fill=\"{fill}\" "
@@ -1032,25 +1095,49 @@ def render_view_fragment(
     model_elements: Dict[str, Node],
     model_edges: Dict[str, Edge],
     out_file: Path,
+    system_name: str,
 ) -> None:
     element_ids = [eid for eid in (view.get("element_ids") or []) if isinstance(eid, str)]
     nodes = normalize_nodes({nid: node.__dict__ for nid, node in model_elements.items()}, element_ids)
+    render_order_ids = list(element_ids)
+    system_anchor: Node | None = None
+    if normalize_view_type(str(view.get("type", ""))) == "system_context":
+        system_nodes = [node for node in nodes if is_system_like_kind(node.kind)]
+        system_anchor = system_nodes[0] if system_nodes else build_synthetic_system_node(str(view.get("id", "")), system_name)
+        if not system_nodes:
+            nodes.append(system_anchor)
+            render_order_ids.append(system_anchor.id)
+
     node_map = {node.id: node for node in nodes}
     visible_ids = set(node_map)
 
     if not nodes:
         return
 
-    layout = choose_layout(view, nodes, model_elements)
-    edges = collect_view_edges(view, model_edges, visible_ids)
+    layout = trim_horizontal_layout_padding(choose_layout(view, nodes, model_elements))
+    raw_edges = collect_view_edges(view, model_edges, visible_ids)
+    edges: List[Edge] = []
+    for edge in raw_edges:
+        source_id = edge.source_id
+        target_id = edge.target_id
+        if system_anchor and source_id not in visible_ids and is_internal_model_node(model_elements.get(source_id)):
+            source_id = system_anchor.id
+        if system_anchor and target_id not in visible_ids and is_internal_model_node(model_elements.get(target_id)):
+            target_id = system_anchor.id
+        if source_id not in layout.boxes or target_id not in layout.boxes or source_id == target_id:
+            continue
+        edges.append(
+            Edge(
+                id=edge.id,
+                source_id=source_id,
+                target_id=target_id,
+                label=edge.label,
+            )
+        )
 
     edge_markup: List[str] = []
     seen_pairs: set[Tuple[str, str, str]] = set()
     for edge in edges:
-        if edge.source_id not in layout.boxes or edge.target_id not in layout.boxes:
-            continue
-        if edge.source_id == edge.target_id:
-            continue
         dedupe_key = (edge.source_id, edge.target_id, edge.label)
         if dedupe_key in seen_pairs:
             continue
@@ -1066,7 +1153,7 @@ def render_view_fragment(
 
     node_markup = [
         draw_node(node_map[nid], layout.boxes[nid], str(view.get("id", "view")))
-        for nid in element_ids
+        for nid in render_order_ids
         if nid in node_map and nid in layout.boxes
     ]
     boundary_markup = [draw_boundary(boundary) for boundary in layout.boundaries]
@@ -1098,7 +1185,9 @@ def main() -> int:
 
     root = Path(args.output_root).expanduser().resolve()
     arch = root / "architecture"
+    manifest = load_yaml(arch / "manifest.yaml")
     model = load_yaml(arch / "model.yaml")
+    system_name = str(manifest.get("system_name") or model.get("system_name") or "Architecture")
     views_dir = arch / "views"
     out_dir = root / "architecture" / RUNTIME_DIR / "diagram-svg"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1141,7 +1230,7 @@ def main() -> int:
         if normalize_view_type(str(view.get("type", ""))) == "sequence":
             continue
         view["id"] = view.get("id") or vf.stem
-        render_view_fragment(view, elements, rels, out_dir / f"{view['id']}.svg")
+        render_view_fragment(view, elements, rels, out_dir / f"{view['id']}.svg", system_name)
 
     (out_dir / "_metadata.json").write_text(
         json.dumps(

@@ -40,6 +40,13 @@ The minimum useful output is usually:
 
 Before writing outputs, read [../references/architecture-contract.md](../references/architecture-contract.md) and follow its schemas exactly.
 
+Resolve the contract through the skill-relative reference path only.
+
+- In the repo checkout, use `../references/architecture-contract.md`.
+- In plugin installs, use the mirrored skill reference shipped with the plugin at `skills/references/architecture-contract.md`.
+- If that lookup fails, stop and report the missing contract path.
+- Do **not** run a repo-wide search for alternate contract files, artifact examples, `manifest.yaml`, `model.yaml`, or nearby architecture outputs.
+
 Default output path:
 
 - `architecture/manifest.yaml`
@@ -57,6 +64,7 @@ If the user specifies a different output path, honor it.
 - Explore first, infer second, write last.
 - Build one canonical architecture model, then derive views from it.
 - Do not create separate inferred facts per view.
+- Unless the user explicitly asks for examples or eval analysis, do **not** read from `evals/`, `examples/`, `iteration-*`, `skill-snapshot/`, or similar archive/snapshot directories to infer the contract or bootstrap artifacts.
 - Read repo-local agent or contributor guidance files inside the target repo when they exist, and treat explicit architectural constraints there as high-strength documentation unless stronger runtime evidence disproves them.
 - Distinguish source layout from runtime architecture.
 - Treat deployment modes and packaging modes separately from runtime roles. If the same runtime role can run collocated or split, model the role as the container and the collocation choice as deployment evidence.
@@ -112,7 +120,7 @@ Apply these defaults:
 
 If the correct answer is "this repo is a library, not a deployable system", say so and adjust outputs accordingly.
 
-Use the smallest artifact set that still explains the runtime truth. Do not produce component or deployment views by default if they add no explanatory value.
+Use the smallest artifact set that still explains the runtime truth. Every container should support drill-down when it has meaningful, evidenced internal boundaries. Do not produce component or deployment views by default if they add no explanatory value.
 
 ## Discovery Workflow
 

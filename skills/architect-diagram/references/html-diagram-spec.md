@@ -6,13 +6,14 @@ Use this when generating `diagram.html`.
 
 1. Start at system-context when available.
 2. Support drill-down where deeper views exist.
-3. Breadcrumb navigation.
-4. Details sidebar:
+3. Every container with meaningful, evidenced internal boundaries should have a deeper view to drill into.
+4. Breadcrumb navigation.
+5. Details sidebar:
    - collapsed by default
    - auto-expand on node click
    - manual collapse control
    - show confidence in sidebar only
-5. Comment Mode:
+6. Comment Mode:
    - toggle button + `C` shortcut
    - node/edge/canvas comment targeting
    - queued comments

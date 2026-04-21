@@ -5,8 +5,8 @@ set -euo pipefail
 # Creates a per-run sandbox with:
 #   - copied source skill snapshot for reference
 #   - copied shared skill references (skills/references)
-#   - copied Architect Claude plugin snapshot
-#   - isolated repo checkout/copy
+#   - copied Architect plugin marketplace for isolated local plugin installs
+#   - isolated eval target repo checkout/copy
 
 usage() {
   cat <<'EOF'
@@ -92,12 +92,14 @@ if [[ -e "$RUN_DIR" ]]; then
 fi
 
 RUN_NAME="$(basename "$RUN_DIR")"
+TARGET_REPO_DIR="$RUN_DIR/repo"
 
 mkdir -p "$RUN_DIR"/{skills,repo,architecture,.claude/skills}
 
-PLUGIN_MARKETPLACE_DIR=""
-PLUGIN_DIR=""
-MARKETPLACE_NAME=""
+PLUGIN_MARKETPLACE_SOURCE_DIR="$ARCHITECT_ROOT/claude-plugin"
+RUN_PLUGIN_MARKETPLACE_DIR="$RUN_DIR/claude-plugin"
+RUN_PLUGIN_DIR="$RUN_PLUGIN_MARKETPLACE_DIR/architect"
+PLUGIN_INSTALL_NAME="architect@architect-local"
 
 if (( WITH_SKILL )); then
   echo "Syncing Architect plugin bundle..."
@@ -119,45 +121,27 @@ if (( WITH_SKILL )); then
     cp -R "$src" "$dst"
   done
 
-  if [[ ! -d "$ARCHITECT_ROOT/claude-plugin" ]]; then
-    echo "Claude plugin root not found: $ARCHITECT_ROOT/claude-plugin" >&2
+  if [[ ! -d "$PLUGIN_MARKETPLACE_SOURCE_DIR" ]]; then
+    echo "Claude plugin root not found: $PLUGIN_MARKETPLACE_SOURCE_DIR" >&2
     exit 1
   fi
-  cp -R "$ARCHITECT_ROOT/claude-plugin" "$RUN_DIR/claude-plugin"
-  PLUGIN_MARKETPLACE_DIR="$RUN_DIR/claude-plugin"
-  PLUGIN_DIR="$RUN_DIR/claude-plugin/architect"
 
-  MARKETPLACE_NAME="$(printf '%s' "architect-local-$RUN_NAME" \
-    | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' \
-    | cut -c1-63)"
-  if [[ -z "$MARKETPLACE_NAME" ]]; then
-    MARKETPLACE_NAME="architect-local"
-  fi
-
-  python3 - "$PLUGIN_MARKETPLACE_DIR/.claude-plugin/marketplace.json" "$MARKETPLACE_NAME" <<'PY'
-import json
-import pathlib
-import sys
-
-marketplace_path = pathlib.Path(sys.argv[1])
-marketplace_name = sys.argv[2]
-data = json.loads(marketplace_path.read_text(encoding="utf-8"))
-data["name"] = marketplace_name
-marketplace_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-PY
+  mkdir -p "$RUN_PLUGIN_MARKETPLACE_DIR"
+  cp -R "$PLUGIN_MARKETPLACE_SOURCE_DIR"/. "$RUN_PLUGIN_MARKETPLACE_DIR"/
 fi
 
 if [[ -n "$REPO_URL" ]]; then
-  git clone "$REPO_URL" "$RUN_DIR/repo"
+  git clone "$REPO_URL" "$TARGET_REPO_DIR"
 elif [[ -n "$REPO_PATH" ]]; then
   if [[ ! -d "$REPO_PATH" ]]; then
     echo "Repo path not found: $REPO_PATH" >&2
     exit 1
   fi
-  cp -a "$REPO_PATH"/. "$RUN_DIR/repo/"
+  mkdir -p "$TARGET_REPO_DIR"
+  cp -a "$REPO_PATH"/. "$TARGET_REPO_DIR/"
 else
-  cat > "$RUN_DIR/repo/README.md" <<'EOF'
+  mkdir -p "$TARGET_REPO_DIR"
+  cat > "$TARGET_REPO_DIR/README.md" <<'EOF'
 No repo was provided for this run.
 
 This is intentional for plan-only/manual evals (e.g., testing architect-plan).
@@ -170,36 +154,23 @@ else
   MODE="without-skill"
 fi
 
-CLAUDE_LAUNCH_BIN=""
-CLAUDE_LAUNCH_VIA_NPX=0
-if command -v claude >/dev/null 2>&1; then
-  CLAUDE_LAUNCH_BIN="claude"
-elif command -v claude-code >/dev/null 2>&1; then
-  CLAUDE_LAUNCH_BIN="claude-code"
-elif command -v npx >/dev/null 2>&1; then
-  CLAUDE_LAUNCH_BIN="npx"
-  CLAUDE_LAUNCH_VIA_NPX=1
-else
+if ! command -v claude >/dev/null 2>&1; then
   echo "Run ready: $RUN_DIR" >&2
-  echo "ERROR: could not find 'claude', 'claude-code', or 'npx' in PATH." >&2
+  echo "ERROR: could not find 'claude' in PATH." >&2
   exit 127
 fi
 
-CLAUDE_CMD=("$CLAUDE_LAUNCH_BIN")
-LAUNCH_CMD_DISPLAY="$CLAUDE_LAUNCH_BIN"
-if (( CLAUDE_LAUNCH_VIA_NPX )); then
-  CLAUDE_CMD+=(-y @anthropic-ai/claude-code)
-  LAUNCH_CMD_DISPLAY+=" -y @anthropic-ai/claude-code"
-fi
+CLAUDE_CMD=(claude)
+LAUNCH_CMD_DISPLAY="claude"
 
-CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 
 if (( WITH_SKILL )); then
-  echo "Configuring run-local Architect marketplace and plugin..."
+  echo "Configuring local Architect marketplace and plugin..."
   (
     cd "$RUN_DIR"
-    "${CLAUDE_CMD[@]}" plugin marketplace add "$PLUGIN_MARKETPLACE_DIR" --scope local
-    "${CLAUDE_CMD[@]}" plugin install "architect@$MARKETPLACE_NAME" --scope local
+    "${CLAUDE_CMD[@]}" plugin marketplace add "$RUN_PLUGIN_MARKETPLACE_DIR" --scope local
+    "${CLAUDE_CMD[@]}" plugin install "$PLUGIN_INSTALL_NAME" --scope local
   )
 fi
 
@@ -210,7 +181,7 @@ cat > "$RUN_DIR/notes.md" <<EOF
 - run_dir: $RUN_DIR
 - run_name: $RUN_NAME
 - session_name: $SESSION_NAME
-- repo_dir: $RUN_DIR/repo
+- repo_dir: $TARGET_REPO_DIR
 - skills_dir: $RUN_DIR/skills
 - created_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -218,7 +189,7 @@ cat > "$RUN_DIR/notes.md" <<EOF
 
 This run auto-starts Claude in this directory with:
 
-$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME" --allow-dangerously-skip-permissions --permission-mode auto$( (( WITH_SKILL )) && printf ' --dangerously-load-development-channels plugin:architect@%s --append-system-prompt "%s"' "$MARKETPLACE_NAME" "$CHANNEL_SYSTEM_PROMPT" )
+$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME"$( (( WITH_SKILL )) && printf ' --dangerously-load-development-channels plugin:architect@architect-local' ) --permission-mode plan$( (( WITH_SKILL )) && printf ' --append-system-prompt "%s"' "$CHANNEL_SYSTEM_PROMPT" )
 
 (Working directory: $RUN_DIR)
 
@@ -236,12 +207,13 @@ cat >> "$RUN_DIR/notes.md" <<EOF
 
 ## Plugin configuration
 
-- marketplace_dir: $PLUGIN_MARKETPLACE_DIR
-- marketplace_name: $MARKETPLACE_NAME
-- plugin_dir: $PLUGIN_DIR
+- source_marketplace_dir: $PLUGIN_MARKETPLACE_SOURCE_DIR
+- run_marketplace_dir: $RUN_PLUGIN_MARKETPLACE_DIR
+- plugin_install_name: $PLUGIN_INSTALL_NAME
+- plugin_dir: $RUN_PLUGIN_DIR
 - source skill snapshot: $RUN_DIR/skills
 
-This run configured the Architect plugin through a run-local marketplace and launches Claude with the plugin enabled.
+This run syncs the repo-local Architect plugin, copies that marketplace into the run directory, installs architect@architect-local from the copied marketplace, and launches Claude with that plugin enabled.
 EOF
 fi
 
@@ -257,10 +229,9 @@ cd "$RUN_DIR"
 if (( WITH_SKILL )); then
   exec "${CLAUDE_CMD[@]}" \
     --name "$SESSION_NAME" \
-    --allow-dangerously-skip-permissions \
-    --dangerously-load-development-channels "plugin:architect@$MARKETPLACE_NAME" \
-    --permission-mode auto \
+    --dangerously-load-development-channels "plugin:architect@architect-local" \
+    --permission-mode plan \
     --append-system-prompt "$CHANNEL_SYSTEM_PROMPT"
 else
-  exec "${CLAUDE_CMD[@]}" --name "$SESSION_NAME" --allow-dangerously-skip-permissions --permission-mode auto
+  exec "${CLAUDE_CMD[@]}" --name "$SESSION_NAME" --permission-mode plan
 fi
