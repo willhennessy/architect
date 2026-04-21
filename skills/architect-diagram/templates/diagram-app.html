@@ -1348,12 +1348,13 @@
     .relationship-endpoints {
       display: flex;
       align-items: center;
-      gap: 8px;
+      column-gap: 8px;
+      row-gap: 0;
       flex-wrap: wrap;
       color: var(--color-text-tertiary);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 500;
-      line-height: 1.4;
+      line-height: 1.1;
       margin: 0 0 4px;
     }
 
@@ -4585,9 +4586,18 @@ function applyNodeGroupTheme(group, node) {
       shape.setAttribute('fill', palette.fill);
     }
     if (isVisiblePaint(shape.getAttribute('stroke'))) {
+      if (!shape.hasAttribute('data-base-stroke-width')) {
+        const existingStrokeWidth = parseFloat(shape.getAttribute('stroke-width') || '');
+        shape.setAttribute(
+          'data-base-stroke-width',
+          String(Number.isFinite(existingStrokeWidth) ? existingStrokeWidth : 1.1)
+        );
+      }
+      const baseStrokeWidth = parseFloat(shape.getAttribute('data-base-stroke-width') || '1.1');
       shape.setAttribute('stroke', stroke);
       if (selected) shape.setAttribute('stroke-width', '2.4');
-      else if (drillable) shape.setAttribute('stroke-width', '2');
+      else if (drillable) shape.setAttribute('stroke-width', String(Math.max(2, baseStrokeWidth)));
+      else shape.setAttribute('stroke-width', String(baseStrokeWidth));
     }
   });
 
@@ -5002,6 +5012,10 @@ function syncMountedDiagramState(options) {
   } else {
     if (opts.previousSelectedId) targetIds.add(String(opts.previousSelectedId));
     if (state.selectedId) targetIds.add(String(state.selectedId));
+    mountedViewRuntime.svg.querySelectorAll('[data-element-id][data-selected="true"]').forEach(function (group) {
+      const elementId = group.getAttribute('data-element-id');
+      if (elementId) targetIds.add(String(elementId));
+    });
   }
 
   targetIds.forEach(function (elementId) {
