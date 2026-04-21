@@ -1,109 +1,44 @@
-# Architect Claude Plugin
+# Claude Architect
 
-Architect as a Claude plugin.
+Claude Architect is an interactive architecture layer for Plan Mode. It transforms Claude's text plan into a visual diagram that you can inspect, annotate, and revise with your agent in real time
 
-This is the new primary packaging path for:
+![Architect hero showing the DocSign containers view with the comment composer open](docs/assets/architect-hero-docsign-comment-modal.png)
 
-- `/architect:init`
-- `/architect:plan`
-- `/architect:diagram`
-- `/architect:diagram-prompt`
+This creates a steering loop that feels more like a whiteboard session:
 
-Architect plugin commands follow the pattern `/architect:<command>`.
+1. **review the architecture** and see relationships at a glance
+2. **drill down** into containers and components to review each layer
+3. **comment directly** on any node or edge
+4. **review updates** from Claude in response to your comments
 
-It also owns the live comment loop:
+## Getting Started
 
-1. `architecture/diagram.html` submits comments to the plugin runtime on `http://127.0.0.1:8765`
-2. the plugin runtime persists the feedback job and forwards it into the same Claude session as a channel event
-3. Claude updates job state through `update_feedback_status`
-4. Claude finalizes the update through `finalize_feedback_update`
-5. the user refreshes the same `architecture/diagram.html`
-
-## Getting started
-
-Add the Architect marketplace from GitHub and install the plugin:
+### 1. Install the plugin
 
 ```bash
 claude plugin marketplace add willhennessy/architect
 claude plugin install architect@plugins
 ```
 
-Start Claude with the Architect channel enabled:
+### 2. Start Claude with two flags
 
 ```bash
-claude \
-  --channels plugin:architect@plugins \
-  --append-system-prompt "When an architect-comments channel event arrives, treat the channel text as the user-visible acknowledgment, call update_feedback_status with state=acknowledged without sending a second acknowledgment message in chat, inspect the referenced job and output root from the channel metadata, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
+claude --dangerously-load-development-channels plugin:architect@plugins
 ```
 
-`--append-system-prompt` is required to guarantee Claude responds to comments without adding a redundant second acknowledgment in chat.
+### 3. Plan a new project
 
-If you already added the marketplace before, refresh it with:
+Inside Claude:
 
-```bash
-claude plugin marketplace update willhennessy/architect
-```
+1. Switch to Plan Mode
+2. Run `/architect:plan` for a new system or `/architect:init` for an existing repo
+3. After writing a plan, Claude will ask if you want an interactive diagram. Say yes.
+4. Open `./architecture/diagram.html` in your browser
 
-In Claude:
+## How it works
 
-1. Run `/mcp` and confirm `plugin:architect:architect-comments` is connected.
-2. Run `/architect:plan` or `/architect:init`.
-3. Architect writes visible artifacts under `./architecture/` by default.
-4. Open `./architecture/diagram.html`.
-5. Submit comments from the diagram.
-6. Refresh the same file when the UI says `Refresh the page to see updates.`
-
-That is the whole loop.
-
-## Troubleshooting
-
-### `/mcp` shows `plugin:architect:architect-comments · ✘ failed`
-
-The most common cause is that another Architect runtime is already using port `8765`.
-
-Fix:
-
-```bash
-pkill -f architect_runtime.cjs
-```
-
-Then restart Claude and run `/mcp` again.
-
-### Claude never responds after `Submit comments`
-
-This usually means Claude was started without the required `--append-system-prompt`, or the Architect channel is not connected in the current session.
-
-Fix:
-
-1. Run `/mcp` and make sure `plugin:architect:architect-comments` is connected.
-2. If it is not connected, restart Claude.
-3. Make sure you launch Claude with the exact command shown above, including `--append-system-prompt`.
-
-### The page says `Another comment update is already in progress`
-
-Usually the previous comment job is still finishing up, or it just failed and the page has not refreshed yet.
-
-Fix:
-
-1. Wait about 20 seconds.
-2. Refresh `architecture/diagram.html`.
-3. Submit the comment again.
-
-### The page falls back to copy-paste JSON instead of submitting comments
-
-This usually means the rendered diagram no longer matches the folder it came from. The most common cause is moving or renaming the output folder after rendering.
-
-Fix:
-
-1. Keep the generated `architecture/` folder in the same location after Architect renders it.
-2. If you already moved or renamed it, rerun `/architect:plan` or `/architect:init` and open the newly generated `architecture/diagram.html`.
-
-### I refreshed, but I still do not see the change
-
-Make sure you are refreshing the same `architecture/diagram.html` file that Claude updated.
-
-Fix:
-
-1. Refresh the exact same browser tab.
-2. If you opened multiple copies of the diagram, close the older tabs and reopen `./architecture/diagram.html`.
-3. If needed, hard refresh the page.
+1. Claude generates a semantic representation of the system architecture using the [C4 model](https://c4model.com/introduction) and writes the output to structured YAML files in `./architect`
+2. Claude generates SVG diagrams and injects them into an interactive HTML app at `./architect/diagram.html`
+3. You open the diagram in your browser and add comments
+4. Comments are sent back to Claude through a local [Channel](https://code.claude.com/docs/en/channels)
+5. Claude incorporates your feedback and publishes updates to the diagram in real time
