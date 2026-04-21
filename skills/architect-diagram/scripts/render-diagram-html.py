@@ -631,7 +631,6 @@ def build_payload(
                 parent_id = view.get("parent_container_id")
                 nodes = [e for e in all_elements if e.get("parent_id") == parent_id] if parent_id else [e for e in all_elements if e.get("c4_level") == "component"]
 
-        used_element_ids.update([n["id"] for n in nodes if n.get("id")])
         node_ids = {n["id"] for n in nodes if n.get("id")}
 
         rels = relationships_for_view(view, rels_by_id, all_relationships, node_ids)
@@ -647,6 +646,7 @@ def build_payload(
                 synthetic_elements[synthetic_node["id"]] = synthetic_node
             node_ids = {n["id"] for n in nodes if n.get("id")}
 
+        used_element_ids.update([n["id"] for n in nodes if n.get("id")])
         edges = []
         for r in rels:
             if not (r.get("source_id") and r.get("target_id")):
