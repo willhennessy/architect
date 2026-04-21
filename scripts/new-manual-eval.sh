@@ -3,11 +3,9 @@ set -euo pipefail
 
 # One-shot isolated manual eval setup.
 # Creates a per-run sandbox with:
-#   - isolated Architect git worktree used as the Claude workspace
 #   - copied source skill snapshot for reference
 #   - copied shared skill references (skills/references)
-#   - copied Architect Claude plugin snapshot
-#   - isolated eval target repo checkout/copy under the worktree
+#   - isolated eval target repo checkout/copy
 
 usage() {
   cat <<'EOF'
@@ -15,8 +13,8 @@ Usage:
   new-manual-eval.sh [--repo-url <git-url> | --repo-path <local-path>]
 
 Options:
-  --repo-url <url>       Clone target repo into the eval worktree (optional)
-  --repo-path <path>     Copy local repo into the eval worktree (optional)
+  --repo-url <url>       Clone target repo into isolated run folder (optional)
+  --repo-path <path>     Copy local repo into isolated run folder (optional)
   --run-root <path>      Parent folder for runs (default: ~/tmp/architect-manual-evals)
   --name <suffix>        Optional folder name suffix appended after timestamp; also used as Claude session name
   --skills <csv>         Skill dirs to snapshot for reference (default: architect-plan,architect-init,architect-diagram)
@@ -93,11 +91,9 @@ if [[ -e "$RUN_DIR" ]]; then
 fi
 
 RUN_NAME="$(basename "$RUN_DIR")"
+TARGET_REPO_DIR="$RUN_DIR/repo"
 
-WORKTREE_DIR="$RUN_DIR/worktree"
-TARGET_REPO_DIR="$WORKTREE_DIR/repo"
-
-mkdir -p "$RUN_DIR/skills"
+mkdir -p "$RUN_DIR"/{skills,repo,architecture,.claude/skills}
 
 PLUGIN_MARKETPLACE_DIR="$ARCHITECT_ROOT/claude-plugin"
 PLUGIN_DIR="$PLUGIN_MARKETPLACE_DIR/architect"
@@ -128,9 +124,6 @@ if (( WITH_SKILL )); then
     exit 1
   fi
 fi
-
-echo "Creating isolated Architect worktree..."
-git -C "$ARCHITECT_ROOT" worktree add --detach "$WORKTREE_DIR" HEAD
 
 if [[ -n "$REPO_URL" ]]; then
   git clone "$REPO_URL" "$TARGET_REPO_DIR"
@@ -170,20 +163,19 @@ CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, acknowl
 if (( WITH_SKILL )); then
   echo "Configuring local Architect marketplace and plugin..."
   (
-    cd "$WORKTREE_DIR"
+    cd "$RUN_DIR"
     "${CLAUDE_CMD[@]}" plugin marketplace add "$PLUGIN_MARKETPLACE_DIR" --scope local
     "${CLAUDE_CMD[@]}" plugin install "$PLUGIN_INSTALL_NAME" --scope local
   )
 fi
 
-cat > "$WORKTREE_DIR/notes.md" <<EOF
+cat > "$RUN_DIR/notes.md" <<EOF
 # Manual Eval Run Notes
 
 - mode: $MODE
 - run_dir: $RUN_DIR
 - run_name: $RUN_NAME
 - session_name: $SESSION_NAME
-- worktree_dir: $WORKTREE_DIR
 - repo_dir: $TARGET_REPO_DIR
 - skills_dir: $RUN_DIR/skills
 - created_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -194,19 +186,19 @@ This run auto-starts Claude in this directory with:
 
 $LAUNCH_CMD_DISPLAY --name "$SESSION_NAME"$( (( WITH_SKILL )) && printf ' --dangerously-load-development-channels plugin:architect@architect-local' ) --permission-mode plan$( (( WITH_SKILL )) && printf ' --append-system-prompt "%s"' "$CHANNEL_SYSTEM_PROMPT" )
 
-(Working directory: $WORKTREE_DIR)
+(Working directory: $RUN_DIR)
 
 ## Default Architect outputs
 
 If you do not specify a custom output path in Claude, Architect should write visible artifacts under:
 
-- $WORKTREE_DIR/architecture/
-- $WORKTREE_DIR/architecture/diagram.html
+- $RUN_DIR/architecture/
+- $RUN_DIR/architecture/diagram.html
 
 EOF
 
 if (( WITH_SKILL )); then
-cat >> "$WORKTREE_DIR/notes.md" <<EOF
+cat >> "$RUN_DIR/notes.md" <<EOF
 
 ## Plugin configuration
 
@@ -220,14 +212,14 @@ EOF
 fi
 
 echo "Run ready: $RUN_DIR"
-echo "Created: $WORKTREE_DIR/notes.md"
+echo "Created: $RUN_DIR/notes.md"
 if (( WITH_SKILL )); then
   echo "Launching Claude with the Architect plugin configured..."
 else
   echo "Launching Claude without the Architect plugin..."
 fi
 
-cd "$WORKTREE_DIR"
+cd "$RUN_DIR"
 if (( WITH_SKILL )); then
   exec "${CLAUDE_CMD[@]}" \
     --name "$SESSION_NAME" \
