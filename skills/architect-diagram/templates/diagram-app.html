@@ -811,19 +811,40 @@
       background: var(--color-bg-app);
     }
 
-    #canvas::-webkit-scrollbar {
+    .view-overview-popover,
+    #canvas,
+    .sidebar-body,
+    .dialog,
+    pre {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--color-text-muted) 40%, transparent) transparent;
+    }
+
+    .view-overview-popover::-webkit-scrollbar,
+    #canvas::-webkit-scrollbar,
+    .sidebar-body::-webkit-scrollbar,
+    .dialog::-webkit-scrollbar,
+    pre::-webkit-scrollbar {
       width: 12px;
       height: 12px;
     }
 
-    #canvas::-webkit-scrollbar-thumb {
+    .view-overview-popover::-webkit-scrollbar-thumb,
+    #canvas::-webkit-scrollbar-thumb,
+    .sidebar-body::-webkit-scrollbar-thumb,
+    .dialog::-webkit-scrollbar-thumb,
+    pre::-webkit-scrollbar-thumb {
       border: 3px solid transparent;
       border-radius: 999px;
       background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
       background-clip: padding-box;
     }
 
-    #canvas::-webkit-scrollbar-track {
+    .view-overview-popover::-webkit-scrollbar-track,
+    #canvas::-webkit-scrollbar-track,
+    .sidebar-body::-webkit-scrollbar-track,
+    .dialog::-webkit-scrollbar-track,
+    pre::-webkit-scrollbar-track {
       background: transparent;
     }
 
