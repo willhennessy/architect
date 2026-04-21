@@ -17,6 +17,12 @@ The publish workflow keeps one source of truth:
 
 The public marketplace is the GitHub repo itself. The local-dev marketplace under `claude-plugin/.claude-plugin/marketplace.json` stays available for unpublished development/testing, but it is not the public install path.
 
+Local `.agents/` and `.claude/` skill-link directories are intentionally not part of the published repo surface. If you want those convenience symlinks in a local checkout, create them with:
+
+```bash
+./scripts/setup-local-skill-links.sh
+```
+
 ## Run it
 
 From the repo root:

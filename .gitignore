@@ -1,10 +1,6 @@
 .DS_STORE
-.agents/*
-!.agents/skills/
-!.agents/skills/**
-.claude/*
-!.claude/skills/
-!.claude/skills/**
+.agents/
+.claude/
 .vscode/
 private/
 evals/manual-docsign-tests/
