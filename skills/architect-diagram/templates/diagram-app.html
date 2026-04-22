@@ -2730,6 +2730,10 @@ const NODE_HEADER_BAND_HEIGHT = 19;
 const NODE_HEADER_TEXT_NUDGE_Y = 0.75;
 const EDGE_EGRESS_STUB = 18;
 const ROUTING_EPSILON = 0.25;
+const PORT_SLOT_INSET = 18;
+const ROUTE_CLEARANCE = 12;
+const ROUTE_GUTTER = 22;
+const ROUTE_CLEARANCE_TARGET = 24;
 const EDGE_LABEL_MIN_PATH_LENGTH = 84;
 const EDGE_LABEL_MEASURE_X = -10000;
 const EDGE_LABEL_MEASURE_Y = -10000;
@@ -4067,6 +4071,15 @@ function stableNumberForText(text) {
   }, 0);
 }
 
+function maxIncidentCount(edges) {
+  const counts = new Map();
+  (edges || []).forEach(function (edge) {
+    if (edge && edge.source_id) counts.set(edge.source_id, (counts.get(edge.source_id) || 0) + 1);
+    if (edge && edge.target_id) counts.set(edge.target_id, (counts.get(edge.target_id) || 0) + 1);
+  });
+  return Math.max(0, ...Array.from(counts.values()));
+}
+
 function boxCenter(box) {
   return {
     x: box.x + box.w / 2,
@@ -4105,11 +4118,134 @@ function sideAnchorPoint(box, side) {
   return { x: box.x + box.w, y: center.y };
 }
 
+function slottedAnchorPoint(box, side, slotIndex, slotCount) {
+  if (!slotCount || slotCount <= 1) return sideAnchorPoint(box, side);
+
+  if (side === 'east' || side === 'west') {
+    const inset = Math.min(PORT_SLOT_INSET, box.h / 3);
+    const top = box.y + inset;
+    const bottom = box.y + box.h - inset;
+    if (bottom - top <= ROUTING_EPSILON) return sideAnchorPoint(box, side);
+    const ratio = (slotIndex + 1) / (slotCount + 1);
+    return { x: side === 'west' ? box.x : box.x + box.w, y: top + (bottom - top) * ratio };
+  }
+
+  const inset = Math.min(PORT_SLOT_INSET, box.w / 3);
+  const left = box.x + inset;
+  const right = box.x + box.w - inset;
+  if (right - left <= ROUTING_EPSILON) return sideAnchorPoint(box, side);
+  const ratio = (slotIndex + 1) / (slotCount + 1);
+  return { x: left + (right - left) * ratio, y: side === 'north' ? box.y : box.y + box.h };
+}
+
 function offsetPointForSide(point, side, distance) {
   if (side === 'north') return { x: point.x, y: point.y - distance };
   if (side === 'south') return { x: point.x, y: point.y + distance };
   if (side === 'west') return { x: point.x - distance, y: point.y };
   return { x: point.x + distance, y: point.y };
+}
+
+function crossAxisCoordinate(box, side) {
+  const center = boxCenter(box);
+  return side === 'east' || side === 'west' ? center.y : center.x;
+}
+
+function isBetterRouteScore(candidateScore, bestScore) {
+  if (!bestScore) return true;
+  for (let idx = 0; idx < candidateScore.length; idx += 1) {
+    if (candidateScore[idx] < bestScore[idx] - ROUTING_EPSILON) return true;
+    if (candidateScore[idx] > bestScore[idx] + ROUTING_EPSILON) return false;
+  }
+  return false;
+}
+
+function selectRelationshipPortSides(edge, boxesById, canvasW, canvasH) {
+  const srcBox = boxesById.get(edge.source_id);
+  const dstBox = boxesById.get(edge.target_id);
+  if (!srcBox || !dstBox) return { sourceSide: 'east', targetSide: 'west' };
+
+  const preferredSrc = preferredPortSide(srcBox, dstBox);
+  const preferredDst = preferredPortSide(dstBox, srcBox);
+  const sideOrder = ['north', 'south', 'east', 'west'];
+  const srcCandidates = [preferredSrc].concat(sideOrder.filter(function (side) { return side !== preferredSrc; }));
+  const dstCandidates = [preferredDst].concat(sideOrder.filter(function (side) { return side !== preferredDst; }));
+  let best = { sourceSide: preferredSrc, targetSide: preferredDst, score: null };
+
+  srcCandidates.forEach(function (sourceSide) {
+    dstCandidates.forEach(function (targetSide) {
+      const route = bestRelationshipRoutePoints(
+        edge.id || '',
+        edge.source_id,
+        edge.target_id,
+        sideAnchorPoint(srcBox, sourceSide),
+        sideAnchorPoint(dstBox, targetSide),
+        sourceSide,
+        targetSide,
+        boxesById,
+        canvasW,
+        canvasH
+      );
+      const score = [
+        route.blockerCount,
+        Math.max(0, ROUTE_CLEARANCE_TARGET - route.clearance),
+        (sourceSide !== preferredSrc ? 1 : 0) + (targetSide !== preferredDst ? 1 : 0),
+        route.routeLength
+      ];
+      if (isBetterRouteScore(score, best.score)) {
+        best = { sourceSide: sourceSide, targetSide: targetSide, score: score };
+      }
+    });
+  });
+
+  return { sourceSide: best.sourceSide, targetSide: best.targetSide };
+}
+
+function assignEdgePorts(edges, boxesById, canvasW, canvasH) {
+  const portMap = new Map();
+  const groups = new Map();
+
+  const pushGroup = function (nodeId, side, edgeId, role, coordinate) {
+    const key = nodeId + '::' + side;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ edgeId: edgeId, role: role, coordinate: coordinate });
+  };
+
+  (edges || []).forEach(function (edge) {
+    const srcBox = boxesById.get(edge.source_id);
+    const dstBox = boxesById.get(edge.target_id);
+    if (!srcBox || !dstBox) return;
+
+    const chosenSides = selectRelationshipPortSides(edge, boxesById, canvasW, canvasH);
+    const srcSide = chosenSides.sourceSide;
+    const dstSide = chosenSides.targetSide;
+    portMap.set(edge.id || '', { sourceSide: srcSide, targetSide: dstSide });
+
+    pushGroup(edge.source_id, srcSide, edge.id || '', 'source', crossAxisCoordinate(dstBox, srcSide));
+    pushGroup(edge.target_id, dstSide, edge.id || '', 'target', crossAxisCoordinate(srcBox, dstSide));
+  });
+
+  groups.forEach(function (records, key) {
+    const parts = key.split('::');
+    const nodeId = parts[0];
+    const side = parts[1];
+    const box = boxesById.get(nodeId);
+    if (!box) return;
+
+    records
+      .slice()
+      .sort(function (a, b) {
+        if (a.coordinate !== b.coordinate) return a.coordinate - b.coordinate;
+        if (a.edgeId !== b.edgeId) return String(a.edgeId).localeCompare(String(b.edgeId));
+        return String(a.role).localeCompare(String(b.role));
+      })
+      .forEach(function (record, idx, sorted) {
+        const existing = portMap.get(record.edgeId) || {};
+        existing[record.role === 'source' ? 'sourceAnchor' : 'targetAnchor'] = slottedAnchorPoint(box, side, idx, sorted.length);
+        portMap.set(record.edgeId, existing);
+      });
+  });
+
+  return portMap;
 }
 
 function collapseOrthogonalPoints(points) {
@@ -4137,65 +4273,357 @@ function collapseOrthogonalPoints(points) {
   return collapsed;
 }
 
-function relationshipRoutePoints(srcBox, dstBox, relId) {
-  const srcSide = preferredPortSide(srcBox, dstBox);
-  const dstSide = preferredPortSide(dstBox, srcBox);
-  const start = sideAnchorPoint(srcBox, srcSide);
-  const end = sideAnchorPoint(dstBox, dstSide);
-  const startStub = offsetPointForSide(start, srcSide, EDGE_EGRESS_STUB);
-  const endStub = offsetPointForSide(end, dstSide, EDGE_EGRESS_STUB);
-  const offset = ((stableNumberForText(relId) % 5) - 2) * 10;
-  let points;
+function routeMode(srcSide, dstSide) {
+  if ((srcSide === 'east' || srcSide === 'west') && (dstSide === 'east' || dstSide === 'west')) return 'midX';
+  if ((srcSide === 'north' || srcSide === 'south') && (dstSide === 'north' || dstSide === 'south')) return 'midY';
+  if (srcSide === 'east' || srcSide === 'west') return 'midY';
+  return 'midX';
+}
 
-  if ((srcSide === 'east' || srcSide === 'west') && (dstSide === 'east' || dstSide === 'west')) {
-    const midX = (startStub.x + endStub.x) / 2 + offset;
-    points = [
+function buildRoutePoints(start, startStub, endStub, end, laneValue, mode) {
+  if (mode === 'midX') {
+    return [
       start,
       startStub,
-      { x: midX, y: startStub.y },
-      { x: midX, y: endStub.y },
+      { x: laneValue, y: startStub.y },
+      { x: laneValue, y: endStub.y },
       endStub,
       end
     ];
-    return collapseOrthogonalPoints(points);
   }
 
-  if ((srcSide === 'north' || srcSide === 'south') && (dstSide === 'north' || dstSide === 'south')) {
-    const midY = (startStub.y + endStub.y) / 2 + offset;
-    points = [
-      start,
-      startStub,
-      { x: startStub.x, y: midY },
-      { x: endStub.x, y: midY },
-      endStub,
-      end
-    ];
-    return collapseOrthogonalPoints(points);
-  }
-
-  if (srcSide === 'east' || srcSide === 'west') {
-    const midY = (startStub.y + endStub.y) / 2 + offset;
-    points = [
-      start,
-      startStub,
-      { x: startStub.x, y: midY },
-      { x: endStub.x, y: midY },
-      endStub,
-      end
-    ];
-    return collapseOrthogonalPoints(points);
-  }
-
-  const midX = (startStub.x + endStub.x) / 2 + offset;
-  points = [
+  return [
     start,
     startStub,
-    { x: midX, y: startStub.y },
-    { x: midX, y: endStub.y },
+    { x: startStub.x, y: laneValue },
+    { x: endStub.x, y: laneValue },
     endStub,
     end
   ];
-  return collapseOrthogonalPoints(points);
+}
+
+function buildDetourRoutePoints(start, startStub, endStub, end, laneValue, detourValue, mode) {
+  if (mode === 'midX') {
+    return [
+      start,
+      startStub,
+      { x: laneValue, y: startStub.y },
+      { x: laneValue, y: detourValue },
+      { x: endStub.x, y: detourValue },
+      endStub,
+      end
+    ];
+  }
+
+  return [
+    start,
+    startStub,
+    { x: detourValue, y: startStub.y },
+    { x: detourValue, y: endStub.y },
+    endStub,
+    end
+  ];
+}
+
+function expandBoxForRouting(box, padding) {
+  return {
+    x: box.x - padding,
+    y: box.y - padding,
+    w: box.w + padding * 2,
+    h: box.h + padding * 2
+  };
+}
+
+function segmentIntersectsExpandedBox(p1, p2, box) {
+  if (Math.hypot(p2.x - p1.x, p2.y - p1.y) <= ROUTING_EPSILON) return false;
+
+  if (Math.abs(p1.x - p2.x) <= ROUTING_EPSILON) {
+    const x = p1.x;
+    const y1 = Math.min(p1.y, p2.y);
+    const y2 = Math.max(p1.y, p2.y);
+    return box.x < x && x < box.x + box.w && y2 > box.y && y1 < box.y + box.h;
+  }
+
+  if (Math.abs(p1.y - p2.y) <= ROUTING_EPSILON) {
+    const y = p1.y;
+    const x1 = Math.min(p1.x, p2.x);
+    const x2 = Math.max(p1.x, p2.x);
+    return box.y < y && y < box.y + box.h && x2 > box.x && x1 < box.x + box.w;
+  }
+
+  return false;
+}
+
+function segmentBoxDistance(p1, p2, box) {
+  if (Math.abs(p1.x - p2.x) <= ROUTING_EPSILON) {
+    const x = p1.x;
+    const y1 = Math.min(p1.y, p2.y);
+    const y2 = Math.max(p1.y, p2.y);
+    const dx = box.x <= x && x <= box.x + box.w
+      ? 0
+      : Math.min(Math.abs(x - box.x), Math.abs(x - (box.x + box.w)));
+    let dy = 0;
+    if (y2 < box.y) dy = box.y - y2;
+    else if (y1 > box.y + box.h) dy = y1 - (box.y + box.h);
+    return Math.hypot(dx, dy);
+  }
+
+  if (Math.abs(p1.y - p2.y) <= ROUTING_EPSILON) {
+    const y = p1.y;
+    const x1 = Math.min(p1.x, p2.x);
+    const x2 = Math.max(p1.x, p2.x);
+    const dy = box.y <= y && y <= box.y + box.h
+      ? 0
+      : Math.min(Math.abs(y - box.y), Math.abs(y - (box.y + box.h)));
+    let dx = 0;
+    if (x2 < box.x) dx = box.x - x2;
+    else if (x1 > box.x + box.w) dx = x1 - (box.x + box.w);
+    return Math.hypot(dx, dy);
+  }
+
+  return Infinity;
+}
+
+function routeBlockerCount(points, boxesById, ignoreIds) {
+  let count = 0;
+  boxesById.forEach(function (box, nodeId) {
+    if (ignoreIds.has(nodeId)) return;
+    const expanded = expandBoxForRouting(box, ROUTE_CLEARANCE);
+    for (let idx = 0; idx < points.length - 1; idx += 1) {
+      if (segmentIntersectsExpandedBox(points[idx], points[idx + 1], expanded)) {
+        count += 1;
+        return;
+      }
+    }
+  });
+  return count;
+}
+
+function routeMinClearance(points, boxesById, ignoreIds) {
+  let minDistance = Infinity;
+  boxesById.forEach(function (box, nodeId) {
+    if (ignoreIds.has(nodeId)) return;
+    for (let idx = 0; idx < points.length - 1; idx += 1) {
+      minDistance = Math.min(minDistance, segmentBoxDistance(points[idx], points[idx + 1], box));
+      if (minDistance <= ROUTING_EPSILON) return;
+    }
+  });
+  return minDistance;
+}
+
+function approximateRouteLength(points) {
+  let length = 0;
+  for (let idx = 0; idx < points.length - 1; idx += 1) {
+    length += Math.hypot(points[idx + 1].x - points[idx].x, points[idx + 1].y - points[idx].y);
+  }
+  return length;
+}
+
+function dedupeLaneValues(values) {
+  const deduped = [];
+  (values || []).forEach(function (value) {
+    if (deduped.some(function (existing) { return Math.abs(existing - value) <= ROUTING_EPSILON; })) return;
+    deduped.push(value);
+  });
+  return deduped;
+}
+
+function gapMidpoints(intervals) {
+  const sorted = (intervals || [])
+    .filter(Boolean)
+    .slice()
+    .sort(function (a, b) {
+      if (a.start !== b.start) return a.start - b.start;
+      return a.end - b.end;
+    });
+  if (!sorted.length) return [];
+
+  const merged = [];
+  sorted.forEach(function (interval) {
+    if (!merged.length) {
+      merged.push({ start: interval.start, end: interval.end });
+      return;
+    }
+    const prev = merged[merged.length - 1];
+    if (interval.start <= prev.end + ROUTING_EPSILON) {
+      prev.end = Math.max(prev.end, interval.end);
+      return;
+    }
+    merged.push({ start: interval.start, end: interval.end });
+  });
+
+  const values = [];
+  for (let idx = 0; idx < merged.length - 1; idx += 1) {
+    const leftEnd = merged[idx].end;
+    const rightStart = merged[idx + 1].start;
+    if (rightStart - leftEnd <= ROUTE_CLEARANCE * 2) continue;
+    values.push((leftEnd + rightStart) / 2);
+  }
+  return values;
+}
+
+function detourAxisValues(mode, blockerIds, boxesById, canvasW, canvasH) {
+  const values = [];
+  const boxes = Array.from(boxesById.values());
+  if (boxes.length) {
+    const minX = Math.min.apply(null, boxes.map(function (box) { return box.x; }));
+    const maxX = Math.max.apply(null, boxes.map(function (box) { return box.x + box.w; }));
+    const minY = Math.min.apply(null, boxes.map(function (box) { return box.y; }));
+    const maxY = Math.max.apply(null, boxes.map(function (box) { return box.y + box.h; }));
+    if (mode === 'midX') {
+      values.push(Math.max(8, minY - ROUTE_GUTTER), Math.min(canvasH - 8, maxY + ROUTE_GUTTER));
+    } else {
+      values.push(Math.max(8, minX - ROUTE_GUTTER), Math.min(canvasW - 8, maxX + ROUTE_GUTTER));
+    }
+  }
+
+  (blockerIds || []).forEach(function (blockerId) {
+    const box = boxesById.get(blockerId);
+    if (!box) return;
+    if (mode === 'midX') {
+      values.push(Math.max(8, box.y - ROUTE_GUTTER));
+      values.push(Math.min(canvasH - 8, box.y + box.h + ROUTE_GUTTER));
+    } else {
+      values.push(Math.max(8, box.x - ROUTE_GUTTER));
+      values.push(Math.min(canvasW - 8, box.x + box.w + ROUTE_GUTTER));
+    }
+  });
+
+  return dedupeLaneValues(values);
+}
+
+function candidateLaneValues(mode, defaultLane, boxesById, canvasW, canvasH) {
+  const values = [defaultLane];
+  const boxes = Array.from(boxesById.values());
+  if (!boxes.length) return values;
+
+  const minX = Math.min.apply(null, boxes.map(function (box) { return box.x; }));
+  const maxX = Math.max.apply(null, boxes.map(function (box) { return box.x + box.w; }));
+  const minY = Math.min.apply(null, boxes.map(function (box) { return box.y; }));
+  const maxY = Math.max.apply(null, boxes.map(function (box) { return box.y + box.h; }));
+
+  if (mode === 'midX') {
+    boxes.forEach(function (box) {
+      values.push(Math.max(8, box.x - ROUTE_GUTTER));
+      values.push(Math.min(canvasW - 8, box.x + box.w + ROUTE_GUTTER));
+    });
+    values.push.apply(values, gapMidpoints(boxes.map(function (box) { return { start: box.x, end: box.x + box.w }; })));
+    values.push(Math.max(8, minX - ROUTE_GUTTER), Math.min(canvasW - 8, maxX + ROUTE_GUTTER));
+  } else {
+    boxes.forEach(function (box) {
+      values.push(Math.max(8, box.y - ROUTE_GUTTER));
+      values.push(Math.min(canvasH - 8, box.y + box.h + ROUTE_GUTTER));
+    });
+    values.push.apply(values, gapMidpoints(boxes.map(function (box) { return { start: box.y, end: box.y + box.h }; })));
+    values.push(Math.max(8, minY - ROUTE_GUTTER), Math.min(canvasH - 8, maxY + ROUTE_GUTTER));
+  }
+
+  return dedupeLaneValues(values).sort(function (a, b) {
+    const deltaA = Math.abs(a - defaultLane);
+    const deltaB = Math.abs(b - defaultLane);
+    if (deltaA !== deltaB) return deltaA - deltaB;
+    return a - b;
+  });
+}
+
+function bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, dstSide, boxesById, canvasW, canvasH) {
+  const startStub = offsetPointForSide(start, srcSide, EDGE_EGRESS_STUB);
+  const endStub = offsetPointForSide(end, dstSide, EDGE_EGRESS_STUB);
+  const offset = ((stableNumberForText(relId) % 5) - 2) * 10;
+  const mode = routeMode(srcSide, dstSide);
+  const defaultLane = mode === 'midX'
+    ? (startStub.x + endStub.x) / 2 + offset
+    : (startStub.y + endStub.y) / 2 + offset;
+  const ignoreIds = new Set([srcId, dstId]);
+  const laneCandidates = candidateLaneValues(mode, defaultLane, boxesById, canvasW, canvasH);
+  let best = null;
+
+  for (const laneValue of laneCandidates) {
+    const candidate = collapseOrthogonalPoints(buildRoutePoints(start, startStub, endStub, end, laneValue, mode));
+    const blockerCount = routeBlockerCount(candidate, boxesById, ignoreIds);
+    const clearance = routeMinClearance(candidate, boxesById, ignoreIds);
+    const score = [
+      blockerCount,
+      Math.max(0, ROUTE_CLEARANCE_TARGET - clearance),
+      approximateRouteLength(candidate),
+      Math.abs(laneValue - defaultLane),
+      0
+    ];
+    if (isBetterRouteScore(score, best && best.score)) {
+      best = {
+        points: candidate,
+        score: score,
+        blockerCount: blockerCount,
+        blockerIds: null,
+        laneValue: laneValue,
+        clearance: clearance,
+        routeLength: approximateRouteLength(candidate)
+      };
+      if (blockerCount === 0 && clearance >= ROUTE_CLEARANCE_TARGET) return best;
+    }
+  }
+
+  if (best && (best.blockerCount > 0 || best.clearance < ROUTE_CLEARANCE_TARGET)) {
+    const blockerIds = [];
+    boxesById.forEach(function (box, nodeId) {
+      if (ignoreIds.has(nodeId)) return;
+      const expanded = expandBoxForRouting(box, ROUTE_CLEARANCE);
+      for (let idx = 0; idx < best.points.length - 1; idx += 1) {
+        if (segmentIntersectsExpandedBox(best.points[idx], best.points[idx + 1], expanded)) {
+          blockerIds.push(nodeId);
+          return;
+        }
+      }
+    });
+
+    const laneTrials = dedupeLaneValues([best.laneValue, defaultLane].concat(laneCandidates.slice(0, 2), laneCandidates.slice(-2)));
+    const detourValues = detourAxisValues(mode, blockerIds, boxesById, canvasW, canvasH);
+    for (const laneValue of laneTrials) {
+      for (const detourValue of detourValues) {
+        const candidate = collapseOrthogonalPoints(buildDetourRoutePoints(start, startStub, endStub, end, laneValue, detourValue, mode));
+        const blockerCount = routeBlockerCount(candidate, boxesById, ignoreIds);
+        const clearance = routeMinClearance(candidate, boxesById, ignoreIds);
+        const score = [
+          blockerCount,
+          Math.max(0, ROUTE_CLEARANCE_TARGET - clearance),
+          approximateRouteLength(candidate),
+          Math.abs(laneValue - defaultLane),
+          Math.abs(detourValue - (mode === 'midX' ? startStub.y : startStub.x))
+        ];
+        if (isBetterRouteScore(score, best && best.score)) {
+          best = {
+            points: candidate,
+            score: score,
+            blockerCount: blockerCount,
+            blockerIds: blockerIds,
+            laneValue: laneValue,
+            clearance: clearance,
+            routeLength: approximateRouteLength(candidate)
+          };
+          if (blockerCount === 0 && clearance >= ROUTE_CLEARANCE_TARGET) return best;
+        }
+      }
+    }
+  }
+
+  const fallback = collapseOrthogonalPoints(buildRoutePoints(start, startStub, endStub, end, defaultLane, mode));
+  return best || {
+    points: fallback,
+    score: null,
+    blockerCount: routeBlockerCount(fallback, boxesById, ignoreIds),
+    blockerIds: null,
+    laneValue: defaultLane,
+    clearance: routeMinClearance(fallback, boxesById, ignoreIds),
+    routeLength: approximateRouteLength(fallback)
+  };
+}
+
+function relationshipRoutePoints(srcBox, dstBox, relId, boxesById, canvasW, canvasH, portInfo, srcId, dstId) {
+  const srcSide = (portInfo && portInfo.sourceSide) || preferredPortSide(srcBox, dstBox);
+  const dstSide = (portInfo && portInfo.targetSide) || preferredPortSide(dstBox, srcBox);
+  const start = (portInfo && portInfo.sourceAnchor) || sideAnchorPoint(srcBox, srcSide);
+  const end = (portInfo && portInfo.targetAnchor) || sideAnchorPoint(dstBox, dstSide);
+  return bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, dstSide, boxesById, canvasW, canvasH).points;
 }
 
 function roundedPolylinePathData(points, radius) {
@@ -5486,11 +5914,22 @@ function drawDiagramView(view) {
   });
 
   // edges
+  const edgePorts = assignEdgePorts(view.edges || [], layout.byId, layout.width, layout.height);
   (view.edges || []).forEach(function (edge) {
     const a = layout.byId.get(edge.source_id);
     const b = layout.byId.get(edge.target_id);
     if (!a || !b) return;
-    const routePoints = relationshipRoutePoints(a, b, edge.id || '');
+    const routePoints = relationshipRoutePoints(
+      a,
+      b,
+      edge.id || '',
+      layout.byId,
+      layout.width,
+      layout.height,
+      edgePorts.get(edge.id || '') || null,
+      edge.source_id,
+      edge.target_id
+    );
     const pathData = roundedPolylinePathData(routePoints, 10);
 
     const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -5673,8 +6112,11 @@ function layoutNodes(nodes, edges, viewType) {
   const cardW = MODE === 'fast' ? 186 : 214;
   const cardH = MODE === 'fast' ? 68 : 80;
   const pad = 28;
-  const gapX = MODE === 'fast' ? 24 : 34;
-  const gapY = MODE === 'fast' ? 26 : 36;
+  const baseGapX = MODE === 'fast' ? 24 : 34;
+  const baseGapY = MODE === 'fast' ? 26 : 36;
+  const gapBoost = Math.min(24, Math.max(0, maxIncidentCount(edges) - 3) * 3);
+  const gapX = baseGapX + gapBoost;
+  const gapY = baseGapY + Math.floor(gapBoost * 0.5);
 
   const external = [];
   const storage = [];
