@@ -1,12 +1,12 @@
 # Claude Architect
 
-Claude Architect is an interactive architecture layer for Plan Mode. It transforms Claude's text plan into a visual diagram that you can inspect, annotate, and revise with Claude in real time
+The Claude Architect plugin adds an interactive architecture diagram to Plan Mode, so you can review, annotate, and revise the plan with Claude in real time.
 
 ![Architect hero showing the containers view and component details panel](assets/HERO_GRAPHIC_ROUNDED.png)
 
-The steering loop feels like a whiteboard session:
+The planning process feels like a whiteboard session:
 
-1. **review the architecture** and see relationships at a glance
+1. **visualize the architecture** and see relationships at a glance
 2. **drill down** into containers and components to review each layer
 3. **comment directly** on any node or edge
 4. **review updates** from Claude in response to your comments
