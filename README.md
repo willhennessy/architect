@@ -4,7 +4,7 @@ The Claude Architect plugin adds an interactive architecture diagram to Plan Mod
 
 ![Architect hero showing the containers view and component details panel](assets/HERO_GRAPHIC_ROUNDED.png)
 
-The planning process feels like a whiteboard session:
+The steering loop feels like a whiteboard session:
 
 1. **visualize the architecture** and see relationships at a glance
 2. **drill down** into containers and components to review each layer
