@@ -86,4 +86,4 @@ If you provide sequence SVG fragments, preserve step numbering and participant l
 
 After injection, run:
 
-- `scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`
+- `${CLAUDE_PLUGIN_ROOT}/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`

@@ -23,8 +23,8 @@ Use this when generating `diagram.html`.
 
 Use fixed app template + injected SVG fragments.
 
-- generator: `skills/architect-diagram/scripts/generate-svg-fragments.py`
-- renderer: `skills/architect-diagram/scripts/render-diagram-html.py`
+- generator: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/generate-svg-fragments.py`
+- renderer: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-diagram-html.py`
 
 ## Sequence policy
 
@@ -47,4 +47,4 @@ Use fixed app template + injected SVG fragments.
 
 Run:
 
-`skills/architect-diagram/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`
+`${CLAUDE_PLUGIN_ROOT}/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`

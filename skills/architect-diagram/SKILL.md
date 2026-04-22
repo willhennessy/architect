@@ -56,14 +56,14 @@ Optional debug output:
 Primary path (preferred):
 
 1. Generate styled SVG fragments from architecture artifacts:
-   - `python3 skills/architect-diagram/scripts/generate-svg-fragments.py --output-root <output-root>`
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/generate-svg-fragments.py --output-root <output-root>`
 2. Inject fragments into template app:
-   - `python3 skills/architect-diagram/scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
 
 Fallback/testing path:
 
 - If explicitly requested for quick iteration, allow fallback renderer:
-  - `python3 skills/architect-diagram/scripts/render-diagram-html.py --output-root <output-root> --mode fast`
+  - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-diagram-html.py --output-root <output-root> --mode fast`
 
 ## Sequence behavior
 
@@ -85,7 +85,7 @@ Opt-in (explicit request only):
 3. Generate SVG fragments under `<output-root>/architecture/.out/diagram-svg/`.
 4. Render `architecture/diagram.html` via template injection.
 5. Validate:
-   - `skills/architect-diagram/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`
+   - `${CLAUDE_PLUGIN_ROOT}/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`
 6. Return path and summary of what was rendered.
 
 ## Completion Standard

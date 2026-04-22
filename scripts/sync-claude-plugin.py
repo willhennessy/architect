@@ -105,6 +105,12 @@ def transform_skill_text(text: str, new_name: str) -> str:
     return text
 
 
+def transform_reference_text(text: str) -> str:
+    for old, new in COMMAND_REPLACEMENTS:
+        text = text.replace(old, new)
+    return text
+
+
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -127,8 +133,12 @@ def main() -> int:
         write_text(dest, transform_skill_text(text, new_name))
 
     for source, dest in DIRECT_COPIES.items():
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, dest)
+        if source.suffix == ".md":
+            text = source.read_text(encoding="utf-8")
+            write_text(dest, transform_reference_text(text))
+        else:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, dest)
 
     for source, dest in DIRECTORY_COPIES.items():
         if dest.exists():

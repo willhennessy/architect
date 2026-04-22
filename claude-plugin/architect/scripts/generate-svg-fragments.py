@@ -12,6 +12,8 @@ import argparse
 import hashlib
 import json
 import math
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
@@ -87,6 +89,28 @@ ROUTING_EPSILON = 0.25
 def load_yaml(path: Path) -> Dict[str, Any]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     return data if isinstance(data, dict) else {}
+
+
+def validate_artifact_contract(output_root: Path) -> None:
+    validator = Path(__file__).with_name("validate-feedback-update.py")
+    if not validator.exists():
+        raise SystemExit(f"Missing contract validator: {validator}")
+
+    result = subprocess.run(
+        [sys.executable, str(validator), "--output-root", str(output_root)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+
+    details = (result.stdout or "").strip()
+    if not details:
+        details = (result.stderr or "").strip()
+    raise SystemExit(
+        "Architecture artifacts failed contract validation before SVG generation.\n"
+        f"{details or 'No validator output captured.'}"
+    )
 
 
 def compute_revision_id(output_root: Path) -> str:
@@ -1184,6 +1208,7 @@ def main() -> int:
     args = ap.parse_args()
 
     root = Path(args.output_root).expanduser().resolve()
+    validate_artifact_contract(root)
     arch = root / "architecture"
     manifest = load_yaml(arch / "manifest.yaml")
     model = load_yaml(arch / "model.yaml")

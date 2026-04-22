@@ -259,7 +259,7 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 0;
       min-width: 0;
     }
 
@@ -268,9 +268,6 @@
       align-items: center;
       min-width: 0;
       flex-shrink: 0;
-      border-radius: 14px;
-      background: transparent;
-      border: 1px solid transparent;
     }
 
     .brand-logo {
@@ -280,15 +277,31 @@
       max-width: min(44vw, 176px);
     }
 
-    [data-theme="dark"] .brand-lockup {
-      padding: 6px 10px;
-      background: var(--color-bg-surface-elevated);
-      border-color: var(--color-border-default);
+    .brand-context {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+      line-height: 1;
+    }
+
+    .brand-context[hidden] {
+      display: none;
+    }
+
+    .brand-divider {
+      flex-shrink: 0;
+      padding: 0 12px;
+      color: var(--color-text-muted);
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 1;
     }
 
     .subtitle {
-      font-size: 12px;
-      color: var(--color-text-secondary);
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1;
+      color: var(--color-text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1451,7 +1464,7 @@
       }
 
       .brand-logo {
-        height: 26px;
+        height: 30px;
       }
 
       .subtitle {
@@ -2176,13 +2189,18 @@
       <span class="brand-lockup">
         <img
           class="brand-logo"
-          src="__BRAND_LOGO_SRC__"
+          src="__BRAND_LOGO_LIGHT_SRC__"
+          data-light-src="__BRAND_LOGO_LIGHT_SRC__"
+          data-dark-src="__BRAND_LOGO_DARK_SRC__"
           alt="Architect"
-          width="1032"
-          height="296"
+          width="783"
+          height="216"
         />
       </span>
-      <div class="subtitle" id="systemSubtitle"></div>
+      <div class="brand-context" id="brandContext">
+        <span class="brand-divider" aria-hidden="true">/</span>
+        <div class="subtitle" id="systemSubtitle"></div>
+      </div>
     </div>
     <div class="topbar-actions">
       <button
@@ -2789,9 +2807,19 @@ function currentTheme() {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 
+function syncBrandLogo(theme) {
+  const logo = document.querySelector('.brand-logo');
+  if (!logo) return;
+  const nextSrc = theme === 'dark' ? logo.getAttribute('data-dark-src') : logo.getAttribute('data-light-src');
+  if (nextSrc) {
+    logo.setAttribute('src', nextSrc);
+  }
+}
+
 function setTheme(theme, persist) {
   const nextTheme = theme === 'dark' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', nextTheme);
+  syncBrandLogo(nextTheme);
   if (persist) {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
@@ -3385,7 +3413,10 @@ function hydrateLatestStatus() {
 function updateHeader() {
   const subtitle = DATA.system_name || 'Architecture Diagram';
   const activeMode = normalizeViewMode(state.mode);
-  $('systemSubtitle').textContent = subtitle;
+  const subtitleText = String(subtitle || '').trim();
+  const brandContext = $('brandContext');
+  $('systemSubtitle').textContent = subtitleText;
+  if (brandContext) brandContext.hidden = !subtitleText;
   const modeToggle = $('modeToggle');
   if (modeToggle) modeToggle.setAttribute('data-active-mode', activeMode);
   ['modeExploreBtn', 'modeCommentBtn'].forEach(function (id) {
@@ -6557,6 +6588,7 @@ if (window.matchMedia) {
   else if (typeof media.addListener === 'function') media.addListener(syncSystemTheme);
 }
 
+syncBrandLogo(currentTheme());
 updateThemeToggle();
 updateCommentComposerState();
 render();

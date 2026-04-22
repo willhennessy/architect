@@ -26,9 +26,9 @@ Use this contract when producing diagram artifacts from architecture files.
 Preferred production pipeline:
 
 1. Generate SVG fragments:
-   - `python3 skills/architect-diagram/scripts/generate-svg-fragments.py --output-root <output-root>`
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/generate-svg-fragments.py --output-root <output-root>`
 2. Render template-injected HTML:
-   - `python3 skills/architect-diagram/scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-diagram-html.py --output-root <output-root> --demo-mode`
 
 ## Sequence policy
 
@@ -47,7 +47,7 @@ Before finishing:
 - person/actor nodes are rendered as padded rectangular cards rather than avatar-style pictograms.
 - person/actor title and subtype text are contained within the node box.
 - visible relationship arrows use lighter strokes than node borders while retaining large invisible hit targets.
-- `skills/architect-diagram/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html` passes.
+- `${CLAUDE_PLUGIN_ROOT}/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html` passes.
 
 If `diagram-prompt.md` was requested:
 

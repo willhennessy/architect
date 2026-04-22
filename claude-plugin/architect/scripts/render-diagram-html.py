@@ -13,6 +13,8 @@ import argparse
 import base64
 import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Set
 
@@ -32,6 +34,8 @@ CONTEXT_EXTERNAL_KINDS = {"person", "external_system"}
 SVG_FRAGMENT_METADATA = "_metadata.json"
 RUNTIME_DIR = ".out"
 BRAND_ASSET_SOURCES = {
+    "__BRAND_LOGO_LIGHT_SRC__": ("architect-logo.png", "image/png"),
+    "__BRAND_LOGO_DARK_SRC__": ("architect-logo-dark.png", "image/png"),
     "__BRAND_LOGO_SRC__": ("architect-logo.png", "image/png"),
     "__FAVICON_ICO_SRC__": ("favicon.ico", "image/x-icon"),
     "__FAVICON_16_SRC__": ("favicon-16.png", "image/png"),
@@ -55,6 +59,28 @@ def read_yaml(path: Path) -> Dict[str, Any]:
     if not isinstance(data, dict):
         raise RenderError(f"Expected YAML mapping at: {path}")
     return data
+
+
+def validate_artifact_contract(output_root: Path) -> None:
+    validator = Path(__file__).with_name("validate-feedback-update.py")
+    if not validator.exists():
+        raise RenderError(f"Missing contract validator: {validator}")
+
+    result = subprocess.run(
+        [sys.executable, str(validator), "--output-root", str(output_root)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+
+    details = (result.stdout or "").strip()
+    if not details:
+        details = (result.stderr or "").strip()
+    raise RenderError(
+        "Architecture artifacts failed contract validation before HTML rendering.\n"
+        f"{details or 'No validator output captured.'}"
+    )
 
 
 def architecture_dir(output_root: Path) -> Path:
@@ -792,6 +818,7 @@ def main() -> int:
         args.require_svg_fragments = True
 
     output_root = Path(args.output_root).expanduser().resolve()
+    validate_artifact_contract(output_root)
     arch_dir = architecture_dir(output_root)
 
     manifest = read_yaml(arch_dir / "manifest.yaml")
