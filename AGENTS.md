@@ -134,7 +134,7 @@ git status --short --branch
 ./scripts/run-docsign-test.sh
 
 # isolated manual run
-./scripts/new-manual-eval.sh --repo-url <url> --name <run-name>
+./scripts/run-test.sh --plugin-source local --repo-url <url> --name <run-name>
 
 # python syntax checks
 python3 -m py_compile <script.py>

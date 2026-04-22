@@ -2366,6 +2366,12 @@ const VIEW_MODE_STORAGE_KEY = (function () {
   if (window.location && window.location.pathname) return 'viewMode:' + window.location.pathname;
   return 'viewMode:default';
 })();
+const VIEW_SESSION_STATE_KEY = (function () {
+  if (HANDOFF.output_root) return 'viewState:' + HANDOFF.output_root;
+  if (HANDOFF.diagram_path) return 'viewState:' + HANDOFF.diagram_path;
+  if (window.location && window.location.pathname) return 'viewState:' + window.location.pathname;
+  return 'viewState:default';
+})();
 const THEME = {
   bgPrimary: 'var(--color-bg-app)',
   bgSecondary: 'var(--color-bg-sidebar)',
@@ -2459,6 +2465,32 @@ Array.from(relationshipsById.values()).forEach(function (rel) {
     relationshipsByNodeId.get(nodeId).push(rel);
   });
 });
+
+function viewContainsElement(viewId, elementId) {
+  if (!viewId || !elementId || !viewsById.has(viewId)) return false;
+  const view = viewsById.get(viewId);
+  if (!view || !Array.isArray(view.nodes)) return false;
+  return view.nodes.some(function (node) {
+    return String(node && node.id || '') === String(elementId);
+  });
+}
+
+function restorePersistedViewState() {
+  const snapshot = readSessionViewState();
+  if (!snapshot) return;
+  if (snapshot.viewId && viewsById.has(snapshot.viewId)) {
+    state.viewId = snapshot.viewId;
+  }
+  if (snapshot.selectedId && viewContainsElement(state.viewId, snapshot.selectedId)) {
+    state.selectedId = snapshot.selectedId;
+  } else {
+    state.selectedId = null;
+  }
+}
+
+restorePersistedViewState();
+persistSessionViewState();
+
 const VIEW_HIERARCHY = buildViewHierarchyData();
 const PERF_STATE = (function () {
   if (!window.__architectPerf || typeof window.__architectPerf !== 'object') {
@@ -2829,6 +2861,28 @@ function persistViewMode(mode) {
   }
 }
 
+function readSessionViewState() {
+  try {
+    const raw = sessionStorage.getItem(VIEW_SESSION_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_err) {
+    return null;
+  }
+}
+
+function persistSessionViewState() {
+  try {
+    sessionStorage.setItem(VIEW_SESSION_STATE_KEY, JSON.stringify({
+      viewId: state.viewId || null,
+      selectedId: state.selectedId || null,
+    }));
+  } catch (_err) {
+    // ignore storage failures in restricted environments
+  }
+}
+
 function currentTheme() {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
@@ -3064,6 +3118,7 @@ function changeView(nextViewId, options) {
     state.viewId = nextViewId;
     state.selectedId = null;
     state.viewOverviewOpen = false;
+    persistSessionViewState();
   }, {
     kind: 'view',
     direction: opts.direction || transitionDirectionForView(nextViewId),
@@ -3080,6 +3135,7 @@ function setSelectedId(nextSelectedId, options) {
   }
   return withUiTransition(function () {
     state.selectedId = nextSelectedId || null;
+    persistSessionViewState();
   }, {
     kind: 'detail',
     direction: nextSelectedId ? 'forward' : 'back',
