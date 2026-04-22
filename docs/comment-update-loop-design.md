@@ -292,6 +292,9 @@ blocked
   - Info banner + `A deeper reconcile is still running. Expect another update soon.`
 - `completed`
   - Success banner + `The deeper update is ready. Refresh this page to view the latest diagram.`
+  - Also used for no-op feedback such as connectivity checks or simple acknowledgments when no architecture change is requested
+- `blocked`
+  - Warning banner + `The update needs direction before Claude can safely change the architecture.`
 - `failed`
   - Error banner + `The update hit a problem. Open the agent to review the error.`
 

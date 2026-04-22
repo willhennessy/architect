@@ -92,6 +92,7 @@
       --color-signal: #4A9C95;
       --color-signal-hover: #3A8780;
       --color-status-success: #6B9A5F;
+      --color-status-warning: #B07A2E;
       --color-status-error: #B55A4A;
       --color-modal-scrim: rgba(30, 25, 15, 0.35);
       --color-signal-glow: color-mix(in srgb, var(--color-signal) 28%, transparent);
@@ -149,6 +150,7 @@
       --color-signal: #5FB3AB;
       --color-signal-hover: #4F9E96;
       --color-status-success: #7FAE73;
+      --color-status-warning: #D39A47;
       --color-status-error: #C97060;
       --color-modal-scrim: rgba(0, 0, 0, 0.6);
       --color-signal-glow: color-mix(in srgb, var(--color-signal) 34%, transparent);
@@ -1049,6 +1051,10 @@
       background: color-mix(in srgb, var(--color-status-success) 16%, var(--color-bg-surface));
     }
 
+    .comment-status-card[data-tone="blocked"] {
+      background: color-mix(in srgb, var(--color-status-warning) 16%, var(--color-bg-surface));
+    }
+
     .comment-status-card[data-tone="failed"] {
       background: color-mix(in srgb, var(--color-status-error) 16%, var(--color-bg-surface));
     }
@@ -1073,6 +1079,10 @@
 
     .comment-status-card[data-tone="success"] .comment-status-icon {
       color: var(--color-status-success);
+    }
+
+    .comment-status-card[data-tone="blocked"] .comment-status-icon {
+      color: var(--color-status-warning);
     }
 
     .comment-status-card[data-tone="failed"] .comment-status-icon {
@@ -1137,6 +1147,14 @@
       color: color-mix(in srgb, var(--color-status-success) 82%, var(--color-text-primary));
     }
 
+    .comment-status-card[data-tone="blocked"] .comment-status-title {
+      color: var(--color-status-warning);
+    }
+
+    .comment-status-card[data-tone="blocked"] .comment-status-subtitle {
+      color: color-mix(in srgb, var(--color-status-warning) 84%, var(--color-text-primary));
+    }
+
     .comment-status-card[data-tone="failed"] .comment-status-title {
       color: var(--color-status-error);
     }
@@ -1183,6 +1201,14 @@
       background: none;
       border-color: transparent;
       color: color-mix(in srgb, var(--color-status-error) 82%, var(--color-text-primary));
+    }
+
+    .comment-status-card[data-tone="blocked"] .comment-status-secondary-action {
+      color: var(--color-status-warning);
+    }
+
+    .comment-status-card[data-tone="blocked"] .comment-status-secondary-action:hover:not(:disabled) {
+      color: color-mix(in srgb, var(--color-status-warning) 82%, var(--color-text-primary));
     }
 
     .comment-list {
@@ -3096,7 +3122,8 @@ function setMode(mode, shouldRender, options) {
 }
 
 function statusToneForState(jobState) {
-  if (jobState === 'failed' || jobState === 'blocked') return 'failed';
+  if (jobState === 'failed') return 'failed';
+  if (jobState === 'blocked') return 'blocked';
   if (jobState === 'completed') return 'success';
   return 'pending';
 }
@@ -3157,14 +3184,14 @@ function buildCommentPayload() {
   };
 }
 
-function failureDetailsText() {
+function statusDetailsText() {
   const details = [];
   const status = state.activeJob || {};
   if (status.state) details.push('State: ' + status.state);
   if (status.job_id) details.push('Job id: ' + status.job_id);
-  const errorText = String(status.error || status.message || '').trim();
-  if (errorText) {
-    details.push('', 'Error', errorText);
+  const detailText = String(status.error || status.message || '').trim();
+  if (detailText) {
+    details.push('', status.state === 'blocked' ? 'Status' : 'Error', detailText);
   } else {
     details.push('', 'Error', 'No additional error details were returned.');
   }
@@ -3174,11 +3201,14 @@ function failureDetailsText() {
   return details.join('\n');
 }
 
-function showFailureDetails() {
+function showStatusDetails() {
+  const isBlocked = state.activeJob && state.activeJob.state === 'blocked';
   showOverlayContent(
-    'Processing details',
-    "Here's what the runtime reported for this batch.",
-    failureDetailsText()
+    isBlocked ? 'Waiting On Direction' : 'Processing details',
+    isBlocked
+      ? "Claude needs clearer direction before it can update the diagram."
+      : "Here's what the runtime reported for this batch.",
+    statusDetailsText()
   );
 }
 
@@ -3222,8 +3252,17 @@ function statusSummaryForActiveJob() {
   if (tone === 'success') {
     return {
       tone: tone,
-      title: 'All ' + commentCountLabel(count) + ' addressed',
+      title: 'Resolved ' + commentCountLabel(count),
       subtitle: 'Updates have been applied.',
+      animated: false,
+    };
+  }
+  if (tone === 'blocked') {
+    return {
+      tone: tone,
+      title: 'Need direction on ' + commentCountLabel(count),
+      subtitle: String(state.activeJob.message || '').trim()
+        || 'Claude needs a clearer architecture change before it can update the diagram.',
       animated: false,
     };
   }
@@ -3231,7 +3270,8 @@ function statusSummaryForActiveJob() {
     return {
       tone: tone,
       title: "Couldn't process comments",
-      subtitle: 'Something went wrong. Your drafts are saved.',
+      subtitle: String(state.activeJob.message || '').trim()
+        || 'Something went wrong. Open details to inspect the runtime response.',
       animated: false,
     };
   }
@@ -3246,6 +3286,9 @@ function statusSummaryForActiveJob() {
 function statusIconMarkup(tone) {
   if (tone === 'success') {
     return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"></circle><path d="M4.2 8.2 6.65 10.65 11.8 5.5" stroke="var(--color-text-inverse)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+  }
+  if (tone === 'blocked') {
+    return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.2 14.3 13.4H1.7L8 1.2Z" fill="currentColor"></path><path d="M8 5v3.8" stroke="var(--color-text-inverse)" stroke-width="1.4" stroke-linecap="round"></path><circle cx="8" cy="11.3" r=".75" fill="var(--color-text-inverse)"></circle></svg>';
   }
   if (tone === 'failed') {
     return '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"></circle><path d="M8 4.5v4" stroke="var(--color-text-inverse)" stroke-width="1.5" stroke-linecap="round"></path><circle cx="8" cy="11.1" r=".8" fill="var(--color-text-inverse)"></circle></svg>';
@@ -3307,24 +3350,26 @@ function renderSidebarStatusCard() {
   main.appendChild(copy);
   card.appendChild(main);
 
-  if (summary.tone === 'failed') {
+  if (summary.tone === 'failed' || summary.tone === 'blocked') {
     const actions = document.createElement('div');
     actions.className = 'comment-status-actions';
 
-    const retry = document.createElement('button');
-    retry.className = 'comment-status-primary-action';
-    retry.type = 'button';
-    retry.textContent = 'Retry';
-    retry.disabled = state.submitInFlight || state.comments.length === 0;
-    retry.addEventListener('click', submitPayload);
+    if (summary.tone === 'failed') {
+      const retry = document.createElement('button');
+      retry.className = 'comment-status-primary-action';
+      retry.type = 'button';
+      retry.textContent = 'Retry';
+      retry.disabled = state.submitInFlight || state.comments.length === 0;
+      retry.addEventListener('click', submitPayload);
+      actions.appendChild(retry);
+    }
 
     const details = document.createElement('button');
     details.className = 'comment-status-secondary-action';
     details.type = 'button';
-    details.textContent = 'Details';
-    details.addEventListener('click', showFailureDetails);
+    details.textContent = summary.tone === 'blocked' ? 'Open details' : 'Details';
+    details.addEventListener('click', showStatusDetails);
 
-    actions.appendChild(retry);
     actions.appendChild(details);
     card.appendChild(actions);
   }

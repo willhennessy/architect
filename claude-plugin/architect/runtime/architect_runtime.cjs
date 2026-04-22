@@ -589,8 +589,9 @@ const mcp = new Server(
     instructions:
       "Messages arrive as <channel source=\"architect-comments\" ...>. " +
       "When a feedback batch arrives, treat the channel line itself as the user-visible acknowledgment and do not add a second acknowledgment message before you start work. " +
-      "Read the referenced job details from the channel attributes, including bridge_url, output_root, diagram_revision_id, and comments_json, then implement the requested updates directly. " +
+      "Read the referenced job details from the channel attributes, including bridge_url, output_root, diagram_revision_id, comments_summary, and comments_json, then implement the requested updates directly. " +
       "Do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk. " +
+      "If the comment is a connectivity check, a simple acknowledgment, or otherwise does not request an architecture change, resolve it immediately by calling update_feedback_status with state=completed and a concise message such as \"Resolved 1 comment. No architecture changes were requested.\" Do not ask a follow-up question for those no-op comments. " +
       "Use update_feedback_status to report progress back to the browser bridge in a compact, implementation-aware voice. " +
       "After you edit the artifacts, call finalize_feedback_update instead of guessing shell commands so validation and rendering stay deterministic. " +
       "Keep model edits contract-safe, for example use `database` instead of `datastore`. " +
