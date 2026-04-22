@@ -34,6 +34,16 @@ RUN_ROOT="$HOME/tmp/architect-manual-evals"
 RUN_NAME_SUFFIX=""
 SKILLS_CSV="architect-plan,architect-init,architect-diagram"
 WITH_SKILL=1
+INIT_PROMPT="/architect:init"
+CLAUDE_PROMPT=""
+
+is_github_repo_url() {
+  local url="${1:-}"
+  [[ "$url" =~ ^https?://github\.com/ ]] || \
+    [[ "$url" =~ ^git@github\.com: ]] || \
+    [[ "$url" =~ ^ssh://git@github\.com/ ]] || \
+    [[ "$url" =~ ^git://github\.com/ ]]
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -63,6 +73,10 @@ done
 if [[ -n "$REPO_URL" && -n "$REPO_PATH" ]]; then
   echo "Use at most one of --repo-url or --repo-path." >&2
   exit 1
+fi
+
+if [[ -n "$REPO_URL" ]] && is_github_repo_url "$REPO_URL"; then
+  CLAUDE_PROMPT="$INIT_PROMPT"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -162,6 +176,11 @@ fi
 
 CLAUDE_CMD=(claude)
 LAUNCH_CMD_DISPLAY="claude"
+PROMPT_DISPLAY=""
+
+if [[ -n "$CLAUDE_PROMPT" ]]; then
+  PROMPT_DISPLAY=" -- \"$CLAUDE_PROMPT\""
+fi
 
 CHANNEL_SYSTEM_PROMPT="When an architect-comments channel event arrives, acknowledge it immediately, inspect the referenced job and output root, implement the requested updates directly, use update_feedback_status for progress, use finalize_feedback_update instead of guessing render commands, and do not stop after proposing a plan unless you are blocked or the feedback is genuinely ambiguous or high-risk."
 
@@ -189,7 +208,7 @@ cat > "$RUN_DIR/notes.md" <<EOF
 
 This run auto-starts Claude in this directory with:
 
-$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME"$( (( WITH_SKILL )) && printf ' --dangerously-load-development-channels plugin:architect@architect-local' ) --permission-mode plan$( (( WITH_SKILL )) && printf ' --append-system-prompt "%s"' "$CHANNEL_SYSTEM_PROMPT" )
+$LAUNCH_CMD_DISPLAY --name "$SESSION_NAME"$( (( WITH_SKILL )) && printf ' --dangerously-load-development-channels plugin:architect@architect-local' ) --permission-mode plan$( (( WITH_SKILL )) && printf ' --append-system-prompt "%s"' "$CHANNEL_SYSTEM_PROMPT" )$PROMPT_DISPLAY
 
 (Working directory: $RUN_DIR)
 
@@ -201,6 +220,18 @@ If you do not specify a custom output path in Claude, Architect should write vis
 - $RUN_DIR/architecture/diagram.html
 
 EOF
+
+if [[ -n "$CLAUDE_PROMPT" ]]; then
+cat >> "$RUN_DIR/notes.md" <<EOF
+
+## Prompt
+
+\`\`\`
+$CLAUDE_PROMPT
+\`\`\`
+
+EOF
+fi
 
 if (( WITH_SKILL )); then
 cat >> "$RUN_DIR/notes.md" <<EOF
@@ -227,11 +258,29 @@ fi
 
 cd "$RUN_DIR"
 if (( WITH_SKILL )); then
+  if [[ -n "$CLAUDE_PROMPT" ]]; then
+    exec "${CLAUDE_CMD[@]}" \
+      --name "$SESSION_NAME" \
+      --dangerously-load-development-channels "plugin:architect@architect-local" \
+      --permission-mode plan \
+      --append-system-prompt "$CHANNEL_SYSTEM_PROMPT" \
+      -- \
+      "$CLAUDE_PROMPT"
+  fi
+
   exec "${CLAUDE_CMD[@]}" \
     --name "$SESSION_NAME" \
     --dangerously-load-development-channels "plugin:architect@architect-local" \
     --permission-mode plan \
     --append-system-prompt "$CHANNEL_SYSTEM_PROMPT"
 else
+  if [[ -n "$CLAUDE_PROMPT" ]]; then
+    exec "${CLAUDE_CMD[@]}" \
+      --name "$SESSION_NAME" \
+      --permission-mode plan \
+      -- \
+      "$CLAUDE_PROMPT"
+  fi
+
   exec "${CLAUDE_CMD[@]}" --name "$SESSION_NAME" --permission-mode plan
 fi

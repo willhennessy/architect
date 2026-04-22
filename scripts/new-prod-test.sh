@@ -29,7 +29,17 @@ RUN_NAME_SUFFIX=""
 MARKETPLACE_URL="https://github.com/willhennessy/architect.git"
 PLUGIN_INSTALL_NAME="architect@plugins"
 CLAUDE_MODEL="claude-haiku-4-5"
-CLAUDE_PROMPT="/architect:plan Design a simple news feed web app with frontend and backend. Draw the architecture diagram. Generate at least 1 container and 2 components. Keep your token usage low."
+PLAN_PROMPT="/architect:plan Design a simple news feed web app with frontend and backend. Draw the architecture diagram. Generate at least 1 container and 2 components. Keep your token usage low."
+INIT_PROMPT="/architect:init"
+CLAUDE_PROMPT="$PLAN_PROMPT"
+
+is_github_repo_url() {
+  local url="${1:-}"
+  [[ "$url" =~ ^https?://github\.com/ ]] || \
+    [[ "$url" =~ ^git@github\.com: ]] || \
+    [[ "$url" =~ ^ssh://git@github\.com/ ]] || \
+    [[ "$url" =~ ^git://github\.com/ ]]
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -53,6 +63,10 @@ done
 if [[ -n "$REPO_URL" && -n "$REPO_PATH" ]]; then
   echo "Use at most one of --repo-url or --repo-path." >&2
   exit 1
+fi
+
+if [[ -n "$REPO_URL" ]] && is_github_repo_url "$REPO_URL"; then
+  CLAUDE_PROMPT="$INIT_PROMPT"
 fi
 
 timestamp="$(date +%Y%m%d-%H%M%S)-$RANDOM"
@@ -136,7 +150,7 @@ claude plugin install $PLUGIN_INSTALL_NAME --scope local
 
 This run auto-starts Claude in this directory with:
 
-claude --name "$SESSION_NAME" --model "$CLAUDE_MODEL" --permission-mode plan --dangerously-skip-permissions --channels plugin:architect@plugins -- "$CLAUDE_PROMPT"
+claude --name "$SESSION_NAME" --model "$CLAUDE_MODEL" --permission-mode plan --dangerously-load-development-channels plugin:architect@plugins --dangerously-skip-permissions -- "$CLAUDE_PROMPT"
 
 (Working directory: $RUN_DIR)
 
@@ -172,7 +186,7 @@ exec "${CLAUDE_CMD[@]}" \
   --name "$SESSION_NAME" \
   --model "$CLAUDE_MODEL" \
   --permission-mode plan \
+  --dangerously-load-development-channels plugin:architect@plugins \
   --dangerously-skip-permissions \
-  --channels "plugin:architect@plugins" \
   -- \
   "$CLAUDE_PROMPT"

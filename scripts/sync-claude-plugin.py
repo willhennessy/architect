@@ -63,6 +63,11 @@ DIRECT_COPIES = {
         PLUGIN_ROOT / "scripts" / "semantic-diff-gate.py",
 }
 
+DIRECTORY_COPIES = {
+    REPO_ROOT / "skills" / "architect-diagram" / "templates" / "assets":
+        PLUGIN_ROOT / "templates" / "assets",
+}
+
 ALLOWED_SKILL_DIRS = {
     "init",
     "plan",
@@ -124,6 +129,11 @@ def main() -> int:
     for source, dest in DIRECT_COPIES.items():
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, dest)
+
+    for source, dest in DIRECTORY_COPIES.items():
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(source, dest)
 
     return 0
 
