@@ -32,6 +32,9 @@ CLAUDE_MODEL="claude-haiku-4-5"
 PLAN_PROMPT="/architect:plan Design a simple news feed web app with frontend and backend. Draw the architecture diagram. Generate at least 1 container and 2 components. Keep your token usage low."
 INIT_PROMPT="/architect:init"
 CLAUDE_PROMPT="$PLAN_PROMPT"
+PLUGIN_CACHE_DIR="$HOME/.claude/plugins/cache/plugins/architect"
+MARKETPLACE_GIT_DIR="$HOME/.claude/plugins/marketplaces/plugins"
+MARKETPLACE_SHALLOW_LOCK="$MARKETPLACE_GIT_DIR/.git/shallow.lock"
 
 is_github_repo_url() {
   local url="${1:-}"
@@ -39,6 +42,13 @@ is_github_repo_url() {
     [[ "$url" =~ ^git@github\.com: ]] || \
     [[ "$url" =~ ^ssh://git@github\.com/ ]] || \
     [[ "$url" =~ ^git://github\.com/ ]]
+}
+
+reset_architect_plugin_cache() {
+  rm -rf "$PLUGIN_CACHE_DIR"
+
+  # Interrupted git operations can leave this lock behind and block refreshes.
+  rm -f "$MARKETPLACE_SHALLOW_LOCK"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -123,9 +133,12 @@ fi
 CLAUDE_CMD=(claude)
 
 echo "Configuring published Architect marketplace and plugin..."
+echo "Resetting shared Architect plugin cache..."
+reset_architect_plugin_cache
 (
   cd "$RUN_DIR"
   "${CLAUDE_CMD[@]}" plugin marketplace add "$MARKETPLACE_URL" --scope local
+  "${CLAUDE_CMD[@]}" plugin marketplace update plugins
   "${CLAUDE_CMD[@]}" plugin install "$PLUGIN_INSTALL_NAME" --scope local
 )
 
@@ -142,7 +155,10 @@ cat > "$RUN_DIR/notes.md" <<EOF
 ## Install commands
 
 \`\`\`bash
+rm -rf $PLUGIN_CACHE_DIR
+rm -f $MARKETPLACE_SHALLOW_LOCK
 claude plugin marketplace add $MARKETPLACE_URL --scope local
+claude plugin marketplace update plugins
 claude plugin install $PLUGIN_INSTALL_NAME --scope local
 \`\`\`
 
