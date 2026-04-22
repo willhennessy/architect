@@ -1,6 +1,6 @@
 # Claude Architect
 
-The Claude Architect plugin adds an interactive architecture diagram to Plan Mode, so you can review, annotate, and revise the plan with Claude in real time.
+The Claude Architect plugin adds an interactive architecture diagram to Plan Mode so you can review, annotate, and revise the plan with Claude in real time.
 
 ![Architect hero showing the containers view and component details panel](assets/HERO_GRAPHIC_ROUNDED.png)
 
