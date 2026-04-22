@@ -201,6 +201,15 @@ def diagram_html_path(output_root: Path) -> Path:
     return architecture_dir(output_root) / "diagram.html"
 
 
+def load_rendered_diagram_revision_id(output_root: Path) -> str:
+    diagram_path = diagram_html_path(output_root)
+    if not diagram_path.exists():
+        return ""
+    html = diagram_path.read_text(encoding="utf-8", errors="ignore")
+    match = re.search(r'"diagram_revision_id"\s*:\s*"([^"]+)"', html)
+    return str(match.group(1) or "").strip() if match else ""
+
+
 def compute_revision_id(output_root: Path) -> str:
     arch = architecture_dir(output_root)
     parts: List[bytes] = []
@@ -215,6 +224,16 @@ def compute_revision_id(output_root: Path) -> str:
             parts.append(path.read_bytes())
     digest = hashlib.sha1(b"\n".join(parts)).hexdigest()[:12]
     return f"rev-{digest}"
+
+
+def current_diagram_revision_id(output_root: Path) -> str:
+    rendered_revision = load_rendered_diagram_revision_id(output_root)
+    if rendered_revision:
+        return rendered_revision
+    try:
+        return compute_revision_id(output_root)
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def normalize_kind(token: str) -> str:
@@ -1108,6 +1127,7 @@ class JobStore:
             "received",
             "Comments sent. The agent is reviewing them now.",
             submitted_comment_count=len(payload.get("comments") or []),
+            submitted_revision_id=str(payload.get("diagram_revision_id") or ""),
             needs_refresh=False,
             has_fast_result=False,
             has_final_result=False,
@@ -1162,6 +1182,41 @@ class JobStore:
             return None
         status = read_json(status_path, default=None)
         return status if isinstance(status, dict) else None
+
+    def latest_status_snapshot_for_output_root(self, output_root: Path) -> Dict[str, Any]:
+        latest_path = feedback_jobs_dir(output_root) / "latest.json"
+        latest = read_json(latest_path, default=None)
+        status: Optional[Dict[str, Any]] = None
+        latest_job_id: Optional[str] = None
+        submitted_revision_id: Optional[str] = None
+
+        if isinstance(latest, dict):
+            latest_job_id = str(latest.get("job_id") or "") or None
+            status_path = Path(str(latest.get("status_path") or ""))
+            if status_path.exists():
+                loaded_status = read_json(status_path, default=None)
+                if isinstance(loaded_status, dict):
+                    status = loaded_status
+                    submitted_revision_id = str(loaded_status.get("submitted_revision_id") or "") or None
+
+            if not submitted_revision_id:
+                if status_path.exists():
+                    input_path = status_path.parent / "input.json"
+                elif latest_job_id:
+                    input_path = feedback_jobs_dir(output_root) / latest_job_id / "input.json"
+                else:
+                    input_path = None
+                if input_path and input_path.exists():
+                    input_payload = read_json(input_path, default=None)
+                    if isinstance(input_payload, dict):
+                        submitted_revision_id = str(input_payload.get("diagram_revision_id") or "") or None
+
+        return {
+            "status": status,
+            "diagram_revision_id": current_diagram_revision_id(output_root) or None,
+            "submitted_revision_id": submitted_revision_id,
+            "latest_job_id": latest_job_id,
+        }
 
     def subscribe(self, record: JobRecord) -> queue.Queue:
         q: queue.Queue = queue.Queue(maxsize=10)
@@ -1364,8 +1419,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "output_root is required"})
                 return
             output_root = Path(raw_root).expanduser().resolve()
-            status = self.server.store.latest_status_for_output_root(output_root)
-            self._send_json(200, {"status": status})
+            snapshot = self.server.store.latest_status_snapshot_for_output_root(output_root)
+            self._send_json(200, snapshot)
             return
 
         m = re.match(r"^/jobs/([^/]+)$", parsed.path)

@@ -2427,8 +2427,11 @@ const state = {
   lastSubmittedPayload: null,
   eventSource: null,
   pollTimer: null,
+  latestStatusTimer: null,
+  latestStatusFetchInFlight: false,
   autoRefreshTimer: null,
   autoRefreshJobId: null,
+  revisionReloadPending: false,
   commentCloseTimer: null,
   discardPromptArmed: false,
   discardPromptTimer: null,
@@ -3189,6 +3192,11 @@ function commentCountLabel(count) {
   return safeCount + ' comment' + (safeCount === 1 ? '' : 's');
 }
 
+function latestStatusUrl() {
+  if (!HANDOFF.bridge_url || !HANDOFF.output_root) return '';
+  return HANDOFF.bridge_url.replace(/\/$/, '') + '/latest-status?output_root=' + encodeURIComponent(HANDOFF.output_root);
+}
+
 function stopStatusSubscriptions() {
   if (state.eventSource) {
     state.eventSource.close();
@@ -3212,6 +3220,47 @@ function scheduleAutoRefresh(status) {
   state.autoRefreshTimer = setTimeout(function () {
     window.location.reload();
   }, 4000);
+}
+
+function stopLatestStatusPolling() {
+  if (state.latestStatusTimer) {
+    clearInterval(state.latestStatusTimer);
+    state.latestStatusTimer = null;
+  }
+  state.latestStatusFetchInFlight = false;
+}
+
+function startLatestStatusPolling() {
+  if (state.latestStatusTimer || !latestStatusUrl()) return;
+  state.latestStatusTimer = setInterval(function () {
+    fetchLatestStatusSnapshot();
+  }, 4000);
+}
+
+function currentDiagramRevisionId() {
+  return String(HANDOFF.diagram_revision_id || '').trim();
+}
+
+function latestDiagramRevisionId(payload) {
+  if (!payload) return '';
+  return String(payload.diagram_revision_id || '').trim();
+}
+
+function statusTargetsOlderDiagram(status, latestRevisionId) {
+  const submittedRevisionId = String((status && status.submitted_revision_id) || '').trim();
+  const currentRevisionId = String(latestRevisionId || currentDiagramRevisionId()).trim();
+  return !!(submittedRevisionId && currentRevisionId && submittedRevisionId !== currentRevisionId);
+}
+
+function maybeReloadForNewDiagram(payload) {
+  const latestRevisionId = latestDiagramRevisionId(payload);
+  const currentRevisionId = currentDiagramRevisionId();
+  if (!latestRevisionId || !currentRevisionId || latestRevisionId === currentRevisionId || state.revisionReloadPending) {
+    return false;
+  }
+  state.revisionReloadPending = true;
+  window.location.reload();
+  return true;
 }
 
 function showOverlayContent(title, helper, body) {
@@ -3281,13 +3330,20 @@ function applyJobStatus(status, options) {
   updateSidebar();
   if (allowAutoRefresh) scheduleAutoRefresh(status);
 
+  if (status.state === 'blocked' || status.state === 'failed') {
+    startLatestStatusPolling();
+  } else {
+    stopLatestStatusPolling();
+  }
+
   if (status.state === 'completed' || status.state === 'failed' || status.state === 'blocked') {
     stopStatusSubscriptions();
   }
 }
 
-function shouldSuppressHydratedStatus(status) {
+function shouldSuppressHydratedStatus(status, latestRevisionId) {
   if (!status || !status.state) return true;
+  if (statusTargetsOlderDiagram(status, latestRevisionId)) return true;
   if (status.state !== 'completed') return false;
   if (!HANDOFF.latest_job_id) return false;
   return status.job_id === HANDOFF.latest_job_id;
@@ -3454,6 +3510,7 @@ function startPollingJob(jobId, statusUrl) {
 
 function subscribeToJob(job) {
   stopStatusSubscriptions();
+  stopLatestStatusPolling();
   if (!job || !job.job_id) return;
 
   const eventsUrl = job.events_url
@@ -3485,30 +3542,45 @@ function subscribeToJob(job) {
   startPollingJob(job.job_id, statusUrl);
 }
 
-function hydrateLatestStatus() {
-  if (!HANDOFF.bridge_url || !HANDOFF.output_root) return;
-  const latestUrl = HANDOFF.bridge_url.replace(/\/$/, '') + '/latest-status?output_root=' + encodeURIComponent(HANDOFF.output_root);
-  fetch(latestUrl)
+function handleLatestStatusPayload(payload) {
+  if (!payload) return;
+  if (maybeReloadForNewDiagram(payload)) return;
+  if (!payload.status) return;
+  if (shouldSuppressHydratedStatus(payload.status, payload.diagram_revision_id)) {
+    state.activeJob = null;
+    updateSidebar();
+    stopLatestStatusPolling();
+    return;
+  }
+  applyJobStatus(payload.status, { allowAutoRefresh: false });
+  if (payload.status.job_id && ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(payload.status.state) !== -1) {
+    subscribeToJob({
+      job_id: payload.status.job_id,
+      status_url: HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(payload.status.job_id),
+      events_url: HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(payload.status.job_id) + '/events',
+    });
+  }
+}
+
+function fetchLatestStatusSnapshot() {
+  const url = latestStatusUrl();
+  if (!url || state.latestStatusFetchInFlight) return;
+  state.latestStatusFetchInFlight = true;
+  fetch(url)
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (payload) {
-      if (!payload || !payload.status) return;
-      if (shouldSuppressHydratedStatus(payload.status)) {
-        state.activeJob = null;
-        updateSidebar();
-        return;
-      }
-      applyJobStatus(payload.status, { allowAutoRefresh: false });
-      if (payload.status.job_id && ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(payload.status.state) !== -1) {
-        subscribeToJob({
-          job_id: payload.status.job_id,
-          status_url: HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(payload.status.job_id),
-          events_url: HANDOFF.bridge_url.replace(/\/$/, '') + '/jobs/' + encodeURIComponent(payload.status.job_id) + '/events',
-        });
-      }
+      handleLatestStatusPayload(payload);
     })
     .catch(function () {
       // bridge may be offline; fall back to embedded status only
+    })
+    .finally(function () {
+      state.latestStatusFetchInFlight = false;
     });
+}
+
+function hydrateLatestStatus() {
+  fetchLatestStatusSnapshot();
 }
 
 function updateHeader() {

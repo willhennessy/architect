@@ -156,6 +156,82 @@ function diagramPathFor(outputRoot) {
   return path.join(architectureDir(outputRoot), "diagram.html");
 }
 
+function listViewFiles(viewsDir) {
+  if (!fs.existsSync(viewsDir)) return [];
+  const stat = fs.statSync(viewsDir);
+  if (!stat.isDirectory()) return [];
+
+  const out = [];
+  const stack = [viewsDir];
+  while (stack.length) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (entry.isFile() && /\.(ya?ml)$/i.test(entry.name)) {
+        out.push(fullPath);
+      }
+    }
+  }
+
+  out.sort((left, right) => path.relative(viewsDir, left).localeCompare(path.relative(viewsDir, right)));
+  return out;
+}
+
+function computeRevisionIdFromArtifacts(outputRoot) {
+  const archDir = architectureDir(outputRoot);
+  const viewsDir = path.join(archDir, "views");
+  const hash = createHash("sha1");
+  let wrotePart = false;
+
+  const writePart = (value) => {
+    if (wrotePart) hash.update("\n");
+    hash.update(value);
+    wrotePart = true;
+  };
+
+  for (const filePath of listViewFiles(viewsDir)) {
+    writePart(Buffer.from(path.relative(archDir, filePath).replace(/\\/g, "/"), "utf8"));
+    writePart(fs.readFileSync(filePath));
+  }
+
+  for (const name of ["manifest.yaml", "model.yaml", "summary.md", "diff.yaml"]) {
+    const filePath = path.join(archDir, name);
+    if (!fs.existsSync(filePath)) continue;
+    writePart(Buffer.from(name, "utf8"));
+    writePart(fs.readFileSync(filePath));
+  }
+
+  return `rev-${hash.digest("hex").slice(0, 12)}`;
+}
+
+function loadRenderedDiagramRevisionId(outputRoot) {
+  const diagramPath = diagramPathFor(outputRoot);
+  if (!fs.existsSync(diagramPath)) return "";
+  const html = fs.readFileSync(diagramPath, "utf8");
+  const match = html.match(/"diagram_revision_id"\s*:\s*"([^"]+)"/);
+  return match ? String(match[1] || "").trim() : "";
+}
+
+function currentDiagramRevisionId(outputRoot) {
+  try {
+    const renderedRevision = loadRenderedDiagramRevisionId(outputRoot);
+    if (renderedRevision) return renderedRevision;
+  } catch {
+    // Fall back to artifact-derived revision when the rendered HTML is unreadable.
+  }
+
+  try {
+    return computeRevisionIdFromArtifacts(outputRoot);
+  } catch {
+    return "";
+  }
+}
+
 function stateIndex(state) {
   return STATE_ORDER.indexOf(String(state || ""));
 }
@@ -278,6 +354,45 @@ class JobStore {
     return status;
   }
 
+  async latestStatusSnapshotForOutputRoot(outputRoot) {
+    const latestPath = path.join(feedbackJobsDir(outputRoot), "latest.json");
+    const latest = await readJson(latestPath, null);
+    let status = null;
+    let latestJobId = "";
+    let submittedRevisionId = "";
+
+    if (latest && typeof latest === "object") {
+      latestJobId = String(latest.job_id || "");
+      const statusPath = latest.status_path ? String(latest.status_path) : "";
+      if (statusPath) {
+        status = await readJson(statusPath, null);
+      }
+
+      if (status && typeof status === "object") {
+        submittedRevisionId = String(status.submitted_revision_id || "");
+      }
+
+      if (!submittedRevisionId) {
+        const jobDir = statusPath
+          ? path.dirname(statusPath)
+          : (latestJobId ? path.join(feedbackJobsDir(outputRoot), latestJobId) : "");
+        if (jobDir) {
+          const input = await readJson(path.join(jobDir, "input.json"), null);
+          if (input && typeof input === "object") {
+            submittedRevisionId = String(input.diagram_revision_id || "");
+          }
+        }
+      }
+    }
+
+    return {
+      status: status && typeof status === "object" ? status : null,
+      diagram_revision_id: currentDiagramRevisionId(outputRoot) || null,
+      submitted_revision_id: submittedRevisionId || null,
+      latest_job_id: latestJobId || null,
+    };
+  }
+
   async assertNoActiveJob(outputRoot) {
     const current = await this.latestStatusForOutputRoot(outputRoot);
     if (!current || !current.state) return;
@@ -328,6 +443,7 @@ class JobStore {
 
     const status = await this.updateStatus(record, "received", "Comments sent. The agent is reviewing them now.", {
       submitted_comment_count: Array.isArray(jobPayload.comments) ? jobPayload.comments.length : 0,
+      submitted_revision_id: String(jobPayload.diagram_revision_id || ""),
       needs_refresh: false,
       has_fast_result: false,
       has_final_result: false,
@@ -719,8 +835,8 @@ function requestHandler(server) {
         sendJson(res, 400, { error: "output_root is required" });
         return;
       }
-      const status = await store.latestStatusForOutputRoot(path.resolve(outputRoot));
-      sendJson(res, 200, { status });
+      const snapshot = await store.latestStatusSnapshotForOutputRoot(path.resolve(outputRoot));
+      sendJson(res, 200, snapshot);
       return;
     }
 
