@@ -2772,6 +2772,9 @@ const PORT_SLOT_INSET = 18;
 const ROUTE_CLEARANCE = 12;
 const ROUTE_GUTTER = 22;
 const ROUTE_CLEARANCE_TARGET = 24;
+const ROUTE_BUNDLE_SPACING = 10;
+const ROUTE_BUNDLE_VARIANT_COUNT = 4;
+const FRAGMENT_ROUTING_VERSION = '2';
 const EDGE_LABEL_MIN_PATH_LENGTH = 84;
 const EDGE_LABEL_MEASURE_X = -10000;
 const EDGE_LABEL_MEASURE_Y = -10000;
@@ -4326,7 +4329,9 @@ function assignEdgePorts(edges, boxesById, canvasW, canvasH) {
       })
       .forEach(function (record, idx, sorted) {
         const existing = portMap.get(record.edgeId) || {};
+        const laneBias = (idx - (sorted.length - 1) / 2) * ROUTE_BUNDLE_SPACING;
         existing[record.role === 'source' ? 'sourceAnchor' : 'targetAnchor'] = slottedAnchorPoint(box, side, idx, sorted.length);
+        existing[record.role === 'source' ? 'sourceLaneBias' : 'targetLaneBias'] = laneBias;
         portMap.set(record.edgeId, existing);
       });
   });
@@ -4546,6 +4551,28 @@ function detourExcursionPenalty(mode, detourValue, startStub, endStub) {
   return 0;
 }
 
+function routeBundleKey(srcId, dstId, srcSide, dstSide, mode, portInfo) {
+  const sourceLaneBias = portInfo && isFinite(portInfo.sourceLaneBias) ? portInfo.sourceLaneBias : 0;
+  const targetLaneBias = portInfo && isFinite(portInfo.targetLaneBias) ? portInfo.targetLaneBias : 0;
+  if (Math.abs(targetLaneBias) > ROUTING_EPSILON) return ['target', dstId, dstSide, mode].join('::');
+  if (Math.abs(sourceLaneBias) > ROUTING_EPSILON) return ['source', srcId, srcSide, mode].join('::');
+  return ['target', dstId, dstSide, mode].join('::');
+}
+
+function routeLaneReusePenalty(usedLanes, laneValue) {
+  let penalty = 0;
+  (usedLanes || []).forEach(function (usedLane) {
+    penalty += Math.max(0, ROUTE_BUNDLE_SPACING - Math.abs(laneValue - usedLane));
+  });
+  return penalty;
+}
+
+function rememberRouteLane(laneUsage, bundleKey, laneValue) {
+  if (!laneUsage || !bundleKey || !isFinite(laneValue)) return;
+  if (!laneUsage.has(bundleKey)) laneUsage.set(bundleKey, []);
+  laneUsage.get(bundleKey).push(laneValue);
+}
+
 function approximateRouteLength(points) {
   let length = 0;
   for (let idx = 0; idx < points.length - 1; idx += 1) {
@@ -4561,6 +4588,18 @@ function dedupeLaneValues(values) {
     deduped.push(value);
   });
   return deduped;
+}
+
+function expandLaneBundleCandidates(values, minValue, maxValue) {
+  const expanded = [];
+  (values || []).forEach(function (value) {
+    for (let slot = -ROUTE_BUNDLE_VARIANT_COUNT; slot <= ROUTE_BUNDLE_VARIANT_COUNT; slot += 1) {
+      const candidate = value + slot * ROUTE_BUNDLE_SPACING;
+      if (candidate < minValue - ROUTING_EPSILON || candidate > maxValue + ROUTING_EPSILON) continue;
+      expanded.push(candidate);
+    }
+  });
+  return dedupeLaneValues(expanded);
 }
 
 function gapMidpoints(intervals) {
@@ -4599,6 +4638,8 @@ function gapMidpoints(intervals) {
 
 function detourAxisValues(mode, blockerIds, boxesById, canvasW, canvasH, startStub, endStub) {
   const values = [];
+  const minAxis = 8;
+  const maxAxis = mode === 'midX' ? canvasH - 8 : canvasW - 8;
   const boxes = Array.from(boxesById.values());
   const baseline = detourBaselineCoordinate(mode, startStub, endStub);
   values.push(baseline);
@@ -4636,7 +4677,7 @@ function detourAxisValues(mode, blockerIds, boxesById, canvasW, canvasH, startSt
     }
   });
 
-  return dedupeLaneValues(values).sort(function (a, b) {
+  return expandLaneBundleCandidates(values, minAxis, maxAxis).sort(function (a, b) {
     const excursionA = detourExcursionPenalty(mode, a, startStub, endStub);
     const excursionB = detourExcursionPenalty(mode, b, startStub, endStub);
     if (excursionA !== excursionB) return excursionA - excursionB;
@@ -4649,6 +4690,8 @@ function detourAxisValues(mode, blockerIds, boxesById, canvasW, canvasH, startSt
 
 function candidateLaneValues(mode, defaultLane, boxesById, canvasW, canvasH, startStub, endStub) {
   const values = [defaultLane];
+  const minAxis = 8;
+  const maxAxis = mode === 'midX' ? canvasW - 8 : canvasH - 8;
   const boxes = Array.from(boxesById.values());
   if (!boxes.length) return values;
 
@@ -4673,7 +4716,7 @@ function candidateLaneValues(mode, defaultLane, boxesById, canvasW, canvasH, sta
     values.push(Math.max(8, minY - ROUTE_GUTTER), Math.min(canvasH - 8, maxY + ROUTE_GUTTER));
   }
 
-  return dedupeLaneValues(values).sort(function (a, b) {
+  return expandLaneBundleCandidates(values, minAxis, maxAxis).sort(function (a, b) {
     const excursionA = laneExcursionPenalty(mode, a, startStub, endStub);
     const excursionB = laneExcursionPenalty(mode, b, startStub, endStub);
     if (excursionA !== excursionB) return excursionA - excursionB;
@@ -4684,12 +4727,16 @@ function candidateLaneValues(mode, defaultLane, boxesById, canvasW, canvasH, sta
   });
 }
 
-function bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, dstSide, boxesById, canvasW, canvasH) {
+function bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, dstSide, boxesById, canvasW, canvasH, portInfo, usedBundleLanes) {
   const srcBox = boxesById.get(srcId) || null;
   const dstBox = boxesById.get(dstId) || null;
   const startStub = offsetPointForSide(start, srcSide, EDGE_EGRESS_STUB);
   const endStub = offsetPointForSide(end, dstSide, EDGE_EGRESS_STUB);
-  const offset = ((stableNumberForText(relId) % 5) - 2) * 10;
+  const sourceLaneBias = portInfo && isFinite(portInfo.sourceLaneBias) ? portInfo.sourceLaneBias : 0;
+  const targetLaneBias = portInfo && isFinite(portInfo.targetLaneBias) ? portInfo.targetLaneBias : 0;
+  let offset = Math.abs(targetLaneBias) > ROUTING_EPSILON ? targetLaneBias : 0;
+  if (Math.abs(offset) <= ROUTING_EPSILON && Math.abs(sourceLaneBias) > ROUTING_EPSILON) offset = sourceLaneBias;
+  if (Math.abs(offset) <= ROUTING_EPSILON) offset = ((stableNumberForText(relId) % 5) - 2) * ROUTE_BUNDLE_SPACING;
   const mode = routeMode(srcSide, dstSide);
   const defaultLane = mode === 'midX'
     ? (startStub.x + endStub.x) / 2 + offset
@@ -4707,6 +4754,7 @@ function bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, d
       blockerCount,
       endpointPenalty,
       Math.max(0, ROUTE_CLEARANCE_TARGET - clearance),
+      routeLaneReusePenalty(usedBundleLanes, laneValue),
       laneExcursionPenalty(mode, laneValue, startStub, endStub),
       approximateRouteLength(candidate),
       Math.abs(laneValue - defaultLane),
@@ -4752,6 +4800,7 @@ function bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, d
           blockerCount,
           endpointPenalty,
           Math.max(0, ROUTE_CLEARANCE_TARGET - clearance),
+          routeLaneReusePenalty(usedBundleLanes, laneValue),
           laneExcursionPenalty(mode, laneValue, startStub, endStub),
           detourExcursionPenalty(mode, detourValue, startStub, endStub),
           approximateRouteLength(candidate),
@@ -4788,12 +4837,29 @@ function bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, d
   };
 }
 
-function relationshipRoutePoints(srcBox, dstBox, relId, boxesById, canvasW, canvasH, portInfo, srcId, dstId) {
+function relationshipRoutePoints(srcBox, dstBox, relId, boxesById, canvasW, canvasH, portInfo, srcId, dstId, laneUsage) {
   const srcSide = (portInfo && portInfo.sourceSide) || preferredPortSide(srcBox, dstBox);
   const dstSide = (portInfo && portInfo.targetSide) || preferredPortSide(dstBox, srcBox);
   const start = (portInfo && portInfo.sourceAnchor) || sideAnchorPoint(srcBox, srcSide);
   const end = (portInfo && portInfo.targetAnchor) || sideAnchorPoint(dstBox, dstSide);
-  return bestRelationshipRoutePoints(relId, srcId, dstId, start, end, srcSide, dstSide, boxesById, canvasW, canvasH).points;
+  const mode = routeMode(srcSide, dstSide);
+  const bundleKey = routeBundleKey(srcId, dstId, srcSide, dstSide, mode, portInfo);
+  const route = bestRelationshipRoutePoints(
+    relId,
+    srcId,
+    dstId,
+    start,
+    end,
+    srcSide,
+    dstSide,
+    boxesById,
+    canvasW,
+    canvasH,
+    portInfo,
+    laneUsage && bundleKey ? laneUsage.get(bundleKey) || [] : []
+  );
+  rememberRouteLane(laneUsage, bundleKey, route.laneValue);
+  return route.points;
 }
 
 function roundedPolylinePathData(points, radius) {
@@ -5344,6 +5410,7 @@ function rerouteFragmentDiagramEdges(svg, view) {
   if (!boxesById.size) return;
 
   const edgePorts = assignEdgePorts(view.edges || [], boxesById, viewBounds.width, viewBounds.height);
+  const laneUsage = new Map();
   (view.edges || []).forEach(function (edge) {
     const edgeId = edge && edge.id;
     const srcBox = edge && boxesById.get(edge.source_id);
@@ -5360,7 +5427,8 @@ function rerouteFragmentDiagramEdges(svg, view) {
       viewBounds.height,
       edgePorts.get(edgeId) || null,
       edge.source_id,
-      edge.target_id
+      edge.target_id,
+      laneUsage
     );
     const pathData = roundedPolylinePathData(routePoints, 10);
     if (!pathData) return;
@@ -5378,9 +5446,16 @@ function rerouteFragmentDiagramEdges(svg, view) {
   });
 }
 
+function shouldRerouteFragmentDiagramEdges(svg) {
+  if (!svg) return false;
+  return String(svg.getAttribute('data-routing-version') || '') !== FRAGMENT_ROUTING_VERSION;
+}
+
 function finalizeDiagramSvg(svg, view) {
   if (!svg) return;
-  rerouteFragmentDiagramEdges(svg, view);
+  if (shouldRerouteFragmentDiagramEdges(svg)) {
+    rerouteFragmentDiagramEdges(svg, view);
+  }
   applySvgTheme(svg, view);
   wireSvgInteractions(svg, view);
   runRelationshipLabelLayout(svg, view);
@@ -6334,6 +6409,7 @@ function drawDiagramView(view) {
 
   // edges
   const edgePorts = assignEdgePorts(view.edges || [], layout.byId, layout.width, layout.height);
+  const laneUsage = new Map();
   (view.edges || []).forEach(function (edge) {
     const a = layout.byId.get(edge.source_id);
     const b = layout.byId.get(edge.target_id);
@@ -6347,7 +6423,8 @@ function drawDiagramView(view) {
       layout.height,
       edgePorts.get(edge.id || '') || null,
       edge.source_id,
-      edge.target_id
+      edge.target_id,
+      laneUsage
     );
     const pathData = roundedPolylinePathData(routePoints, 10);
 
