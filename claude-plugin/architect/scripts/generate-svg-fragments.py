@@ -9,6 +9,7 @@ in-template layout path.
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
 import hashlib
 import json
 import math
@@ -84,6 +85,10 @@ NODE_HEADER_BAND_H = 19.0
 NODE_HEADER_TEXT_NUDGE_Y = 0.75
 EDGE_EGRESS_STUB = 18.0
 ROUTING_EPSILON = 0.25
+PORT_SLOT_INSET = 18.0
+ROUTE_CLEARANCE = 12.0
+ROUTE_GUTTER = 22.0
+ROUTE_CLEARANCE_TARGET = 24.0
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
@@ -467,6 +472,26 @@ def collect_view_edges(view: Dict[str, Any], all_edges: Dict[str, Edge], visible
     return collected
 
 
+def incident_edge_counts(edges: Sequence[Edge], visible_ids: set[str]) -> Dict[str, int]:
+    counts: Dict[str, int] = defaultdict(int)
+    for edge in edges:
+        if edge.source_id in visible_ids:
+            counts[edge.source_id] += 1
+        if edge.target_id in visible_ids:
+            counts[edge.target_id] += 1
+    return counts
+
+
+def container_spacing_boost(nodes: Sequence[Node], edges: Sequence[Edge]) -> float:
+    visible_ids = {node.id for node in nodes}
+    counts = incident_edge_counts(edges, visible_ids)
+    max_incident = max(counts.values(), default=0)
+    dense_nodes = sum(1 for value in counts.values() if value >= 4)
+    if max_incident <= 3 and dense_nodes <= 1:
+        return 0.0
+    return min(28.0, max(0, max_incident - 3) * 3.0 + max(0, dense_nodes - 1) * 2.0)
+
+
 def normalize_nodes(elements: Dict[str, Dict[str, Any]], ids: Sequence[str]) -> List[Node]:
     nodes: List[Node] = []
     for nid in ids:
@@ -540,7 +565,7 @@ def system_context_layout(nodes: Sequence[Node]) -> LayoutResult:
     return LayoutResult(width=width, height=height, boxes=boxes, boundaries=boundaries)
 
 
-def container_layout(nodes: Sequence[Node]) -> LayoutResult:
+def container_layout(nodes: Sequence[Node], edges: Sequence[Edge] | None = None) -> LayoutResult:
     system_nodes = [n for n in nodes if normalize_kind(n.kind) in {"software_system", "system"} and not n.external]
     actors = [n for n in nodes if normalize_kind(n.kind) == "person"]
     stores = [n for n in nodes if is_store_kind(n.kind)]
@@ -549,28 +574,35 @@ def container_layout(nodes: Sequence[Node]) -> LayoutResult:
 
     visible_nodes = actors + core + stores + externals
     sizes = {n.id: node_dimensions(n)[:2] for n in visible_nodes}
+    spacing_boost = container_spacing_boost(visible_nodes, edges or [])
+    lane_gap = COLUMN_GAP + spacing_boost * 0.5
+    core_gap_x = COLUMN_GAP + spacing_boost
+    core_gap_y = 40.0 + spacing_boost * 0.5
+    store_gap_x = 42.0 + spacing_boost * 0.5
+    store_gap_y = 30.0 + spacing_boost * 0.35
 
     left_boxes, left_w = place_vertical([n.id for n in actors], sizes, VIEW_MARGIN_X, VIEW_MARGIN_Y + 74.0)
 
-    boundary_start_x = VIEW_MARGIN_X + (left_w if actors else 0.0) + (COLUMN_GAP if actors and (core or stores) else 0.0)
+    boundary_start_x = VIEW_MARGIN_X + (left_w if actors else 0.0) + (lane_gap if actors and (core or stores) else 0.0)
     core_boxes, core_w, core_h = place_grid(
         [n.id for n in core],
         sizes,
         boundary_start_x + BOUNDARY_PAD,
         VIEW_MARGIN_Y + 104.0,
         columns=2 if len(core) > 3 else 1,
-        gap_y=40.0,
+        gap_x=core_gap_x,
+        gap_y=core_gap_y,
     )
 
-    stores_start_y = VIEW_MARGIN_Y + 128.0 + core_h
+    stores_start_y = VIEW_MARGIN_Y + 128.0 + core_h + spacing_boost * 0.4
     store_boxes, store_w, store_h = place_grid(
         [n.id for n in stores],
         sizes,
         boundary_start_x + BOUNDARY_PAD,
         stores_start_y,
         columns=min(max(len(stores), 1), 3),
-        gap_x=42.0,
-        gap_y=30.0,
+        gap_x=store_gap_x,
+        gap_y=store_gap_y,
     )
 
     internal_boxes = merge_boxes(core_boxes, store_boxes)
@@ -586,7 +618,7 @@ def container_layout(nodes: Sequence[Node]) -> LayoutResult:
         x1 += shift_x
         x2 += shift_x
 
-    right_start_x = boundary_start_x + boundary_w + (COLUMN_GAP if externals else 0.0)
+    right_start_x = boundary_start_x + boundary_w + (lane_gap if externals else 0.0)
     right_boxes, right_w = place_vertical([n.id for n in externals], sizes, right_start_x, VIEW_MARGIN_Y + 140.0)
 
     boxes = merge_boxes(left_boxes, internal_boxes, right_boxes)
@@ -787,12 +819,13 @@ def choose_layout(
     view: Dict[str, Any],
     nodes: Sequence[Node],
     all_nodes: Dict[str, Node],
+    edges: Sequence[Edge] | None = None,
 ) -> LayoutResult:
     view_type = normalize_view_type(str(view.get("type", "")))
     if view_type == "system_context":
         return system_context_layout(nodes)
     if view_type == "container":
-        return container_layout(nodes)
+        return container_layout(nodes, edges)
     if view_type == "component":
         return component_layout(nodes, view.get("parent_container_id"), all_nodes)
     if view_type == "deployment":
@@ -885,6 +918,30 @@ def anchor_point(box: Box, side: str) -> Tuple[float, float]:
     return box.x + box.w, cy
 
 
+def slot_anchor_point(box: Box, side: str, slot_index: int, slot_count: int) -> Tuple[float, float]:
+    if slot_count <= 1:
+        return anchor_point(box, side)
+
+    if side in {"east", "west"}:
+        inset = min(PORT_SLOT_INSET, box.h / 3.0)
+        top = box.y + inset
+        bottom = box.y + box.h - inset
+        if bottom - top <= ROUTING_EPSILON:
+            return anchor_point(box, side)
+        ratio = (slot_index + 1) / (slot_count + 1)
+        y = top + (bottom - top) * ratio
+        return (box.x if side == "west" else box.x + box.w, y)
+
+    inset = min(PORT_SLOT_INSET, box.w / 3.0)
+    left = box.x + inset
+    right = box.x + box.w - inset
+    if right - left <= ROUTING_EPSILON:
+        return anchor_point(box, side)
+    ratio = (slot_index + 1) / (slot_count + 1)
+    x = left + (right - left) * ratio
+    return (x, box.y if side == "north" else box.y + box.h)
+
+
 def offset_point(point: Tuple[float, float], side: str, distance: float) -> Tuple[float, float]:
     x, y = point
     if side == "north":
@@ -894,6 +951,141 @@ def offset_point(point: Tuple[float, float], side: str, distance: float) -> Tupl
     if side == "west":
         return x - distance, y
     return x + distance, y
+
+
+def cross_axis_coordinate(box: Box, side: str) -> float:
+    cx, cy = box_center(box)
+    return cy if side in {"east", "west"} else cx
+
+
+def side_load_key(node_id: str, side: str) -> tuple[str, str]:
+    return str(node_id or ""), str(side or "")
+
+
+def side_load_count(loads: Dict[tuple[str, str], int], node_id: str, side: str) -> int:
+    return loads.get(side_load_key(node_id, side), 0)
+
+
+def port_side_soft_cap(node_id: str, incident_counts: Dict[str, int]) -> int:
+    total = incident_counts.get(node_id, 0)
+    return max(1, math.ceil(total / 4.0))
+
+
+def select_edge_sides(
+    rel_id: str,
+    src_id: str,
+    dst_id: str,
+    src_box: Box,
+    dst_box: Box,
+    all_boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+    side_loads: Dict[tuple[str, str], int] | None = None,
+    incident_counts: Dict[str, int] | None = None,
+) -> Tuple[str, str]:
+    preferred_src = preferred_port_side(src_box, dst_box)
+    preferred_dst = preferred_port_side(dst_box, src_box)
+    source_soft_cap = port_side_soft_cap(src_id, incident_counts or {})
+    target_soft_cap = port_side_soft_cap(dst_id, incident_counts or {})
+    side_order = ["north", "south", "east", "west"]
+    src_candidates = [preferred_src] + [side for side in side_order if side != preferred_src]
+    dst_candidates = [preferred_dst] + [side for side in side_order if side != preferred_dst]
+
+    best_sides = (preferred_src, preferred_dst)
+    best_score: Tuple[float, ...] | None = None
+    for src_side in src_candidates:
+        for dst_side in dst_candidates:
+            start = anchor_point(src_box, src_side)
+            end = anchor_point(dst_box, dst_side)
+            _, blockers, clearance, length, endpoint_penalty = best_route_points(
+                rel_id,
+                src_id,
+                dst_id,
+                start,
+                end,
+                src_side,
+                dst_side,
+                all_boxes,
+                canvas_w,
+                canvas_h,
+            )
+            source_load = side_load_count(side_loads or {}, src_id, src_side)
+            target_load = side_load_count(side_loads or {}, dst_id, dst_side)
+            score = (
+                float(len(blockers)),
+                float(endpoint_penalty),
+                max(0.0, ROUTE_CLEARANCE_TARGET - clearance),
+                float(max(0, target_load + 1 - target_soft_cap)),
+                float(max(0, source_load + 1 - source_soft_cap)),
+                float(target_load),
+                float(source_load),
+                float(int(src_side != preferred_src) + int(dst_side != preferred_dst)),
+                length,
+            )
+            if best_score is None or score < best_score:
+                best_score = score
+                best_sides = (src_side, dst_side)
+    return best_sides
+
+
+def assign_edge_ports(
+    edges: Sequence[Edge],
+    boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+) -> Dict[str, Dict[str, Any]]:
+    port_map: Dict[str, Dict[str, Any]] = {}
+    grouped: Dict[Tuple[str, str], List[Tuple[str, str, float]]] = defaultdict(list)
+    side_loads: Dict[Tuple[str, str], int] = {}
+    incident_counts = incident_edge_counts(edges, set(boxes.keys()))
+
+    sorted_edges = sorted(
+        edges,
+        key=lambda edge: (
+            -max(incident_counts.get(edge.source_id, 0), incident_counts.get(edge.target_id, 0)),
+            -(incident_counts.get(edge.source_id, 0) + incident_counts.get(edge.target_id, 0)),
+            edge.id,
+        ),
+    )
+
+    for edge in sorted_edges:
+        src_box = boxes.get(edge.source_id)
+        dst_box = boxes.get(edge.target_id)
+        if not src_box or not dst_box:
+            continue
+        src_side, dst_side = select_edge_sides(
+            edge.id,
+            edge.source_id,
+            edge.target_id,
+            src_box,
+            dst_box,
+            boxes,
+            canvas_w,
+            canvas_h,
+            side_loads,
+            incident_counts,
+        )
+        port_map[edge.id] = {
+            "source_side": src_side,
+            "target_side": dst_side,
+        }
+        side_loads[side_load_key(edge.source_id, src_side)] = side_load_count(side_loads, edge.source_id, src_side) + 1
+        side_loads[side_load_key(edge.target_id, dst_side)] = side_load_count(side_loads, edge.target_id, dst_side) + 1
+        grouped[(edge.source_id, src_side)].append((edge.id, "source", cross_axis_coordinate(dst_box, src_side)))
+        grouped[(edge.target_id, dst_side)].append((edge.id, "target", cross_axis_coordinate(src_box, dst_side)))
+
+    for (node_id, side), records in grouped.items():
+        box = boxes.get(node_id)
+        if not box:
+            continue
+        sorted_records = sorted(records, key=lambda item: (item[2], item[0], item[1]))
+        slot_count = len(sorted_records)
+        for slot_index, (edge_id, role, _) in enumerate(sorted_records):
+            anchor = slot_anchor_point(box, side, slot_index, slot_count)
+            key = "source_anchor" if role == "source" else "target_anchor"
+            port_map.setdefault(edge_id, {})[key] = anchor
+
+    return port_map
 
 
 def collapse_orthogonal_points(points: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -914,39 +1106,500 @@ def collapse_orthogonal_points(points: Sequence[Tuple[float, float]]) -> List[Tu
         same_x = abs(px - cx) <= ROUTING_EPSILON and abs(cx - nx) <= ROUTING_EPSILON
         same_y = abs(py - cy) <= ROUTING_EPSILON and abs(cy - ny) <= ROUTING_EPSILON
         if same_x or same_y:
-            continue
+            in_dx = cx - px
+            in_dy = cy - py
+            out_dx = nx - cx
+            out_dy = ny - cy
+            same_direction = (in_dx * out_dx + in_dy * out_dy) > ROUTING_EPSILON
+            if same_direction:
+                continue
         collapsed.append((cx, cy))
     collapsed.append(deduped[-1])
     return collapsed
 
 
-def orthogonal_points(rel_id: str, src: Box, dst: Box) -> List[Tuple[float, float]]:
-    src_side = preferred_port_side(src, dst)
-    dst_side = preferred_port_side(dst, src)
-    start = anchor_point(src, src_side)
-    end = anchor_point(dst, dst_side)
+def route_mode(src_side: str, dst_side: str) -> str:
+    if src_side in {"east", "west"} and dst_side in {"east", "west"}:
+        return "mid_x"
+    if src_side in {"north", "south"} and dst_side in {"north", "south"}:
+        return "mid_y"
+    if src_side in {"east", "west"}:
+        return "mid_y"
+    return "mid_x"
+
+
+def build_route_points(
+    start: Tuple[float, float],
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+    end: Tuple[float, float],
+    lane_value: float,
+    mode: str,
+) -> List[Tuple[float, float]]:
+    if mode == "mid_x":
+        return [start, start_stub, (lane_value, start_stub[1]), (lane_value, end_stub[1]), end_stub, end]
+    return [start, start_stub, (start_stub[0], lane_value), (end_stub[0], lane_value), end_stub, end]
+
+
+def build_detour_route_points(
+    start: Tuple[float, float],
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+    end: Tuple[float, float],
+    lane_value: float,
+    detour_value: float,
+    mode: str,
+) -> List[Tuple[float, float]]:
+    if mode == "mid_x":
+        return [
+            start,
+            start_stub,
+            (lane_value, start_stub[1]),
+            (lane_value, detour_value),
+            (end_stub[0], detour_value),
+            end_stub,
+            end,
+        ]
+    return [
+        start,
+        start_stub,
+        (detour_value, start_stub[1]),
+        (detour_value, end_stub[1]),
+        end_stub,
+        end,
+    ]
+
+
+def expand_box(box: Box, padding: float) -> Box:
+    return Box(
+        x=box.x - padding,
+        y=box.y - padding,
+        w=box.w + padding * 2.0,
+        h=box.h + padding * 2.0,
+    )
+
+
+def segment_intersects_box(
+    p1: Tuple[float, float],
+    p2: Tuple[float, float],
+    box: Box,
+) -> bool:
+    if math.hypot(p2[0] - p1[0], p2[1] - p1[1]) <= ROUTING_EPSILON:
+        return False
+
+    if abs(p1[0] - p2[0]) <= ROUTING_EPSILON:
+        x = p1[0]
+        y1, y2 = sorted((p1[1], p2[1]))
+        return box.x < x < box.x + box.w and y2 > box.y and y1 < box.y + box.h
+
+    if abs(p1[1] - p2[1]) <= ROUTING_EPSILON:
+        y = p1[1]
+        x1, x2 = sorted((p1[0], p2[0]))
+        return box.y < y < box.y + box.h and x2 > box.x and x1 < box.x + box.w
+
+    return False
+
+
+def segment_box_distance(
+    p1: Tuple[float, float],
+    p2: Tuple[float, float],
+    box: Box,
+) -> float:
+    if abs(p1[0] - p2[0]) <= ROUTING_EPSILON:
+        x = p1[0]
+        y1, y2 = sorted((p1[1], p2[1]))
+        dx = 0.0 if box.x <= x <= box.x + box.w else min(abs(x - box.x), abs(x - (box.x + box.w)))
+        if y2 < box.y:
+            dy = box.y - y2
+        elif y1 > box.y + box.h:
+            dy = y1 - (box.y + box.h)
+        else:
+            dy = 0.0
+        return math.hypot(dx, dy)
+
+    if abs(p1[1] - p2[1]) <= ROUTING_EPSILON:
+        y = p1[1]
+        x1, x2 = sorted((p1[0], p2[0]))
+        dy = 0.0 if box.y <= y <= box.y + box.h else min(abs(y - box.y), abs(y - (box.y + box.h)))
+        if x2 < box.x:
+            dx = box.x - x2
+        elif x1 > box.x + box.w:
+            dx = x1 - (box.x + box.w)
+        else:
+            dx = 0.0
+        return math.hypot(dx, dy)
+
+    return float("inf")
+
+
+def route_blockers(
+    points: Sequence[Tuple[float, float]],
+    boxes: Dict[str, Box],
+    ignore_ids: set[str],
+) -> set[str]:
+    blockers: set[str] = set()
+    padded_boxes = {
+        node_id: expand_box(box, ROUTE_CLEARANCE)
+        for node_id, box in boxes.items()
+        if node_id not in ignore_ids
+    }
+    for idx in range(len(points) - 1):
+        segment_start = points[idx]
+        segment_end = points[idx + 1]
+        for node_id, box in padded_boxes.items():
+            if segment_intersects_box(segment_start, segment_end, box):
+                blockers.add(node_id)
+    return blockers
+
+
+def approximate_route_length(points: Sequence[Tuple[float, float]]) -> float:
+    length = 0.0
+    for idx in range(len(points) - 1):
+        length += math.hypot(points[idx + 1][0] - points[idx][0], points[idx + 1][1] - points[idx][1])
+    return length
+
+
+def route_min_clearance(
+    points: Sequence[Tuple[float, float]],
+    boxes: Dict[str, Box],
+    ignore_ids: set[str],
+) -> float:
+    min_distance = float("inf")
+    for idx in range(len(points) - 1):
+        segment_start = points[idx]
+        segment_end = points[idx + 1]
+        for node_id, box in boxes.items():
+            if node_id in ignore_ids:
+                continue
+            min_distance = min(min_distance, segment_box_distance(segment_start, segment_end, box))
+            if min_distance <= ROUTING_EPSILON:
+                return 0.0
+    return min_distance
+
+
+def route_endpoint_interior_penalty(
+    points: Sequence[Tuple[float, float]],
+    src_box: Box | None,
+    dst_box: Box | None,
+) -> int:
+    if len(points) < 2:
+        return 0
+
+    penalty = 0
+    for idx in range(len(points) - 1):
+        p1 = points[idx]
+        p2 = points[idx + 1]
+        if src_box is not None and idx > 0 and segment_intersects_box(p1, p2, src_box):
+            penalty += 1
+        if dst_box is not None and idx < len(points) - 2 and segment_intersects_box(p1, p2, dst_box):
+            penalty += 1
+    return penalty
+
+
+def lane_excursion_penalty(
+    mode: str,
+    lane_value: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> float:
+    start_axis = start_stub[0] if mode == "mid_x" else start_stub[1]
+    end_axis = end_stub[0] if mode == "mid_x" else end_stub[1]
+    low = min(start_axis, end_axis)
+    high = max(start_axis, end_axis)
+    if lane_value < low:
+        return low - lane_value
+    if lane_value > high:
+        return lane_value - high
+    return 0.0
+
+
+def detour_baseline_coordinate(
+    mode: str,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> float:
+    if mode == "mid_x":
+        return (start_stub[1] + end_stub[1]) / 2.0
+    return (start_stub[0] + end_stub[0]) / 2.0
+
+
+def detour_excursion_penalty(
+    mode: str,
+    detour_value: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> float:
+    start_axis = start_stub[1] if mode == "mid_x" else start_stub[0]
+    end_axis = end_stub[1] if mode == "mid_x" else end_stub[0]
+    low = min(start_axis, end_axis)
+    high = max(start_axis, end_axis)
+    if detour_value < low:
+        return low - detour_value
+    if detour_value > high:
+        return detour_value - high
+    return 0.0
+
+
+def dedupe_lane_values(values: Sequence[float]) -> List[float]:
+    deduped: List[float] = []
+    for value in values:
+        if any(abs(value - existing) <= ROUTING_EPSILON for existing in deduped):
+            continue
+        deduped.append(value)
+    return deduped
+
+
+def gap_midpoints(intervals: Sequence[Tuple[float, float]]) -> List[float]:
+    if not intervals:
+        return []
+
+    sorted_intervals = sorted(intervals, key=lambda item: (item[0], item[1]))
+    merged: List[Tuple[float, float]] = []
+    for start, end in sorted_intervals:
+        if not merged:
+            merged.append((start, end))
+            continue
+        prev_start, prev_end = merged[-1]
+        if start <= prev_end + ROUTING_EPSILON:
+            merged[-1] = (prev_start, max(prev_end, end))
+            continue
+        merged.append((start, end))
+
+    values: List[float] = []
+    for idx in range(len(merged) - 1):
+        left_end = merged[idx][1]
+        right_start = merged[idx + 1][0]
+        if right_start - left_end <= ROUTE_CLEARANCE * 2.0:
+            continue
+        values.append((left_end + right_start) / 2.0)
+    return values
+
+
+def detour_axis_values(
+    mode: str,
+    blocker_ids: Sequence[str],
+    boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> List[float]:
+    values: List[float] = [detour_baseline_coordinate(mode, start_stub, end_stub)]
+    if boxes:
+        min_x = min(box.x for box in boxes.values())
+        max_x = max(box.x + box.w for box in boxes.values())
+        min_y = min(box.y for box in boxes.values())
+        max_y = max(box.y + box.h for box in boxes.values())
+        if mode == "mid_x":
+            for box in boxes.values():
+                values.append(max(8.0, box.y - ROUTE_GUTTER))
+                values.append(min(canvas_h - 8.0, box.y + box.h + ROUTE_GUTTER))
+            values.extend(gap_midpoints([(box.y, box.y + box.h) for box in boxes.values()]))
+            values.extend([max(8.0, min_y - ROUTE_GUTTER), min(canvas_h - 8.0, max_y + ROUTE_GUTTER)])
+        else:
+            for box in boxes.values():
+                values.append(max(8.0, box.x - ROUTE_GUTTER))
+                values.append(min(canvas_w - 8.0, box.x + box.w + ROUTE_GUTTER))
+            values.extend(gap_midpoints([(box.x, box.x + box.w) for box in boxes.values()]))
+            values.extend([max(8.0, min_x - ROUTE_GUTTER), min(canvas_w - 8.0, max_x + ROUTE_GUTTER)])
+
+    for blocker_id in blocker_ids:
+        box = boxes.get(blocker_id)
+        if not box:
+            continue
+        if mode == "mid_x":
+            values.append(max(8.0, box.y - ROUTE_GUTTER))
+            values.append(min(canvas_h - 8.0, box.y + box.h + ROUTE_GUTTER))
+        else:
+            values.append(max(8.0, box.x - ROUTE_GUTTER))
+            values.append(min(canvas_w - 8.0, box.x + box.w + ROUTE_GUTTER))
+
+    baseline = detour_baseline_coordinate(mode, start_stub, end_stub)
+    deduped = dedupe_lane_values(values)
+    return sorted(
+        deduped,
+        key=lambda value: (
+            detour_excursion_penalty(mode, value, start_stub, end_stub),
+            abs(value - baseline),
+            value,
+        ),
+    )
+
+
+def candidate_lane_values(
+    mode: str,
+    default_lane: float,
+    boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> List[float]:
+    values: List[float] = [default_lane]
+    if not boxes:
+        return values
+
+    min_x = min(box.x for box in boxes.values())
+    max_x = max(box.x + box.w for box in boxes.values())
+    min_y = min(box.y for box in boxes.values())
+    max_y = max(box.y + box.h for box in boxes.values())
+
+    if mode == "mid_x":
+        for box in boxes.values():
+            values.append(max(8.0, box.x - ROUTE_GUTTER))
+            values.append(min(canvas_w - 8.0, box.x + box.w + ROUTE_GUTTER))
+        values.extend(gap_midpoints([(box.x, box.x + box.w) for box in boxes.values()]))
+        values.extend(
+            [
+                max(8.0, min_x - ROUTE_GUTTER),
+                min(canvas_w - 8.0, max_x + ROUTE_GUTTER),
+            ]
+        )
+    else:
+        for box in boxes.values():
+            values.append(max(8.0, box.y - ROUTE_GUTTER))
+            values.append(min(canvas_h - 8.0, box.y + box.h + ROUTE_GUTTER))
+        values.extend(gap_midpoints([(box.y, box.y + box.h) for box in boxes.values()]))
+        values.extend(
+            [
+                max(8.0, min_y - ROUTE_GUTTER),
+                min(canvas_h - 8.0, max_y + ROUTE_GUTTER),
+            ]
+        )
+
+    deduped = dedupe_lane_values(values)
+    return sorted(
+        deduped,
+        key=lambda value: (
+            lane_excursion_penalty(mode, value, start_stub, end_stub),
+            abs(value - default_lane),
+            value,
+        ),
+    )
+
+
+def best_route_points(
+    rel_id: str,
+    src_id: str,
+    dst_id: str,
+    start: Tuple[float, float],
+    end: Tuple[float, float],
+    src_side: str,
+    dst_side: str,
+    all_boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+) -> Tuple[List[Tuple[float, float]], set[str], float, float, int]:
+    src_box = all_boxes.get(src_id)
+    dst_box = all_boxes.get(dst_id)
     start_stub = offset_point(start, src_side, EDGE_EGRESS_STUB)
     end_stub = offset_point(end, dst_side, EDGE_EGRESS_STUB)
     offset = ((stable_number(rel_id) % 5) - 2) * 10.0
+    mode = route_mode(src_side, dst_side)
+    default_lane = (
+        (start_stub[0] + end_stub[0]) / 2.0 + offset
+        if mode == "mid_x"
+        else (start_stub[1] + end_stub[1]) / 2.0 + offset
+    )
+    ignore_ids = {src_id, dst_id}
+    lane_candidates = candidate_lane_values(mode, default_lane, all_boxes, canvas_w, canvas_h, start_stub, end_stub)
 
-    if src_side in {"east", "west"} and dst_side in {"east", "west"}:
-        mid_x = (start_stub[0] + end_stub[0]) / 2.0 + offset
-        points = [start, start_stub, (mid_x, start_stub[1]), (mid_x, end_stub[1]), end_stub, end]
-        return collapse_orthogonal_points(points)
+    best_points: List[Tuple[float, float]] = []
+    best_score: Tuple[float, ...] | None = None
+    best_blockers: set[str] = set()
+    best_clearance = 0.0
+    best_endpoint_penalty = 0
+    best_lane = default_lane
+    for lane_value in lane_candidates:
+        candidate = collapse_orthogonal_points(build_route_points(start, start_stub, end_stub, end, lane_value, mode))
+        blockers = route_blockers(candidate, all_boxes, ignore_ids)
+        endpoint_penalty = route_endpoint_interior_penalty(candidate, src_box, dst_box)
+        clearance = route_min_clearance(candidate, all_boxes, ignore_ids)
+        score = (
+            len(blockers),
+            float(endpoint_penalty),
+            max(0.0, ROUTE_CLEARANCE_TARGET - clearance),
+            lane_excursion_penalty(mode, lane_value, start_stub, end_stub),
+            approximate_route_length(candidate),
+            abs(lane_value - default_lane),
+            0.0,
+        )
+        if best_score is None or score < best_score:
+            best_score = score
+            best_points = candidate
+            best_blockers = blockers
+            best_clearance = clearance
+            best_endpoint_penalty = endpoint_penalty
+            best_lane = lane_value
+            if not blockers and endpoint_penalty == 0 and clearance >= ROUTE_CLEARANCE_TARGET:
+                break
 
-    if src_side in {"north", "south"} and dst_side in {"north", "south"}:
-        mid_y = (start_stub[1] + end_stub[1]) / 2.0 + offset
-        points = [start, start_stub, (start_stub[0], mid_y), (end_stub[0], mid_y), end_stub, end]
-        return collapse_orthogonal_points(points)
+    if best_blockers or best_endpoint_penalty > 0 or best_clearance < ROUTE_CLEARANCE_TARGET:
+        detour_values = detour_axis_values(mode, sorted(best_blockers), all_boxes, canvas_w, canvas_h, start_stub, end_stub)
+        lane_trials = dedupe_lane_values([best_lane, default_lane] + lane_candidates[:8])
+        for lane_value in lane_trials:
+            for detour_value in detour_values:
+                candidate = collapse_orthogonal_points(
+                    build_detour_route_points(start, start_stub, end_stub, end, lane_value, detour_value, mode)
+                )
+                blockers = route_blockers(candidate, all_boxes, ignore_ids)
+                endpoint_penalty = route_endpoint_interior_penalty(candidate, src_box, dst_box)
+                clearance = route_min_clearance(candidate, all_boxes, ignore_ids)
+                score = (
+                    len(blockers),
+                    float(endpoint_penalty),
+                    max(0.0, ROUTE_CLEARANCE_TARGET - clearance),
+                    lane_excursion_penalty(mode, lane_value, start_stub, end_stub),
+                    detour_excursion_penalty(mode, detour_value, start_stub, end_stub),
+                    approximate_route_length(candidate),
+                    abs(lane_value - default_lane),
+                    abs(detour_value - detour_baseline_coordinate(mode, start_stub, end_stub)),
+                )
+                if best_score is None or score < best_score:
+                    best_score = score
+                    best_points = candidate
+                    best_blockers = blockers
+                    best_clearance = clearance
+                    best_endpoint_penalty = endpoint_penalty
+                    if not blockers and endpoint_penalty == 0 and clearance >= ROUTE_CLEARANCE_TARGET:
+                        return best_points, best_blockers, best_clearance, approximate_route_length(best_points), best_endpoint_penalty
 
-    if src_side in {"east", "west"}:
-        mid_y = (start_stub[1] + end_stub[1]) / 2.0 + offset
-        points = [start, start_stub, (start_stub[0], mid_y), (end_stub[0], mid_y), end_stub, end]
-        return collapse_orthogonal_points(points)
+    fallback = best_points or collapse_orthogonal_points(build_route_points(start, start_stub, end_stub, end, default_lane, mode))
+    fallback_blockers = best_blockers if best_points else route_blockers(fallback, all_boxes, ignore_ids)
+    fallback_clearance = best_clearance if best_points else route_min_clearance(fallback, all_boxes, ignore_ids)
+    fallback_endpoint_penalty = best_endpoint_penalty if best_points else route_endpoint_interior_penalty(fallback, src_box, dst_box)
+    return fallback, fallback_blockers, fallback_clearance, approximate_route_length(fallback), fallback_endpoint_penalty
 
-    mid_x = (start_stub[0] + end_stub[0]) / 2.0 + offset
-    points = [start, start_stub, (mid_x, start_stub[1]), (mid_x, end_stub[1]), end_stub, end]
-    return collapse_orthogonal_points(points)
+
+def orthogonal_points(
+    rel_id: str,
+    src_id: str,
+    dst_id: str,
+    src: Box,
+    dst: Box,
+    all_boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+    edge_ports: Dict[str, Dict[str, Any]] | None = None,
+) -> List[Tuple[float, float]]:
+    port_info = edge_ports.get(rel_id, {}) if edge_ports else {}
+    src_side = str(port_info.get("source_side") or preferred_port_side(src, dst))
+    dst_side = str(port_info.get("target_side") or preferred_port_side(dst, src))
+    start = tuple(port_info.get("source_anchor") or anchor_point(src, src_side))
+    end = tuple(port_info.get("target_anchor") or anchor_point(dst, dst_side))
+    points, _, _, _, _ = best_route_points(
+        rel_id,
+        src_id,
+        dst_id,
+        start,
+        end,
+        src_side,
+        dst_side,
+        all_boxes,
+        canvas_w,
+        canvas_h,
+    )
+    return points
 
 
 def rounded_polyline(points: Sequence[Tuple[float, float]], radius: float = 10.0) -> str:
@@ -1034,8 +1687,28 @@ def wrap_edge_label_lines(text: str) -> List[str]:
     return best_lines or [normalized]
 
 
-def draw_edge(edge: Edge, src_box: Box, dst_box: Box, view_id: str, color: str = "var(--color-border-strong)") -> str:
-    points = orthogonal_points(edge.id, src_box, dst_box)
+def draw_edge(
+    edge: Edge,
+    src_box: Box,
+    dst_box: Box,
+    view_id: str,
+    all_boxes: Dict[str, Box],
+    canvas_w: float,
+    canvas_h: float,
+    edge_ports: Dict[str, Dict[str, Any]] | None = None,
+    color: str = "var(--color-border-strong)",
+) -> str:
+    points = orthogonal_points(
+        edge.id,
+        edge.source_id,
+        edge.target_id,
+        src_box,
+        dst_box,
+        all_boxes,
+        canvas_w,
+        canvas_h,
+        edge_ports,
+    )
     path_data = rounded_polyline(points)
     return (
         f"<g data-relationship-id=\"{esc(edge.id)}\" data-view-id=\"{esc(view_id)}\" "
@@ -1138,8 +1811,8 @@ def render_view_fragment(
     if not nodes:
         return
 
-    layout = trim_horizontal_layout_padding(choose_layout(view, nodes, model_elements))
     raw_edges = collect_view_edges(view, model_edges, visible_ids)
+    layout = trim_horizontal_layout_padding(choose_layout(view, nodes, model_elements, raw_edges))
     edges: List[Edge] = []
     for edge in raw_edges:
         source_id = edge.source_id
@@ -1159,6 +1832,7 @@ def render_view_fragment(
             )
         )
 
+    edge_ports = assign_edge_ports(edges, layout.boxes, layout.width, layout.height)
     edge_markup: List[str] = []
     seen_pairs: set[Tuple[str, str, str]] = set()
     for edge in edges:
@@ -1172,6 +1846,10 @@ def render_view_fragment(
                 layout.boxes[edge.source_id],
                 layout.boxes[edge.target_id],
                 str(view.get("id", "view")),
+                layout.boxes,
+                layout.width,
+                layout.height,
+                edge_ports,
             )
         )
 
