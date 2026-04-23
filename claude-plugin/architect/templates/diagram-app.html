@@ -283,26 +283,18 @@
       display: inline-flex;
       align-items: center;
       min-width: 0;
-      line-height: 1;
+      padding-left: 24px;
+      line-height: 1.15;
     }
 
     .brand-context[hidden] {
       display: none;
     }
 
-    .brand-divider {
-      flex-shrink: 0;
-      padding: 0 12px;
-      color: var(--color-text-muted);
-      font-size: 20px;
-      font-weight: 400;
-      line-height: 1;
-    }
-
     .subtitle {
       font-size: 13px;
       font-weight: 400;
-      line-height: 1;
+      line-height: 1.15;
       color: var(--color-text-muted);
       white-space: nowrap;
       overflow: hidden;
@@ -485,8 +477,9 @@
     .breadcrumb {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
       min-width: 0;
+      padding-left: 3px;
       position: relative;
     }
 
@@ -515,6 +508,7 @@
       justify-content: center;
       width: 24px;
       height: 24px;
+      margin-right: 4px;
       flex: 0 0 auto;
     }
 
@@ -611,7 +605,7 @@
       background: transparent;
       color: var(--color-text-secondary);
       height: 24px;
-      padding: 4px 10px;
+      padding: 4px 6px;
       font-size: 13px;
       border-radius: 6px;
       cursor: pointer;
@@ -629,15 +623,25 @@
     }
 
     .breadcrumb-item.is-current {
+      padding: 4px 10px;
       color: var(--color-text-primary);
       background: var(--color-pill-active-bg);
       cursor: default;
     }
 
     .breadcrumb-separator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 24px;
+      flex: 0 0 auto;
       color: var(--color-text-muted);
-      font-size: 14px;
-      line-height: 1;
+    }
+
+    .breadcrumb-separator svg {
+      display: block;
+      width: 10px;
+      height: 10px;
     }
 
     button {
@@ -2260,7 +2264,6 @@
         />
       </span>
       <div class="brand-context" id="brandContext">
-        <span class="brand-divider" aria-hidden="true">/</span>
         <div class="subtitle" id="systemSubtitle"></div>
       </div>
     </div>
@@ -3866,7 +3869,7 @@ function updateBreadcrumbs() {
       const separator = document.createElement('span');
       separator.className = 'breadcrumb-separator';
       separator.setAttribute('aria-hidden', 'true');
-      separator.textContent = '›';
+      separator.innerHTML = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4 2.5L7.75 6L4 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       nav.appendChild(separator);
       return;
     }
