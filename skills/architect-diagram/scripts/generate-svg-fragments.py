@@ -89,6 +89,9 @@ PORT_SLOT_INSET = 18.0
 ROUTE_CLEARANCE = 12.0
 ROUTE_GUTTER = 22.0
 ROUTE_CLEARANCE_TARGET = 24.0
+ROUTE_BUNDLE_SPACING = 10.0
+ROUTE_BUNDLE_VARIANT_COUNT = 4
+FRAGMENT_ROUTING_VERSION = "2"
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
@@ -958,6 +961,19 @@ def cross_axis_coordinate(box: Box, side: str) -> float:
     return cy if side in {"east", "west"} else cx
 
 
+def side_load_key(node_id: str, side: str) -> tuple[str, str]:
+    return str(node_id or ""), str(side or "")
+
+
+def side_load_count(loads: Dict[tuple[str, str], int], node_id: str, side: str) -> int:
+    return loads.get(side_load_key(node_id, side), 0)
+
+
+def port_side_soft_cap(node_id: str, incident_counts: Dict[str, int]) -> int:
+    total = incident_counts.get(node_id, 0)
+    return max(1, math.ceil(total / 4.0))
+
+
 def select_edge_sides(
     rel_id: str,
     src_id: str,
@@ -967,20 +983,24 @@ def select_edge_sides(
     all_boxes: Dict[str, Box],
     canvas_w: float,
     canvas_h: float,
+    side_loads: Dict[tuple[str, str], int] | None = None,
+    incident_counts: Dict[str, int] | None = None,
 ) -> Tuple[str, str]:
     preferred_src = preferred_port_side(src_box, dst_box)
     preferred_dst = preferred_port_side(dst_box, src_box)
+    source_soft_cap = port_side_soft_cap(src_id, incident_counts or {})
+    target_soft_cap = port_side_soft_cap(dst_id, incident_counts or {})
     side_order = ["north", "south", "east", "west"]
     src_candidates = [preferred_src] + [side for side in side_order if side != preferred_src]
     dst_candidates = [preferred_dst] + [side for side in side_order if side != preferred_dst]
 
     best_sides = (preferred_src, preferred_dst)
-    best_score: Tuple[float, float, float, float] | None = None
+    best_score: Tuple[float, ...] | None = None
     for src_side in src_candidates:
         for dst_side in dst_candidates:
             start = anchor_point(src_box, src_side)
             end = anchor_point(dst_box, dst_side)
-            _, blockers, clearance, length = best_route_points(
+            _, blockers, clearance, length, endpoint_penalty, _ = best_route_points(
                 rel_id,
                 src_id,
                 dst_id,
@@ -992,9 +1012,16 @@ def select_edge_sides(
                 canvas_w,
                 canvas_h,
             )
+            source_load = side_load_count(side_loads or {}, src_id, src_side)
+            target_load = side_load_count(side_loads or {}, dst_id, dst_side)
             score = (
                 float(len(blockers)),
+                float(endpoint_penalty),
                 max(0.0, ROUTE_CLEARANCE_TARGET - clearance),
+                float(max(0, target_load + 1 - target_soft_cap)),
+                float(max(0, source_load + 1 - source_soft_cap)),
+                float(target_load),
+                float(source_load),
                 float(int(src_side != preferred_src) + int(dst_side != preferred_dst)),
                 length,
             )
@@ -1012,8 +1039,19 @@ def assign_edge_ports(
 ) -> Dict[str, Dict[str, Any]]:
     port_map: Dict[str, Dict[str, Any]] = {}
     grouped: Dict[Tuple[str, str], List[Tuple[str, str, float]]] = defaultdict(list)
+    side_loads: Dict[Tuple[str, str], int] = {}
+    incident_counts = incident_edge_counts(edges, set(boxes.keys()))
 
-    for edge in edges:
+    sorted_edges = sorted(
+        edges,
+        key=lambda edge: (
+            -max(incident_counts.get(edge.source_id, 0), incident_counts.get(edge.target_id, 0)),
+            -(incident_counts.get(edge.source_id, 0) + incident_counts.get(edge.target_id, 0)),
+            edge.id,
+        ),
+    )
+
+    for edge in sorted_edges:
         src_box = boxes.get(edge.source_id)
         dst_box = boxes.get(edge.target_id)
         if not src_box or not dst_box:
@@ -1027,11 +1065,15 @@ def assign_edge_ports(
             boxes,
             canvas_w,
             canvas_h,
+            side_loads,
+            incident_counts,
         )
         port_map[edge.id] = {
             "source_side": src_side,
             "target_side": dst_side,
         }
+        side_loads[side_load_key(edge.source_id, src_side)] = side_load_count(side_loads, edge.source_id, src_side) + 1
+        side_loads[side_load_key(edge.target_id, dst_side)] = side_load_count(side_loads, edge.target_id, dst_side) + 1
         grouped[(edge.source_id, src_side)].append((edge.id, "source", cross_axis_coordinate(dst_box, src_side)))
         grouped[(edge.target_id, dst_side)].append((edge.id, "target", cross_axis_coordinate(src_box, dst_side)))
 
@@ -1045,6 +1087,8 @@ def assign_edge_ports(
             anchor = slot_anchor_point(box, side, slot_index, slot_count)
             key = "source_anchor" if role == "source" else "target_anchor"
             port_map.setdefault(edge_id, {})[key] = anchor
+            lane_bias_key = "source_lane_bias" if role == "source" else "target_lane_bias"
+            port_map.setdefault(edge_id, {})[lane_bias_key] = (slot_index - (slot_count - 1) / 2.0) * ROUTE_BUNDLE_SPACING
 
     return port_map
 
@@ -1067,7 +1111,13 @@ def collapse_orthogonal_points(points: Sequence[Tuple[float, float]]) -> List[Tu
         same_x = abs(px - cx) <= ROUTING_EPSILON and abs(cx - nx) <= ROUTING_EPSILON
         same_y = abs(py - cy) <= ROUTING_EPSILON and abs(cy - ny) <= ROUTING_EPSILON
         if same_x or same_y:
-            continue
+            in_dx = cx - px
+            in_dy = cy - py
+            out_dx = nx - cx
+            out_dy = ny - cy
+            same_direction = (in_dx * out_dx + in_dy * out_dy) > ROUTING_EPSILON
+            if same_direction:
+                continue
         collapsed.append((cx, cy))
     collapsed.append(deduped[-1])
     return collapsed
@@ -1232,6 +1282,96 @@ def route_min_clearance(
     return min_distance
 
 
+def route_endpoint_interior_penalty(
+    points: Sequence[Tuple[float, float]],
+    src_box: Box | None,
+    dst_box: Box | None,
+) -> int:
+    if len(points) < 2:
+        return 0
+
+    penalty = 0
+    for idx in range(len(points) - 1):
+        p1 = points[idx]
+        p2 = points[idx + 1]
+        if src_box is not None and idx > 0 and segment_intersects_box(p1, p2, src_box):
+            penalty += 1
+        if dst_box is not None and idx < len(points) - 2 and segment_intersects_box(p1, p2, dst_box):
+            penalty += 1
+    return penalty
+
+
+def lane_excursion_penalty(
+    mode: str,
+    lane_value: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> float:
+    start_axis = start_stub[0] if mode == "mid_x" else start_stub[1]
+    end_axis = end_stub[0] if mode == "mid_x" else end_stub[1]
+    low = min(start_axis, end_axis)
+    high = max(start_axis, end_axis)
+    if lane_value < low:
+        return low - lane_value
+    if lane_value > high:
+        return lane_value - high
+    return 0.0
+
+
+def detour_baseline_coordinate(
+    mode: str,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> float:
+    if mode == "mid_x":
+        return (start_stub[1] + end_stub[1]) / 2.0
+    return (start_stub[0] + end_stub[0]) / 2.0
+
+
+def detour_excursion_penalty(
+    mode: str,
+    detour_value: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
+) -> float:
+    start_axis = start_stub[1] if mode == "mid_x" else start_stub[0]
+    end_axis = end_stub[1] if mode == "mid_x" else end_stub[0]
+    low = min(start_axis, end_axis)
+    high = max(start_axis, end_axis)
+    if detour_value < low:
+        return low - detour_value
+    if detour_value > high:
+        return detour_value - high
+    return 0.0
+
+
+def route_bundle_key(
+    src_id: str,
+    dst_id: str,
+    src_side: str,
+    dst_side: str,
+    mode: str,
+    port_info: Dict[str, Any] | None = None,
+) -> str:
+    source_lane_bias = float(port_info.get("source_lane_bias", 0.0)) if port_info else 0.0
+    target_lane_bias = float(port_info.get("target_lane_bias", 0.0)) if port_info else 0.0
+    if abs(target_lane_bias) > ROUTING_EPSILON:
+        return f"target::{dst_id}::{dst_side}::{mode}"
+    if abs(source_lane_bias) > ROUTING_EPSILON:
+        return f"source::{src_id}::{src_side}::{mode}"
+    return f"target::{dst_id}::{dst_side}::{mode}"
+
+
+def route_lane_reuse_penalty(used_lanes: Sequence[float], lane_value: float) -> float:
+    return sum(max(0.0, ROUTE_BUNDLE_SPACING - abs(lane_value - used_lane)) for used_lane in used_lanes)
+
+
+def remember_route_lane(lane_usage: Dict[str, List[float]] | None, bundle_key: str, lane_value: float) -> None:
+    if lane_usage is None or not bundle_key or not math.isfinite(lane_value):
+        return
+    lane_usage.setdefault(bundle_key, []).append(lane_value)
+
+
 def dedupe_lane_values(values: Sequence[float]) -> List[float]:
     deduped: List[float] = []
     for value in values:
@@ -1239,6 +1379,17 @@ def dedupe_lane_values(values: Sequence[float]) -> List[float]:
             continue
         deduped.append(value)
     return deduped
+
+
+def expand_lane_bundle_candidates(values: Sequence[float], min_value: float, max_value: float) -> List[float]:
+    expanded: List[float] = []
+    for value in values:
+        for slot in range(-ROUTE_BUNDLE_VARIANT_COUNT, ROUTE_BUNDLE_VARIANT_COUNT + 1):
+            candidate = value + slot * ROUTE_BUNDLE_SPACING
+            if candidate < min_value - ROUTING_EPSILON or candidate > max_value + ROUTING_EPSILON:
+                continue
+            expanded.append(candidate)
+    return dedupe_lane_values(expanded)
 
 
 def gap_midpoints(intervals: Sequence[Tuple[float, float]]) -> List[float]:
@@ -1273,16 +1424,28 @@ def detour_axis_values(
     boxes: Dict[str, Box],
     canvas_w: float,
     canvas_h: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
 ) -> List[float]:
-    values: List[float] = []
+    values: List[float] = [detour_baseline_coordinate(mode, start_stub, end_stub)]
+    min_axis = 8.0
+    max_axis = canvas_h - 8.0 if mode == "mid_x" else canvas_w - 8.0
     if boxes:
         min_x = min(box.x for box in boxes.values())
         max_x = max(box.x + box.w for box in boxes.values())
         min_y = min(box.y for box in boxes.values())
         max_y = max(box.y + box.h for box in boxes.values())
         if mode == "mid_x":
+            for box in boxes.values():
+                values.append(max(8.0, box.y - ROUTE_GUTTER))
+                values.append(min(canvas_h - 8.0, box.y + box.h + ROUTE_GUTTER))
+            values.extend(gap_midpoints([(box.y, box.y + box.h) for box in boxes.values()]))
             values.extend([max(8.0, min_y - ROUTE_GUTTER), min(canvas_h - 8.0, max_y + ROUTE_GUTTER)])
         else:
+            for box in boxes.values():
+                values.append(max(8.0, box.x - ROUTE_GUTTER))
+                values.append(min(canvas_w - 8.0, box.x + box.w + ROUTE_GUTTER))
+            values.extend(gap_midpoints([(box.x, box.x + box.w) for box in boxes.values()]))
             values.extend([max(8.0, min_x - ROUTE_GUTTER), min(canvas_w - 8.0, max_x + ROUTE_GUTTER)])
 
     for blocker_id in blocker_ids:
@@ -1296,7 +1459,16 @@ def detour_axis_values(
             values.append(max(8.0, box.x - ROUTE_GUTTER))
             values.append(min(canvas_w - 8.0, box.x + box.w + ROUTE_GUTTER))
 
-    return dedupe_lane_values(values)
+    baseline = detour_baseline_coordinate(mode, start_stub, end_stub)
+    deduped = expand_lane_bundle_candidates(values, min_axis, max_axis)
+    return sorted(
+        deduped,
+        key=lambda value: (
+            detour_excursion_penalty(mode, value, start_stub, end_stub),
+            abs(value - baseline),
+            value,
+        ),
+    )
 
 
 def candidate_lane_values(
@@ -1305,8 +1477,12 @@ def candidate_lane_values(
     boxes: Dict[str, Box],
     canvas_w: float,
     canvas_h: float,
+    start_stub: Tuple[float, float],
+    end_stub: Tuple[float, float],
 ) -> List[float]:
     values: List[float] = [default_lane]
+    min_axis = 8.0
+    max_axis = canvas_w - 8.0 if mode == "mid_x" else canvas_h - 8.0
     if not boxes:
         return values
 
@@ -1338,8 +1514,15 @@ def candidate_lane_values(
             ]
         )
 
-    deduped = dedupe_lane_values(values)
-    return sorted(deduped, key=lambda value: (abs(value - default_lane), value))
+    deduped = expand_lane_bundle_candidates(values, min_axis, max_axis)
+    return sorted(
+        deduped,
+        key=lambda value: (
+            lane_excursion_penalty(mode, value, start_stub, end_stub),
+            abs(value - default_lane),
+            value,
+        ),
+    )
 
 
 def best_route_points(
@@ -1353,10 +1536,20 @@ def best_route_points(
     all_boxes: Dict[str, Box],
     canvas_w: float,
     canvas_h: float,
-) -> Tuple[List[Tuple[float, float]], set[str], float, float]:
+    port_info: Dict[str, Any] | None = None,
+    used_bundle_lanes: Sequence[float] | None = None,
+) -> Tuple[List[Tuple[float, float]], set[str], float, float, int, float]:
+    src_box = all_boxes.get(src_id)
+    dst_box = all_boxes.get(dst_id)
     start_stub = offset_point(start, src_side, EDGE_EGRESS_STUB)
     end_stub = offset_point(end, dst_side, EDGE_EGRESS_STUB)
-    offset = ((stable_number(rel_id) % 5) - 2) * 10.0
+    source_lane_bias = float(port_info.get("source_lane_bias", 0.0)) if port_info else 0.0
+    target_lane_bias = float(port_info.get("target_lane_bias", 0.0)) if port_info else 0.0
+    offset = target_lane_bias if abs(target_lane_bias) > ROUTING_EPSILON else 0.0
+    if abs(offset) <= ROUTING_EPSILON and abs(source_lane_bias) > ROUTING_EPSILON:
+        offset = source_lane_bias
+    if abs(offset) <= ROUTING_EPSILON:
+        offset = ((stable_number(rel_id) % 5) - 2) * ROUTE_BUNDLE_SPACING
     mode = route_mode(src_side, dst_side)
     default_lane = (
         (start_stub[0] + end_stub[0]) / 2.0 + offset
@@ -1364,20 +1557,25 @@ def best_route_points(
         else (start_stub[1] + end_stub[1]) / 2.0 + offset
     )
     ignore_ids = {src_id, dst_id}
-    lane_candidates = candidate_lane_values(mode, default_lane, all_boxes, canvas_w, canvas_h)
+    lane_candidates = candidate_lane_values(mode, default_lane, all_boxes, canvas_w, canvas_h, start_stub, end_stub)
 
     best_points: List[Tuple[float, float]] = []
-    best_score: Tuple[int, float, float, float, float] | None = None
+    best_score: Tuple[float, ...] | None = None
     best_blockers: set[str] = set()
     best_clearance = 0.0
+    best_endpoint_penalty = 0
     best_lane = default_lane
     for lane_value in lane_candidates:
         candidate = collapse_orthogonal_points(build_route_points(start, start_stub, end_stub, end, lane_value, mode))
         blockers = route_blockers(candidate, all_boxes, ignore_ids)
+        endpoint_penalty = route_endpoint_interior_penalty(candidate, src_box, dst_box)
         clearance = route_min_clearance(candidate, all_boxes, ignore_ids)
         score = (
             len(blockers),
+            float(endpoint_penalty),
             max(0.0, ROUTE_CLEARANCE_TARGET - clearance),
+            route_lane_reuse_penalty(used_bundle_lanes or [], lane_value),
+            lane_excursion_penalty(mode, lane_value, start_stub, end_stub),
             approximate_route_length(candidate),
             abs(lane_value - default_lane),
             0.0,
@@ -1387,39 +1585,48 @@ def best_route_points(
             best_points = candidate
             best_blockers = blockers
             best_clearance = clearance
+            best_endpoint_penalty = endpoint_penalty
             best_lane = lane_value
-            if not blockers and clearance >= ROUTE_CLEARANCE_TARGET:
+            if not blockers and endpoint_penalty == 0 and clearance >= ROUTE_CLEARANCE_TARGET:
                 break
 
-    if best_blockers or best_clearance < ROUTE_CLEARANCE_TARGET:
-        detour_values = detour_axis_values(mode, sorted(best_blockers), all_boxes, canvas_w, canvas_h)
-        lane_trials = dedupe_lane_values([best_lane, default_lane] + lane_candidates[:2] + lane_candidates[-2:])
+    if best_blockers or best_endpoint_penalty > 0 or best_clearance < ROUTE_CLEARANCE_TARGET:
+        detour_values = detour_axis_values(mode, sorted(best_blockers), all_boxes, canvas_w, canvas_h, start_stub, end_stub)
+        lane_trials = dedupe_lane_values([best_lane, default_lane] + lane_candidates[:8])
         for lane_value in lane_trials:
             for detour_value in detour_values:
                 candidate = collapse_orthogonal_points(
                     build_detour_route_points(start, start_stub, end_stub, end, lane_value, detour_value, mode)
                 )
                 blockers = route_blockers(candidate, all_boxes, ignore_ids)
+                endpoint_penalty = route_endpoint_interior_penalty(candidate, src_box, dst_box)
                 clearance = route_min_clearance(candidate, all_boxes, ignore_ids)
                 score = (
                     len(blockers),
+                    float(endpoint_penalty),
                     max(0.0, ROUTE_CLEARANCE_TARGET - clearance),
+                    route_lane_reuse_penalty(used_bundle_lanes or [], lane_value),
+                    lane_excursion_penalty(mode, lane_value, start_stub, end_stub),
+                    detour_excursion_penalty(mode, detour_value, start_stub, end_stub),
                     approximate_route_length(candidate),
                     abs(lane_value - default_lane),
-                    abs(detour_value - (start_stub[1] if mode == "mid_x" else start_stub[0])),
+                    abs(detour_value - detour_baseline_coordinate(mode, start_stub, end_stub)),
                 )
                 if best_score is None or score < best_score:
                     best_score = score
                     best_points = candidate
                     best_blockers = blockers
                     best_clearance = clearance
-                    if not blockers and clearance >= ROUTE_CLEARANCE_TARGET:
-                        return best_points, best_blockers, best_clearance, approximate_route_length(best_points)
+                    best_endpoint_penalty = endpoint_penalty
+                    best_lane = lane_value
+                    if not blockers and endpoint_penalty == 0 and clearance >= ROUTE_CLEARANCE_TARGET:
+                        return best_points, best_blockers, best_clearance, approximate_route_length(best_points), best_endpoint_penalty, lane_value
 
     fallback = best_points or collapse_orthogonal_points(build_route_points(start, start_stub, end_stub, end, default_lane, mode))
     fallback_blockers = best_blockers if best_points else route_blockers(fallback, all_boxes, ignore_ids)
     fallback_clearance = best_clearance if best_points else route_min_clearance(fallback, all_boxes, ignore_ids)
-    return fallback, fallback_blockers, fallback_clearance, approximate_route_length(fallback)
+    fallback_endpoint_penalty = best_endpoint_penalty if best_points else route_endpoint_interior_penalty(fallback, src_box, dst_box)
+    return fallback, fallback_blockers, fallback_clearance, approximate_route_length(fallback), fallback_endpoint_penalty, best_lane if best_points else default_lane
 
 
 def orthogonal_points(
@@ -1432,13 +1639,16 @@ def orthogonal_points(
     canvas_w: float,
     canvas_h: float,
     edge_ports: Dict[str, Dict[str, Any]] | None = None,
+    lane_usage: Dict[str, List[float]] | None = None,
 ) -> List[Tuple[float, float]]:
     port_info = edge_ports.get(rel_id, {}) if edge_ports else {}
     src_side = str(port_info.get("source_side") or preferred_port_side(src, dst))
     dst_side = str(port_info.get("target_side") or preferred_port_side(dst, src))
     start = tuple(port_info.get("source_anchor") or anchor_point(src, src_side))
     end = tuple(port_info.get("target_anchor") or anchor_point(dst, dst_side))
-    points, _, _, _ = best_route_points(
+    mode = route_mode(src_side, dst_side)
+    bundle_key = route_bundle_key(src_id, dst_id, src_side, dst_side, mode, port_info)
+    points, _, _, _, _, lane_value = best_route_points(
         rel_id,
         src_id,
         dst_id,
@@ -1449,7 +1659,10 @@ def orthogonal_points(
         all_boxes,
         canvas_w,
         canvas_h,
+        port_info,
+        lane_usage.get(bundle_key, []) if lane_usage else [],
     )
+    remember_route_lane(lane_usage, bundle_key, lane_value)
     return points
 
 
@@ -1547,6 +1760,7 @@ def draw_edge(
     canvas_w: float,
     canvas_h: float,
     edge_ports: Dict[str, Dict[str, Any]] | None = None,
+    lane_usage: Dict[str, List[float]] | None = None,
     color: str = "var(--color-border-strong)",
 ) -> str:
     points = orthogonal_points(
@@ -1559,6 +1773,7 @@ def draw_edge(
         canvas_w,
         canvas_h,
         edge_ports,
+        lane_usage,
     )
     path_data = rounded_polyline(points)
     return (
@@ -1684,6 +1899,7 @@ def render_view_fragment(
         )
 
     edge_ports = assign_edge_ports(edges, layout.boxes, layout.width, layout.height)
+    lane_usage: Dict[str, List[float]] = {}
     edge_markup: List[str] = []
     seen_pairs: set[Tuple[str, str, str]] = set()
     for edge in edges:
@@ -1701,6 +1917,7 @@ def render_view_fragment(
                 layout.width,
                 layout.height,
                 edge_ports,
+                lane_usage,
             )
         )
 
@@ -1715,7 +1932,7 @@ def render_view_fragment(
     edge_text = "\n  ".join(edge_markup)
     node_text = "\n  ".join(node_markup)
 
-    svg = f"""<svg viewBox=\"0 0 {layout.width:.0f} {layout.height:.0f}\" width=\"{layout.width:.0f}\" height=\"{layout.height:.0f}\" xmlns=\"http://www.w3.org/2000/svg\">
+    svg = f"""<svg viewBox=\"0 0 {layout.width:.0f} {layout.height:.0f}\" width=\"{layout.width:.0f}\" height=\"{layout.height:.0f}\" xmlns=\"http://www.w3.org/2000/svg\" data-routing-version=\"{FRAGMENT_ROUTING_VERSION}\">
   <defs>
     <marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\">
       <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--color-border-strong)\" />
