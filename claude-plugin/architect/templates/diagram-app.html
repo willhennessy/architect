@@ -5980,12 +5980,6 @@ function ensureEdgeHoverMarker(svg) {
   if (!marker) {
     const baseMarker = defs.querySelector('#arrow');
     marker = baseMarker ? baseMarker.cloneNode(true) : document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-    marker.setAttribute('id', 'edge-hover-arrow');
-    marker.setAttribute('orient', 'auto-start-reverse');
-    marker.setAttribute('markerWidth', '10.5');
-    marker.setAttribute('markerHeight', '10.5');
-    marker.setAttribute('refX', '8.25');
-    marker.setAttribute('refY', '5');
     if (!baseMarker) {
       const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       arrow.setAttribute('d', 'M0,0 L10,5 L0,10 z');
@@ -6003,6 +5997,13 @@ function ensureEdgeHoverMarker(svg) {
     });
     defs.appendChild(marker);
   }
+  marker.setAttribute('id', 'edge-hover-arrow');
+  marker.setAttribute('orient', 'auto-start-reverse');
+  marker.setAttribute('viewBox', '0 0 10 10');
+  marker.setAttribute('markerWidth', '5.25');
+  marker.setAttribute('markerHeight', '5.25');
+  marker.setAttribute('refX', '8.25');
+  marker.setAttribute('refY', '5');
 
   return 'url(#edge-hover-arrow)';
 }
