@@ -7514,7 +7514,7 @@ function applyThreadModalState(thread) {
 function openThreadModal(thread) {
   if (!thread) return;
   if (thread.view_id && thread.view_id !== state.viewId && viewsById.has(thread.view_id)) {
-    Promise.resolve(changeView(thread.view_id, { history: 'push', direction: 'forward', animate: true }))
+    Promise.resolve(changeView(thread.view_id, { history: 'push', direction: 'forward', animate: false }))
       .then(function () { openThreadModal(thread); });
     return;
   }
