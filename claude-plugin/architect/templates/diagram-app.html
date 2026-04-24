@@ -2313,26 +2313,14 @@
       opacity: 0.7;
     }
 
-    #threadDialogOverlay.show {
-      display: flex;
-    }
-    .thread-dialog {
-      width: min(560px, calc(100vw - 48px));
-      max-height: min(640px, calc(100vh - 48px));
-      display: flex;
-      flex-direction: column;
-    }
-    .thread-dialog-header {
+    .comment-popover-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 0 12px 0;
-      border-bottom: 1px solid var(--color-border, #e2e8f0);
     }
-    .thread-dialog-header h3 {
-      margin: 0;
+    .comment-popover-header .modal-header {
       flex: 1;
-      font-size: 16px;
+      margin: 0;
     }
     .thread-target-tag {
       display: inline-block;
@@ -2340,47 +2328,43 @@
       height: 8px;
       border-radius: 50%;
       background: var(--thread-tone, var(--color-brand));
-    }
-    .thread-dialog-close {
-      background: transparent;
-      border: 0;
-      font-size: 20px;
-      line-height: 1;
-      cursor: pointer;
-      color: var(--color-fg-muted, #94a3b8);
+      flex-shrink: 0;
     }
     .thread-dialog-banner {
       background: var(--color-subtle-bg, rgba(148, 163, 184, 0.08));
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 6px;
-      margin-top: 12px;
+      margin-top: 8px;
       font-size: 12px;
       color: var(--color-fg-muted, #94a3b8);
     }
     .thread-message-list {
       list-style: none;
-      margin: 0;
-      padding: 12px 0;
+      margin: 8px 0 0 0;
+      padding: 0;
       overflow-y: auto;
-      flex: 1;
-      min-height: 120px;
+      max-height: 260px;
     }
     .thread-message {
-      padding: 10px 0;
+      padding: 8px 0;
       border-bottom: 1px solid var(--color-border-subtle, rgba(148, 163, 184, 0.15));
+    }
+    .thread-message:first-child {
+      padding-top: 4px;
     }
     .thread-message:last-child {
       border-bottom: 0;
+      padding-bottom: 4px;
     }
     .thread-message-author {
       display: inline-block;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       padding: 2px 6px;
       border-radius: 3px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .thread-message-author.is-claude {
       background: var(--color-brand);
@@ -2392,43 +2376,25 @@
     }
     .thread-message-body {
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.45;
       white-space: pre-wrap;
       margin: 0;
     }
     .thread-message-meta {
       font-size: 10px;
       color: var(--color-fg-muted, #94a3b8);
-      margin-top: 4px;
-    }
-    .thread-reply-wrap {
-      border-top: 1px solid var(--color-border, #e2e8f0);
-      padding-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .thread-reply-wrap textarea {
-      width: 100%;
-      min-height: 52px;
-      max-height: 160px;
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--color-border, #e2e8f0);
-      background: var(--color-input-bg, transparent);
-      color: inherit;
-      font-family: inherit;
-      font-size: 13px;
-      resize: vertical;
-    }
-    .thread-reply-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
+      margin-top: 3px;
     }
     .thread-reply-error {
       color: var(--color-danger, #dc2626);
       font-size: 12px;
+      margin: 6px 0 0 0;
+    }
+    #commentDialog[data-mode="thread"] #commentInputWrap {
+      margin-top: 8px;
+    }
+    #commentDialog[data-mode="thread"] #commentText {
+      min-height: 44px;
     }
   </style>
 </head>
@@ -2555,10 +2521,15 @@
 </svg>
 
 <div class="overlay overlay-popover" id="commentDialogOverlay">
-  <div class="dialog dialog-floating comment-popover" id="commentDialog" data-placement="right">
+  <div class="dialog dialog-floating comment-popover" id="commentDialog" data-placement="right" data-mode="compose">
     <div class="comment-popover-pointer" id="commentPointer" aria-hidden="true"></div>
-    <h3 id="commentTitle" class="modal-header">Comment</h3>
-    <div class="comment-input-wrap">
+    <div class="comment-popover-header">
+      <span class="thread-target-tag" id="commentThreadTag" aria-hidden="true" hidden></span>
+      <h3 id="commentTitle" class="modal-header">Comment</h3>
+    </div>
+    <div class="thread-dialog-banner" id="commentThreadBanner" hidden></div>
+    <ul class="thread-message-list" id="commentThreadMessages" hidden></ul>
+    <div class="comment-input-wrap" id="commentInputWrap">
       <textarea id="commentText" class="modal-textarea" placeholder="Add a comment" rows="1"></textarea>
       <button id="commentAdd" class="btn-comment-submit" disabled aria-label="Submit comment">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -2566,26 +2537,8 @@
         </svg>
       </button>
     </div>
+    <p class="thread-reply-error" id="commentThreadError" hidden></p>
     <p id="commentHint" class="comment-popover-hint" aria-live="polite"></p>
-  </div>
-</div>
-
-<div class="overlay" id="threadDialogOverlay">
-  <div class="dialog thread-dialog">
-    <header class="thread-dialog-header">
-      <span class="thread-target-tag" id="threadTargetTag" aria-hidden="true"></span>
-      <h3 id="threadDialogTitle">Thread</h3>
-      <button type="button" class="thread-dialog-close" id="threadDialogClose" aria-label="Close thread">&times;</button>
-    </header>
-    <div class="thread-dialog-banner" id="threadDialogBanner" hidden></div>
-    <ul class="thread-message-list" id="threadMessageList"></ul>
-    <div class="thread-reply-wrap" id="threadReplyWrap">
-      <textarea id="threadReplyText" rows="2" placeholder="Reply to Claude..." aria-label="Your reply"></textarea>
-      <p class="thread-reply-error" id="threadReplyError" hidden></p>
-      <div class="thread-reply-actions">
-        <button type="button" id="threadReplySubmit" disabled>Send reply</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -7458,14 +7411,6 @@ function applyThreadIndicators(svg) {
 }
 
 function navigateToThread(thread) {
-  if (!thread) return;
-  if (thread.view_id && thread.view_id !== state.viewId && viewsById.has(thread.view_id)) {
-    changeView(thread.view_id, { history: 'push', direction: 'forward', animate: true });
-    window.requestAnimationFrame(function () {
-      openThreadModal(thread);
-    });
-    return;
-  }
   openThreadModal(thread);
 }
 
@@ -7481,7 +7426,7 @@ function formatMessageTimestamp(value) {
 }
 
 function renderThreadMessageList(thread) {
-  const list = $('threadMessageList');
+  const list = $('commentThreadMessages');
   if (!list) return;
   list.innerHTML = '';
   const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
@@ -7524,15 +7469,18 @@ function refreshActiveThreadModal() {
 }
 
 function applyThreadModalState(thread) {
-  const title = $('threadDialogTitle');
-  const banner = $('threadDialogBanner');
-  const replyWrap = $('threadReplyWrap');
-  const replySubmit = $('threadReplySubmit');
-  const replyText = $('threadReplyText');
-  const tag = $('threadTargetTag');
+  const title = $('commentTitle');
+  const banner = $('commentThreadBanner');
+  const inputWrap = $('commentInputWrap');
+  const submit = $('commentAdd');
+  const replyText = $('commentText');
+  const tag = $('commentThreadTag');
 
   if (title) title.textContent = commentTargetName(thread);
-  if (tag) tag.style.setProperty('--thread-tone', commentToneForTarget(thread));
+  if (tag) {
+    tag.style.setProperty('--thread-tone', commentToneForTarget(thread));
+    tag.hidden = false;
+  }
 
   if (banner) {
     if (thread.status === 'resolved') {
@@ -7545,50 +7493,82 @@ function applyThreadModalState(thread) {
     }
   }
 
-  if (replyWrap) replyWrap.hidden = thread.status === 'resolved';
+  const messages = $('commentThreadMessages');
+  if (messages) messages.hidden = false;
+
+  if (inputWrap) inputWrap.hidden = thread.status === 'resolved';
   if (replyText) {
     replyText.disabled = thread.status === 'resolved' || state.threadReplyInFlight;
+    replyText.placeholder = 'Reply to Claude...';
   }
-  if (replySubmit) {
-    replySubmit.disabled = thread.status === 'resolved'
+  if (submit) {
+    submit.disabled = thread.status === 'resolved'
       || state.threadReplyInFlight
       || !replyText
       || !replyText.value.trim();
-    replySubmit.textContent = state.threadReplyInFlight ? 'Sending…' : 'Send reply';
+    submit.setAttribute('aria-label', state.threadReplyInFlight ? 'Sending reply' : 'Send reply');
   }
   renderThreadMessageList(thread);
 }
 
 function openThreadModal(thread) {
   if (!thread) return;
+  if (thread.view_id && thread.view_id !== state.viewId && viewsById.has(thread.view_id)) {
+    Promise.resolve(changeView(thread.view_id, { history: 'push', direction: 'forward', animate: true }))
+      .then(function () { openThreadModal(thread); });
+    return;
+  }
+
   state.activeThread = thread;
-  const overlay = $('threadDialogOverlay');
-  if (!overlay) return;
-  const replyText = $('threadReplyText');
-  const err = $('threadReplyError');
-  if (replyText) replyText.value = '';
-  if (err) { err.hidden = true; err.textContent = ''; }
   state.threadReplyInFlight = false;
+  state.pendingTarget = {
+    view_id: thread.view_id,
+    element_id: thread.element_id,
+    relationship_id: thread.relationship_id,
+    target_label: thread.target_label,
+  };
+  state.pendingTargetAnchor = thread.element_id || thread.relationship_id
+    ? { xRatio: 1, yRatio: 0 }
+    : null;
+  state.pendingPlacement = 'right';
+
+  const dialog = $('commentDialog');
+  const overlay = $('commentDialogOverlay');
+  const replyText = $('commentText');
+  const err = $('commentThreadError');
+  if (!dialog || !overlay) return;
+
+  if (state.commentCloseTimer) {
+    clearTimeout(state.commentCloseTimer);
+    state.commentCloseTimer = null;
+  }
+  if (replyText) { replyText.value = ''; replyText.style.height = 'auto'; }
+  if (err) { err.hidden = true; err.textContent = ''; }
+  clearDiscardPrompt();
+
+  dialog.setAttribute('data-mode', 'thread');
   applyThreadModalState(thread);
-  overlay.classList.add('show');
+  applyCommentTargetIndicators(currentDiagramSvg());
+
+  overlay.className = 'overlay overlay-popover show';
+  dialog.setAttribute('data-animate-state', 'closed');
   window.requestAnimationFrame(function () {
+    positionCommentDialog();
+    dialog.setAttribute('data-animate-state', 'open');
+    autosizeCommentTextarea();
     if (replyText && thread.status !== 'resolved') replyText.focus();
   });
 }
 
 function closeThreadModal() {
-  const overlay = $('threadDialogOverlay');
-  if (!overlay) return;
-  overlay.classList.remove('show');
-  state.activeThread = null;
-  state.threadReplyInFlight = false;
+  closeCommentDialog();
 }
 
 async function submitThreadReply() {
   const thread = state.activeThread;
   if (!thread || thread.status === 'resolved' || state.threadReplyInFlight) return;
-  const replyText = $('threadReplyText');
-  const err = $('threadReplyError');
+  const replyText = $('commentText');
+  const err = $('commentThreadError');
   const body = replyText ? String(replyText.value || '').trim() : '';
   if (!body) return;
   if (!HANDOFF.bridge_url || !HANDOFF.output_root) {
@@ -8030,10 +8010,25 @@ function finishCloseCommentDialog() {
   $('commentDialog').style.removeProperty('--comment-origin-y');
   $('commentDialog').setAttribute('data-placement', 'right');
   $('commentDialog').setAttribute('data-animate-state', 'closed');
+  $('commentDialog').setAttribute('data-mode', 'compose');
+  const tag = $('commentThreadTag');
+  if (tag) tag.hidden = true;
+  const banner = $('commentThreadBanner');
+  if (banner) banner.hidden = true;
+  const messages = $('commentThreadMessages');
+  if (messages) { messages.hidden = true; messages.innerHTML = ''; }
+  const err = $('commentThreadError');
+  if (err) { err.hidden = true; err.textContent = ''; }
+  const inputWrap = $('commentInputWrap');
+  if (inputWrap) inputWrap.hidden = false;
+  const textarea = $('commentText');
+  if (textarea) { textarea.disabled = false; textarea.placeholder = 'Add a comment'; }
   clearDiscardPrompt();
   state.pendingTarget = null;
   state.pendingTargetAnchor = null;
   state.pendingPlacement = 'right';
+  state.activeThread = null;
+  state.threadReplyInFlight = false;
   applyCommentTargetIndicators(currentDiagramSvg());
 }
 
@@ -8044,12 +8039,32 @@ function openCommentDialog(target, anchor) {
     clearTimeout(state.commentCloseTimer);
     state.commentCloseTimer = null;
   }
+  state.activeThread = null;
+  state.threadReplyInFlight = false;
   state.pendingTarget = target;
   state.pendingTargetAnchor = anchor || null;
   state.pendingPlacement = 'right';
+
+  dialog.setAttribute('data-mode', 'compose');
+  const tag = $('commentThreadTag');
+  if (tag) tag.hidden = true;
+  const banner = $('commentThreadBanner');
+  if (banner) banner.hidden = true;
+  const messages = $('commentThreadMessages');
+  if (messages) { messages.hidden = true; messages.innerHTML = ''; }
+  const err = $('commentThreadError');
+  if (err) { err.hidden = true; err.textContent = ''; }
+  const inputWrap = $('commentInputWrap');
+  if (inputWrap) inputWrap.hidden = false;
+
+  const textarea = $('commentText');
   $('commentTitle').textContent = commentTargetName(target);
-  $('commentText').value = '';
-  $('commentText').style.height = 'auto';
+  if (textarea) {
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    textarea.disabled = false;
+    textarea.placeholder = 'Add a comment';
+  }
   clearDiscardPrompt();
   updateCommentComposerState();
   applyCommentTargetIndicators(currentDiagramSvg());
@@ -8059,7 +8074,7 @@ function openCommentDialog(target, anchor) {
     positionCommentDialog();
     dialog.setAttribute('data-animate-state', 'open');
     autosizeCommentTextarea();
-    $('commentText').focus();
+    if (textarea) textarea.focus();
   });
 }
 
@@ -8310,11 +8325,23 @@ $('canvas').addEventListener('click', function (e) {
   openCommentDialog(target, commentAnchorForCanvasEvent(e));
 });
 
-$('commentAdd').addEventListener('click', addPendingComment);
+function isThreadDialogMode() {
+  const dialog = $('commentDialog');
+  return Boolean(dialog && dialog.getAttribute('data-mode') === 'thread' && state.activeThread);
+}
+
+$('commentAdd').addEventListener('click', function () {
+  if (isThreadDialogMode()) submitThreadReply();
+  else addPendingComment();
+});
 
 $('commentText').addEventListener('input', function () {
-  clearDiscardPrompt();
   autosizeCommentTextarea();
+  if (isThreadDialogMode()) {
+    applyThreadModalState(state.activeThread);
+    return;
+  }
+  clearDiscardPrompt();
   updateCommentComposerState();
 });
 
@@ -8329,7 +8356,8 @@ $('commentText').addEventListener('keydown', function (e) {
   if (!e.metaKey && !e.ctrlKey) return;
   e.preventDefault();
   e.stopPropagation();
-  addPendingComment();
+  if (isThreadDialogMode()) submitThreadReply();
+  else addPendingComment();
 });
 
 window.addEventListener('resize', function () {
@@ -8422,38 +8450,6 @@ if (window.matchMedia) {
   if (typeof media.addEventListener === 'function') media.addEventListener('change', syncSystemTheme);
   else if (typeof media.addListener === 'function') media.addListener(syncSystemTheme);
 }
-
-(function wireThreadDialog() {
-  const overlay = $('threadDialogOverlay');
-  const close = $('threadDialogClose');
-  const submit = $('threadReplySubmit');
-  const replyText = $('threadReplyText');
-
-  if (close) close.addEventListener('click', function () { closeThreadModal(); });
-  if (overlay) overlay.addEventListener('click', function (ev) {
-    if (ev.target === overlay) closeThreadModal();
-  });
-  if (submit) submit.addEventListener('click', function () { submitThreadReply(); });
-  if (replyText) {
-    replyText.addEventListener('input', function () {
-      if (!state.activeThread) return;
-      applyThreadModalState(state.activeThread);
-    });
-    replyText.addEventListener('keydown', function (ev) {
-      if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') {
-        ev.preventDefault();
-        submitThreadReply();
-      }
-    });
-  }
-
-  document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape' && $('threadDialogOverlay') && $('threadDialogOverlay').classList.contains('show')) {
-      ev.preventDefault();
-      closeThreadModal();
-    }
-  });
-})();
 
 syncBrandLogo(currentTheme());
 updateThemeToggle();
