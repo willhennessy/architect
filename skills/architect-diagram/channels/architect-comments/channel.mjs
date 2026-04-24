@@ -77,7 +77,13 @@ function buildChannelEvent(body) {
   const eventType = String(body.event_type || "architect_feedback_batch")
   const comments = Array.isArray(body.comments) ? body.comments : []
   const commentLines = buildCommentLines(comments)
-  const meta = sanitizeMeta({
+  const openThreadIds = Array.isArray(body.open_thread_ids) ? body.open_thread_ids : []
+  const openThreadSummary = Array.isArray(body.open_thread_summary)
+    ? body.open_thread_summary
+    : typeof body.open_thread_summary === "string"
+      ? [body.open_thread_summary]
+      : []
+  const baseMeta = {
     event_type: eventType,
     state: body.state || "",
     job_id: body.job_id || randomUUID(),
@@ -87,11 +93,27 @@ function buildChannelEvent(body) {
     comment_count: String(comments.length),
     comments_json: comments,
     comments_summary: commentLines,
-  })
-  const content =
-    eventType === "architect_feedback_batch"
-      ? buildFeedbackContent(body)
-      : stringifyValue(body.content || body.message || body)
+    open_thread_ids: openThreadIds,
+    open_thread_summary: openThreadSummary,
+  }
+  if (eventType === "architect_thread_user_reply") {
+    baseMeta.thread_id = body.thread_id || ""
+    baseMeta.parent_message_id = body.parent_message_id || ""
+    baseMeta.view_id = body.view_id || ""
+    baseMeta.element_id = body.element_id || ""
+    baseMeta.relationship_id = body.relationship_id || ""
+    baseMeta.target_label = body.target_label || ""
+    baseMeta.reply_body = body.reply_body || body.body || ""
+  }
+  const meta = sanitizeMeta(baseMeta)
+  let content
+  if (eventType === "architect_feedback_batch") {
+    content = buildFeedbackContent(body)
+  } else if (eventType === "architect_thread_user_reply") {
+    content = "The user replied to one of your comment threads. Read reply_body and decide whether to answer, answer-and-resolve, or silently resolve."
+  } else {
+    content = stringifyValue(body.content || body.message || body)
+  }
   return { meta, content }
 }
 
@@ -111,7 +133,10 @@ const mcp = new Server(
       "Use update_feedback_status to report progress back to the browser bridge in a compact user-facing voice. " +
       "After you edit the artifacts, call finalize_feedback_update instead of guessing shell commands so validation and rendering stay deterministic. " +
       "Keep model edits contract-safe, for example use `database` instead of `datastore`. " +
-      "When you summarize the result, describe the actual written graph changes and keep the browser-ready completion message short.",
+      "When you summarize the result, describe the actual written graph changes and keep the browser-ready completion message short. " +
+      "If the batch event includes open_thread_ids or open_thread_summary, the user did NOT reply to those Claude-authored threads on this turn. Do not resolve them, do not add a follow-up reply, and do not mention them in your completion message — treat them as pending for a future turn. " +
+      "When you need to ask the user a design question during plan mode, call post_claude_comment anchored to the specific view_id and element_id or relationship_id that the question is about. One focused question per comment, always state the default you assumed. Do not post comments for stylistic or minor concerns. " +
+      "When a <channel source=\"architect-comments\" ...> event arrives with event_type=architect_thread_user_reply, use post_claude_reply (NOT finalize_feedback_update) to respond. Read thread_id and reply_body from the channel attributes. Set resolves=true when the user's reply fully answers your question and no further conversation is needed; otherwise reply without resolving. Use resolve_thread for silent resolution when the question became moot without needing a textual reply.",
   },
 )
 
@@ -247,6 +272,98 @@ async function postBridgeStatus(args) {
   }
 
   return await response.json()
+}
+
+async function postBridgeJson(bridgeUrl, urlPath, body) {
+  const base = String(bridgeUrl || "").replace(/\/$/, "")
+  if (!base) throw new Error("bridge_url is required")
+  const response = await fetch(`${base}${urlPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  const text = await response.text()
+  if (!response.ok) {
+    throw new Error(`bridge POST ${urlPath} failed (${response.status}): ${text}`)
+  }
+  try {
+    return text ? JSON.parse(text) : {}
+  } catch (_error) {
+    return { raw: text }
+  }
+}
+
+async function postClaudeComment(args) {
+  const rawOutputRoot = String(args.output_root || "").trim()
+  if (!rawOutputRoot) throw new Error("output_root is required")
+  const outputRoot = path.isAbsolute(rawOutputRoot) ? rawOutputRoot : path.resolve(repoRoot, rawOutputRoot)
+  const viewId = String(args.view_id || "").trim()
+  if (!viewId) throw new Error("view_id is required")
+  const body = String(args.body || "").trim()
+  if (!body) throw new Error("body is required")
+  const elementId = args.element_id ? String(args.element_id).trim() : null
+  const relationshipId = args.relationship_id ? String(args.relationship_id).trim() : null
+  if (elementId && relationshipId) {
+    throw new Error("provide element_id OR relationship_id, not both")
+  }
+  return await postBridgeJson(args.bridge_url, "/claude-threads", {
+    output_root: outputRoot,
+    view_id: viewId,
+    element_id: elementId,
+    relationship_id: relationshipId,
+    target_label: String(args.target_label || "").trim() || null,
+    body,
+    diagram_revision_id: args.diagram_revision_id ? String(args.diagram_revision_id) : null,
+  })
+}
+
+async function postClaudeReply(args) {
+  const threadId = String(args.thread_id || "").trim()
+  if (!threadId) throw new Error("thread_id is required")
+  const rawOutputRoot = String(args.output_root || "").trim()
+  if (!rawOutputRoot) throw new Error("output_root is required")
+  const outputRoot = path.isAbsolute(rawOutputRoot) ? rawOutputRoot : path.resolve(repoRoot, rawOutputRoot)
+  const resolves = Boolean(args.resolves)
+  const silentResolve = Boolean(args.silent_resolve)
+
+  if (silentResolve) {
+    return await postBridgeJson(args.bridge_url, `/claude-threads/${encodeURIComponent(threadId)}/resolve`, {
+      output_root: outputRoot,
+      resolved_by: "claude",
+      silent: true,
+    })
+  }
+
+  const body = String(args.body || "").trim()
+  if (!body) throw new Error("body is required unless silent_resolve=true")
+  const messageResult = await postBridgeJson(
+    args.bridge_url,
+    `/claude-threads/${encodeURIComponent(threadId)}/messages`,
+    { output_root: outputRoot, author: "claude", body },
+  )
+
+  if (resolves) {
+    const resolveResult = await postBridgeJson(
+      args.bridge_url,
+      `/claude-threads/${encodeURIComponent(threadId)}/resolve`,
+      { output_root: outputRoot, resolved_by: "claude", silent: false },
+    )
+    return { message: messageResult, resolve: resolveResult }
+  }
+  return { message: messageResult }
+}
+
+async function resolveThread(args) {
+  const threadId = String(args.thread_id || "").trim()
+  if (!threadId) throw new Error("thread_id is required")
+  const rawOutputRoot = String(args.output_root || "").trim()
+  if (!rawOutputRoot) throw new Error("output_root is required")
+  const outputRoot = path.isAbsolute(rawOutputRoot) ? rawOutputRoot : path.resolve(repoRoot, rawOutputRoot)
+  return await postBridgeJson(args.bridge_url, `/claude-threads/${encodeURIComponent(threadId)}/resolve`, {
+    output_root: outputRoot,
+    resolved_by: "claude",
+    silent: true,
+  })
 }
 
 function finalizeFeedbackUpdate(args) {
@@ -400,6 +517,107 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["output_root"],
       },
     },
+    {
+      name: "post_claude_comment",
+      description:
+        "Post a new Claude-authored comment thread anchored to a specific view/element/relationship in the architect diagram. Use this during plan mode to ask the user a focused design question at the place on the diagram where it matters.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bridge_url: {
+            type: "string",
+            description: "Bridge base URL (for example http://127.0.0.1:8765)",
+          },
+          output_root: {
+            type: "string",
+            description: "Absolute or repo-relative output root that contains architecture/",
+          },
+          view_id: {
+            type: "string",
+            description: "The id of the view (context, container, component, sequence) this comment is anchored to",
+          },
+          element_id: {
+            type: "string",
+            description: "Optional. The node/container id the comment is anchored to. Provide either element_id OR relationship_id, not both. Leave both null for a canvas-level comment.",
+          },
+          relationship_id: {
+            type: "string",
+            description: "Optional. The relationship id the comment is anchored to. Provide either element_id OR relationship_id, not both.",
+          },
+          target_label: {
+            type: "string",
+            description: "Human-readable label for the target (element or relationship display name). Stored verbatim so the thread still renders if the anchor is later removed.",
+          },
+          body: {
+            type: "string",
+            description: "The comment text. One focused question. State the default you assumed.",
+          },
+          diagram_revision_id: {
+            type: "string",
+            description: "Optional diagram_revision_id to stamp the thread with",
+          },
+        },
+        required: ["bridge_url", "output_root", "view_id", "body"],
+      },
+    },
+    {
+      name: "post_claude_reply",
+      description:
+        "Post a Claude reply into an existing thread. Use this when responding to an architect_thread_user_reply event. Set resolves=true to mark the thread resolved after the reply lands. Set silent_resolve=true to resolve without writing a reply.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bridge_url: {
+            type: "string",
+            description: "Bridge base URL",
+          },
+          output_root: {
+            type: "string",
+            description: "Absolute or repo-relative output root that contains architecture/",
+          },
+          thread_id: {
+            type: "string",
+            description: "Thread id from the architect_thread_user_reply channel event",
+          },
+          body: {
+            type: "string",
+            description: "Reply text. Required unless silent_resolve=true.",
+          },
+          resolves: {
+            type: "boolean",
+            description: "If true, mark the thread resolved after appending this reply. Default false.",
+          },
+          silent_resolve: {
+            type: "boolean",
+            description: "If true, resolve the thread without appending a reply. body is ignored in this mode.",
+          },
+        },
+        required: ["bridge_url", "output_root", "thread_id"],
+      },
+    },
+    {
+      name: "resolve_thread",
+      description:
+        "Silently resolve a Claude comment thread without posting a reply. Use this when a question has become moot and no textual response is needed.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bridge_url: {
+            type: "string",
+            description: "Bridge base URL",
+          },
+          output_root: {
+            type: "string",
+            description: "Absolute or repo-relative output root that contains architecture/",
+          },
+          thread_id: {
+            type: "string",
+            description: "Thread id to resolve",
+          },
+        },
+        required: ["bridge_url", "output_root", "thread_id"],
+      },
+    },
   ],
 }))
 
@@ -434,6 +652,27 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
           text: JSON.stringify(result, null, 2),
         },
       ],
+    }
+  }
+
+  if (req.params.name === "post_claude_comment") {
+    const result = await postClaudeComment(req.params.arguments || {})
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    }
+  }
+
+  if (req.params.name === "post_claude_reply") {
+    const result = await postClaudeReply(req.params.arguments || {})
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    }
+  }
+
+  if (req.params.name === "resolve_thread") {
+    const result = await resolveThread(req.params.arguments || {})
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     }
   }
 
