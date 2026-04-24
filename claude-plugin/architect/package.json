@@ -1,7 +1,7 @@
 {
   "name": "architect-claude-plugin-runtime",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runtime services for the Architect Claude plugin",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0"
