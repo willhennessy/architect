@@ -2252,12 +2252,14 @@
       cursor: pointer;
       pointer-events: all;
       filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
-      transition: transform 0.15s ease;
     }
     .claude-thread-marker use {
       color: inherit;
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: transform 0.15s ease;
     }
-    .claude-thread-marker:hover {
+    .claude-thread-marker:hover use {
       transform: scale(1.12);
     }
 
