@@ -52,6 +52,13 @@ Do this manually:
 1. review the diff
 2. commit the synced plugin files + marketplace changes
 3. push to GitHub
+4. refresh your local published-plugin install:
+
+```bash
+claude plugin marketplace update plugins && claude plugin update architect@plugins --scope user
+```
+
+5. restart Claude so the updated plugin version is actually loaded
 
 The script intentionally does **not** auto-push.
 
