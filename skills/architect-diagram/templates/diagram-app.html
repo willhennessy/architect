@@ -2057,10 +2057,6 @@
       view-transition-name: active-tab;
     }
 
-    html[data-ui-transition="mode"] #canvas {
-      view-transition-name: mode-canvas;
-    }
-
     html[data-ui-transition="mode"] #sidebar {
       view-transition-name: mode-sidebar;
     }
@@ -2071,11 +2067,16 @@
 
     ::view-transition-group(canvas-stage),
     ::view-transition-group(active-tab),
-    ::view-transition-group(mode-canvas),
     ::view-transition-group(mode-sidebar),
     ::view-transition-group(detail-sidebar) {
       animation-duration: var(--duration-slow);
       animation-timing-function: var(--ease-drawer);
+    }
+
+    html[data-ui-transition="mode"]::view-transition-old(root),
+    html[data-ui-transition="mode"]::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
     }
 
     ::view-transition-group(mode-toggle-control),
@@ -2100,12 +2101,10 @@
       animation: canvas-slide-in-left 360ms var(--ease-drawer) both;
     }
 
-    html[data-ui-transition="mode"]::view-transition-old(mode-canvas),
     html[data-ui-transition="mode"]::view-transition-old(mode-sidebar) {
       animation: surface-fade-out 180ms var(--ease-out) both;
     }
 
-    html[data-ui-transition="mode"]::view-transition-new(mode-canvas),
     html[data-ui-transition="mode"]::view-transition-new(mode-sidebar) {
       animation: surface-fade-in 260ms var(--ease-drawer) both;
     }
