@@ -11,6 +11,8 @@ The steering loop feels like a whiteboard session:
 3. **comment directly** on any node or edge
 4. **review updates** from Claude in response to your comments
 
+Try the [live demo](https://willhennessy.io/demos/architect/document-signing) or read the [launch post](https://willhennessy.io/writing/introducing-architect.html)
+
 ## Getting Started
 
 ### 1. Install the plugin
@@ -33,7 +35,7 @@ claude --dangerously-load-development-channels plugin:architect@plugins
 3. After drafting the plan, Claude will ask if you want an interactive diagram. Say yes.
 4. Open `./architecture/diagram.html` in your browser
 
-Or if you're working in an existing repo run `/architect:init`.
+Or generate a diagram for your existing codebase with `/architect:init`.
 
 ## Skills
 
