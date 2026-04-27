@@ -696,7 +696,7 @@ function finalizeFeedbackUpdate(args) {
 }
 
 const mcp = new Server(
-  { name, version: "0.1.1" },
+  { name, version: "0.1.2" },
   {
     capabilities: {
       experimental: { "claude/channel": {} },
