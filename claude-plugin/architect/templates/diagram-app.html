@@ -1321,12 +1321,6 @@
       text-wrap: balance;
     }
 
-    .empty-state-hint {
-      font-size: 12px;
-      max-width: 26ch;
-      text-wrap: pretty;
-    }
-
     .empty-note {
       color: var(--color-text-secondary);
       text-align: center;
@@ -6933,7 +6927,7 @@ function updateCommentSidebar() {
   pane.innerHTML = '';
 
   if (!state.comments.length) {
-    pane.innerHTML = '<div class="empty-state"><p>No comments yet</p><p class="empty-state-hint">Click any element or edge to add a comment</p></div>';
+    pane.innerHTML = '<div class="empty-state"><p>Click any element or edge to add a comment</p></div>';
     return;
   }
 
