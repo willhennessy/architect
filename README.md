@@ -11,7 +11,7 @@ The steering loop feels like a whiteboard session:
 3. **comment directly** on any node or edge
 4. **review updates** from Claude in response to your comments
 
-Try the [live demo](https://willhennessy.io/demos/architect/document-signing) or read the [launch post](https://willhennessy.io/writing/introducing-architect.html)
+Watch a [video](https://x.com/WillHennessy_/status/2048774427865682062) or try the [live demo](https://willhennessy.io/demos/architect/document-signing)
 
 ## Getting Started
 
