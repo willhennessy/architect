@@ -3391,6 +3391,23 @@ function isJobHandlingInProgress(status) {
   return ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(status.state) !== -1;
 }
 
+const CLAUDE_NOT_CONNECTED_ERROR_CODE = 'CLAUDE_NOT_CONNECTED';
+
+function isClaudeDisconnectedStatus(status) {
+  if (!status) return false;
+  const code = String(status.error_code || status.code || '').toUpperCase();
+  if (code === CLAUDE_NOT_CONNECTED_ERROR_CODE) return true;
+
+  const message = [
+    status.message,
+    status.error,
+  ].map(function (value) {
+    return String(value || '');
+  }).join(' ');
+
+  return /claude channel delivery failed|channel delivery failed|could not reach the local bridge|failed to fetch|load failed|networkerror|network request failed|err_connection_refused/i.test(message);
+}
+
 function statusSummaryForActiveJob() {
   if (!state.activeJob) return null;
   const count = Math.max(
@@ -3416,6 +3433,15 @@ function statusSummaryForActiveJob() {
     };
   }
   if (tone === 'failed') {
+    if (isClaudeDisconnectedStatus(state.activeJob)) {
+      return {
+        tone: tone,
+        title: 'Claude is not connected',
+        subtitle: 'Restart Claude in the terminal',
+        animated: false,
+        allowRetry: false,
+      };
+    }
     return {
       tone: tone,
       title: "Couldn't process comments",
@@ -3503,7 +3529,7 @@ function renderSidebarStatusCard() {
     const actions = document.createElement('div');
     actions.className = 'comment-status-actions';
 
-    if (summary.tone === 'failed') {
+    if (summary.tone === 'failed' && summary.allowRetry !== false) {
       const retry = document.createElement('button');
       retry.className = 'comment-status-primary-action';
       retry.type = 'button';
@@ -7463,10 +7489,13 @@ async function submitPayload() {
       events_url: accepted.events_url,
     });
   } catch (err) {
+    const errorMessage = String(err && err.message ? err.message : 'Could not reach the local bridge.');
+    const claudeDisconnected = isClaudeDisconnectedStatus({ error: errorMessage });
     applyJobStatus({
       state: 'failed',
-      message: 'The update hit a problem.',
-      error: String(err && err.message ? err.message : 'Could not reach the local bridge.'),
+      message: claudeDisconnected ? 'Restart Claude in the terminal' : 'The update hit a problem.',
+      error: errorMessage,
+      error_code: claudeDisconnected ? CLAUDE_NOT_CONNECTED_ERROR_CODE : '',
       submitted_comment_count: payload.comments.length,
       needs_refresh: false,
     });
