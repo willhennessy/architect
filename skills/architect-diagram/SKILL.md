@@ -1,14 +1,14 @@
 ---
 name: architect-diagram
-description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode from existing architecture artifacts (`manifest.yaml`, `model.yaml`, and views). Use after architect-plan or architect-init has generated architecture artifacts.
+description: Generate an interactive HTML architecture diagram (`diagram.html`) with drill-down navigation and Comment Mode. If architecture artifacts already exist, render from them; if not, first run architect-init to discover the repo and create the artifacts.
 ---
 
-Use this skill only after architecture artifacts already exist.
+Use this skill to render `diagram.html` from architecture artifacts. Before rendering, always check whether the required artifacts already exist. If they do not exist, hand off to `architect-init` first, using the same output root and repo scope, then resume rendering after `architect-init` produces the artifacts.
 
 ## Inputs
 
-- output root path containing `architecture/`
-- generated architecture artifacts:
+- output root path, usually the current repo root
+- generated architecture artifacts, when present:
   - `architecture/manifest.yaml`
   - `architecture/model.yaml`
   - `architecture/views/*.yaml`
@@ -33,6 +33,7 @@ Optional debug output:
 
 - Do not invent architecture facts.
 - Source all content from provided artifacts.
+- Do not generate architecture artifacts directly in this skill. If artifacts are missing or incomplete, invoke `architect-init`; `architect-diagram` only resumes once artifacts exist.
 - Preserve exact IDs and paths from source artifacts.
 - `diagram.html` must remain a single-file artifact with inline CSS/JS; external assets are disallowed except for the approved Instrument Sans Google Fonts links when that typography path is intentionally used.
 - `diagram.html` must implement drill-down + breadcrumb navigation.
@@ -77,16 +78,29 @@ Opt-in (explicit request only):
 
 ## Workflow
 
-1. Read contracts/specs:
+1. Resolve `<output-root>`:
+   - use the user-provided output root when supplied
+   - otherwise use the current repository/workspace root
+2. Run artifact preflight before rendering:
+   - check for `<output-root>/architecture/manifest.yaml`
+   - check for `<output-root>/architecture/model.yaml`
+   - check for at least one `<output-root>/architecture/views/*.yaml`
+   - check for `<output-root>/architecture/summary.md`
+3. If any required artifact is missing:
+   - invoke `architect-init` against the same repo/output root
+   - if some artifacts exist, tell `architect-init` to treat this as update/recovery mode and preserve stable IDs where concepts are unchanged
+   - after `architect-init` finishes, restart this workflow from artifact preflight
+   - if the repo/output root cannot be inferred, ask one focused question for the repo path instead of guessing
+4. Read contracts/specs:
    - `references/diagram-output-contract.md`
    - `references/html-diagram-spec.md`
    - `references/svg-fragment-spec.md`
-2. Load architecture artifacts under `<output-root>/architecture/`.
-3. Generate SVG fragments under `<output-root>/architecture/.out/diagram-svg/`.
-4. Render `architecture/diagram.html` via template injection.
-5. Validate:
+5. Load architecture artifacts under `<output-root>/architecture/`.
+6. Generate SVG fragments under `<output-root>/architecture/.out/diagram-svg/`.
+7. Render `architecture/diagram.html` via template injection.
+8. Validate:
    - `${CLAUDE_PLUGIN_ROOT}/scripts/validate-diagram-html.sh <output-root>/architecture/diagram.html`
-6. Return path and summary of what was rendered.
+9. Return path and summary of what was rendered.
 
 ## Completion Standard
 

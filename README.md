@@ -43,7 +43,7 @@ Or generate a diagram for your existing codebase with `/architect:init`.
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `architect-plan`    | Enhance Plan Mode with a visual, interactive architecture diagram.                                            |
 | `architect-init`    | Generate a diagram and structured architecture files for an existing codebase.                                |
-| `architect-diagram` | Render `diagram.html` from existing architecture artifacts. In normal flows you should not need to call this. |
+| `architect-diagram` | Render `diagram.html` from architecture artifacts, or run `architect-init` first when artifacts are missing. |
 
 ## How it works
 

@@ -1,7 +1,7 @@
 interface:
   display_name: "Architecture Diagram"
   short_description: "Generate primary interactive HTML architecture diagram"
-  default_prompt: "Use $architect-diagram to generate diagram.html with Comment Mode by generating SVG fragments first, then injecting via template renderer and validating. Sequence diagrams are disabled by default unless explicitly requested. Do not generate diagram-prompt.md by default. Person and actor nodes should render as padded rectangular cards with contained text, not large pictogram silhouettes; if a subtype label is shown, prefer compact inline copy like [👤 User]."
+  default_prompt: "Use $architect-diagram to generate diagram.html with Comment Mode. First check whether architecture/manifest.yaml, architecture/model.yaml, architecture/views/*.yaml, and architecture/summary.md exist. If they are missing or incomplete, run $architect-init for the same repo/output root first, then resume $architect-diagram after artifacts exist. When artifacts are present, generate SVG fragments, inject them via the template renderer, and validate. Sequence diagrams are disabled by default unless explicitly requested. Do not generate diagram-prompt.md by default. Person and actor nodes should render as padded rectangular cards with contained text, not large pictogram silhouettes; if a subtype label is shown, prefer compact inline copy like [👤 User]."
 
 policy:
   allow_implicit_invocation: true
