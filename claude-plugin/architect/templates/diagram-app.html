@@ -2228,10 +2228,10 @@
     }
 
     .claude-thread-marker {
-      color: var(--color-brand);
+      color: #E8703A;
       cursor: pointer;
       pointer-events: all;
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
     }
     .claude-thread-marker use {
       color: inherit;
@@ -2256,7 +2256,7 @@
       letter-spacing: 0.08em;
       color: var(--color-fg-muted, #94a3b8);
       margin: 0 0 8px 0;
-      padding: 0 4px;
+      padding: 0 16px;
     }
     .comment-card.is-thread {
       cursor: pointer;
@@ -7197,11 +7197,12 @@ function renderThreadCard(thread, options) {
   target.style.setProperty('--comment-tone', commentToneForTarget(thread));
   header.appendChild(target);
 
-  const badge = document.createElement('span');
-  badge.className = 'comment-card-badge';
-  const msgCount = Array.isArray(thread.messages) ? thread.messages.length : 0;
-  badge.textContent = opts.resolved ? 'Resolved' : msgCount + ' msg' + (msgCount === 1 ? '' : 's');
-  header.appendChild(badge);
+  if (opts.resolved) {
+    const badge = document.createElement('span');
+    badge.className = 'comment-card-badge';
+    badge.textContent = 'Resolved';
+    header.appendChild(badge);
+  }
 
   card.appendChild(header);
 
@@ -7399,7 +7400,7 @@ function applyThreadIndicators(svg) {
   });
   if (!threads.length) return;
 
-  const markerSize = 18;
+  const markerSize = 26;
   const anchorCounts = new Map();
   threads.forEach(function (thread) {
     const anchorEl = threadAnchorElement(svg, thread);
