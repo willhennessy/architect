@@ -2299,12 +2299,6 @@
       font-size: 11px;
       color: var(--color-fg-muted, #94a3b8);
     }
-    .comment-card.is-thread .comment-card-origin {
-      margin: 0;
-      padding-left: 26px;
-      font-size: 11px;
-      color: var(--color-fg-muted, #94a3b8);
-    }
     .comment-card.is-thread .comment-card-body {
       font-size: 12px;
       line-height: 1.4;
@@ -7256,12 +7250,9 @@ function renderThreadCard(thread, options) {
   if (opts.resolved) card.classList.add('is-resolved');
 
   const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
-  const first = messages.length ? messages[0] : null;
   const latest = messages.length ? messages[messages.length - 1] : null;
-  const totalCount = messages.length;
-  const hasReplies = totalCount > 1;
+  const hasReplies = messages.length > 1;
   const latestIsClaude = !latest || latest.author === 'claude';
-  const rootIsClaude = !first || first.author === 'claude';
   const authorLabel = function (isClaude) { return isClaude ? 'Claude' : 'You'; };
 
   const targetName = document.createElement('p');
@@ -7314,12 +7305,6 @@ function renderThreadCard(thread, options) {
   body.textContent = truncate(String((latest && latest.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
   card.appendChild(body);
 
-  if (hasReplies) {
-    const footer = document.createElement('p');
-    footer.className = 'comment-card-origin';
-    footer.textContent = 'Started by ' + authorLabel(rootIsClaude) + ' · ' + totalCount + ' messages';
-    card.appendChild(footer);
-  }
 
   card.addEventListener('click', function () {
     navigateToThread(thread);
