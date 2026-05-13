@@ -2259,12 +2259,11 @@
       gap: 6px;
     }
     .comment-card.is-thread .comment-card-target-name {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--color-text-secondary, var(--color-fg-muted, #94a3b8));
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-primary);
       margin: 0;
       line-height: 1.3;
-      padding-left: 26px;
     }
     .comment-card.is-thread .comment-card-author-row {
       display: flex;
@@ -7237,6 +7236,11 @@ function renderThreadCard(thread, options) {
   const latest = messages.length ? messages[messages.length - 1] : null;
   const isClaude = !latest || latest.author === 'claude';
 
+  const targetName = document.createElement('p');
+  targetName.className = 'comment-card-target-name';
+  targetName.textContent = commentTargetName(thread);
+  card.appendChild(targetName);
+
   const authorRow = document.createElement('div');
   authorRow.className = 'comment-card-author-row';
 
@@ -7270,11 +7274,6 @@ function renderThreadCard(thread, options) {
   }
 
   card.appendChild(authorRow);
-
-  const targetName = document.createElement('p');
-  targetName.className = 'comment-card-target-name';
-  targetName.textContent = commentTargetName(thread);
-  card.appendChild(targetName);
 
   const body = document.createElement('p');
   body.className = 'comment-card-body';
