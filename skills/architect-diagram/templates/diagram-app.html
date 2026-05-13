@@ -2254,11 +2254,53 @@
     }
     .comment-card.is-thread {
       cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    .comment-card.is-thread .comment-card-excerpt {
-      color: var(--color-fg-muted, #94a3b8);
+    .comment-card.is-thread .comment-card-target-name {
       font-size: 12px;
-      margin-top: 4px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin: 0;
+      line-height: 1.3;
+    }
+    .comment-card.is-thread .comment-card-author-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .comment-card.is-thread .comment-card-avatar {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 9px;
+      line-height: 1;
+      user-select: none;
+    }
+    .comment-card.is-thread .comment-card-avatar.is-claude { background: #E8703A; }
+    .comment-card.is-thread .comment-card-avatar.is-user { background: var(--color-signal, #4A9C95); }
+    .comment-card.is-thread .comment-card-author-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+    .comment-card.is-thread .comment-card-time {
+      font-size: 11px;
+      color: var(--color-fg-muted, #94a3b8);
+    }
+    .comment-card.is-thread .comment-card-body {
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--color-text-primary);
+      margin: 0;
+      padding-left: 26px;
     }
     .comment-card.is-thread .comment-card-badge {
       font-size: 10px;
@@ -7190,33 +7232,82 @@ function renderThreadCard(thread, options) {
   card.className = 'comment-card is-thread';
   if (opts.resolved) card.classList.add('is-resolved');
 
-  const header = document.createElement('header');
-  header.className = 'comment-card-header';
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  const latest = messages.length ? messages[messages.length - 1] : null;
+  const isClaude = !latest || latest.author === 'claude';
 
-  const target = document.createElement('span');
-  target.className = 'comment-card-target';
-  target.textContent = commentTargetName(thread);
-  target.style.setProperty('--comment-tone', commentToneForTarget(thread));
-  header.appendChild(target);
+  const targetName = document.createElement('p');
+  targetName.className = 'comment-card-target-name';
+  targetName.textContent = commentTargetName(thread);
+  card.appendChild(targetName);
+
+  const authorRow = document.createElement('div');
+  authorRow.className = 'comment-card-author-row';
+
+  const avatar = document.createElement('span');
+  avatar.className = 'comment-card-avatar ' + (isClaude ? 'is-claude' : 'is-user');
+  avatar.textContent = isClaude ? 'C' : 'U';
+  avatar.setAttribute('aria-hidden', 'true');
+  authorRow.appendChild(avatar);
+
+  const name = document.createElement('span');
+  name.className = 'comment-card-author-name';
+  name.textContent = isClaude ? 'Claude' : 'You';
+  authorRow.appendChild(name);
+
+  const ts = latest ? formatRelativeTime(latest.created_at) : '';
+  if (ts) {
+    const time = document.createElement('span');
+    time.className = 'comment-card-time';
+    time.textContent = ts;
+    const iso = formatMessageTimestamp(latest.created_at);
+    if (iso) time.title = iso;
+    authorRow.appendChild(time);
+  }
 
   if (opts.resolved) {
     const badge = document.createElement('span');
     badge.className = 'comment-card-badge';
     badge.textContent = 'Resolved';
-    header.appendChild(badge);
+    badge.style.marginLeft = 'auto';
+    authorRow.appendChild(badge);
   }
 
-  card.appendChild(header);
+  card.appendChild(authorRow);
 
-  const excerpt = document.createElement('p');
-  excerpt.className = 'comment-card-excerpt';
-  excerpt.textContent = truncate(threadLatestExcerpt(thread), 140);
-  card.appendChild(excerpt);
+  const body = document.createElement('p');
+  body.className = 'comment-card-body';
+  body.textContent = truncate(String((latest && latest.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
+  card.appendChild(body);
 
   card.addEventListener('click', function () {
     navigateToThread(thread);
   });
   return card;
+}
+
+function latestMessageAuthor(thread) {
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  if (!messages.length) return 'claude';
+  const last = messages[messages.length - 1];
+  return last && last.author === 'user' ? 'user' : 'claude';
+}
+
+function appendThreadSection(pane, label, threads) {
+  if (!threads.length) return;
+  const section = document.createElement('section');
+  section.className = 'comment-list-section';
+  const title = document.createElement('h4');
+  title.className = 'comment-list-section-title';
+  title.textContent = label;
+  section.appendChild(title);
+  const list = document.createElement('ul');
+  list.className = 'comment-list';
+  threads.forEach(function (thread) {
+    list.appendChild(renderThreadCard(thread, { resolved: false }));
+  });
+  section.appendChild(list);
+  pane.appendChild(section);
 }
 
 function updateCommentSidebar() {
@@ -7225,6 +7316,8 @@ function updateCommentSidebar() {
 
   const drafts = state.comments.slice();
   const openThreads = openClaudeThreads();
+  const claudeWaiting = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'claude'; });
+  const userReplied = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'user'; });
   const resolved = resolvedClaudeThreads();
 
   if (!drafts.length && !openThreads.length && !resolved.length) {
@@ -7243,21 +7336,8 @@ function updateCommentSidebar() {
     pane.appendChild(section);
   }
 
-  if (openThreads.length) {
-    const section = document.createElement('section');
-    section.className = 'comment-list-section';
-    const title = document.createElement('h4');
-    title.className = 'comment-list-section-title';
-    title.textContent = 'Open threads from Claude';
-    section.appendChild(title);
-    const list = document.createElement('ul');
-    list.className = 'comment-list';
-    openThreads.forEach(function (thread) {
-      list.appendChild(renderThreadCard(thread, { resolved: false }));
-    });
-    section.appendChild(list);
-    pane.appendChild(section);
-  }
+  appendThreadSection(pane, 'Open', claudeWaiting);
+  appendThreadSection(pane, 'Ready to submit', userReplied);
 
   if (resolved.length) {
     const details = document.createElement('details');
