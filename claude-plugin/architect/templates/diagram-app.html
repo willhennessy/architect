@@ -2244,9 +2244,26 @@
       margin-top: 0;
     }
     /* Sidebar comment groups (per SIDEBAR_SPEC.md) */
+    .comment-section + .comment-section {
+      margin-top: 22px;
+    }
+    .comment-section-title {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #34516f;
+    }
+    [data-theme="dark"] .comment-section-title {
+      color: #8db4d6;
+    }
     .comment-group {
       display: flex;
       flex-direction: column;
+    }
+    .comment-group + .comment-group {
+      margin-top: 14px;
     }
     .comment-group-header {
       display: flex;
@@ -7442,12 +7459,36 @@ function renderSidebarGroup(group, draftsLocked) {
   return section;
 }
 
+function latestMessageAuthor(thread) {
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  if (!messages.length) return 'claude';
+  const last = messages[messages.length - 1];
+  return last && last.author === 'user' ? 'user' : 'claude';
+}
+
+function appendCommentSection(pane, label, items, draftsLocked) {
+  if (!items.length) return;
+  const section = document.createElement('section');
+  section.className = 'comment-section';
+  const title = document.createElement('h4');
+  title.className = 'comment-section-title';
+  title.textContent = label;
+  section.appendChild(title);
+  const groups = buildSidebarGroups(items);
+  groups.forEach(function (group) {
+    section.appendChild(renderSidebarGroup(group, draftsLocked));
+  });
+  pane.appendChild(section);
+}
+
 function updateCommentSidebar() {
   const pane = $('sidebarBody');
   pane.innerHTML = '';
 
   const drafts = state.comments.slice();
   const openThreads = openClaudeThreads();
+  const claudeWaiting = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'claude'; });
+  const userReplied = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'user'; });
   const resolved = resolvedClaudeThreads();
 
   if (!drafts.length && !openThreads.length && !resolved.length) {
@@ -7455,13 +7496,10 @@ function updateCommentSidebar() {
     return;
   }
 
-  const items = openThreads.concat(drafts.map(draftAsSyntheticThread));
-  const groups = buildSidebarGroups(items);
   const draftsLocked = isJobHandlingInProgress(state.activeJob);
 
-  groups.forEach(function (group) {
-    pane.appendChild(renderSidebarGroup(group, draftsLocked));
-  });
+  appendCommentSection(pane, 'Open', claudeWaiting, draftsLocked);
+  appendCommentSection(pane, 'Ready to submit', userReplied.concat(drafts.map(draftAsSyntheticThread)), draftsLocked);
 
   if (resolved.length) {
     const details = document.createElement('details');
