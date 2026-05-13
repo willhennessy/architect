@@ -2295,6 +2295,16 @@
       font-size: 11px;
       color: var(--color-fg-muted, #94a3b8);
     }
+    .comment-card.is-thread .comment-card-meta-sep {
+      font-size: 11px;
+      color: var(--color-fg-muted, #94a3b8);
+    }
+    .comment-card.is-thread .comment-card-origin {
+      margin: 0;
+      padding-left: 26px;
+      font-size: 11px;
+      color: var(--color-fg-muted, #94a3b8);
+    }
     .comment-card.is-thread .comment-card-body {
       font-size: 12px;
       line-height: 1.4;
@@ -7247,7 +7257,12 @@ function renderThreadCard(thread, options) {
 
   const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
   const first = messages.length ? messages[0] : null;
-  const isClaude = !first || first.author === 'claude';
+  const latest = messages.length ? messages[messages.length - 1] : null;
+  const totalCount = messages.length;
+  const hasReplies = totalCount > 1;
+  const latestIsClaude = !latest || latest.author === 'claude';
+  const rootIsClaude = !first || first.author === 'claude';
+  const authorLabel = function (isClaude) { return isClaude ? 'Claude' : 'You'; };
 
   const targetName = document.createElement('p');
   targetName.className = 'comment-card-target-name';
@@ -7258,22 +7273,28 @@ function renderThreadCard(thread, options) {
   authorRow.className = 'comment-card-author-row';
 
   const avatar = document.createElement('span');
-  avatar.className = 'comment-card-avatar ' + (isClaude ? 'is-claude' : 'is-user');
-  avatar.textContent = isClaude ? 'C' : 'U';
+  avatar.className = 'comment-card-avatar ' + (latestIsClaude ? 'is-claude' : 'is-user');
+  avatar.textContent = latestIsClaude ? 'C' : 'U';
   avatar.setAttribute('aria-hidden', 'true');
   authorRow.appendChild(avatar);
 
   const name = document.createElement('span');
   name.className = 'comment-card-author-name';
-  name.textContent = isClaude ? 'Claude' : 'You';
+  name.textContent = authorLabel(latestIsClaude) + (hasReplies ? ' replied' : '');
   authorRow.appendChild(name);
 
-  const ts = first ? formatRelativeTime(first.created_at) : '';
+  const ts = latest ? formatRelativeTime(latest.created_at) : '';
   if (ts) {
+    const sep = document.createElement('span');
+    sep.className = 'comment-card-meta-sep';
+    sep.textContent = '·';
+    sep.setAttribute('aria-hidden', 'true');
+    authorRow.appendChild(sep);
+
     const time = document.createElement('span');
     time.className = 'comment-card-time';
     time.textContent = ts;
-    const iso = formatMessageTimestamp(first.created_at);
+    const iso = formatMessageTimestamp(latest.created_at);
     if (iso) time.title = iso;
     authorRow.appendChild(time);
   }
@@ -7290,8 +7311,15 @@ function renderThreadCard(thread, options) {
 
   const body = document.createElement('p');
   body.className = 'comment-card-body';
-  body.textContent = truncate(String((first && first.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
+  body.textContent = truncate(String((latest && latest.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
   card.appendChild(body);
+
+  if (hasReplies) {
+    const footer = document.createElement('p');
+    footer.className = 'comment-card-origin';
+    footer.textContent = 'Started by ' + authorLabel(rootIsClaude) + ' · ' + totalCount + ' messages';
+    card.appendChild(footer);
+  }
 
   card.addEventListener('click', function () {
     navigateToThread(thread);
