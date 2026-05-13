@@ -7201,10 +7201,15 @@ function renderDraftCard(comment, idx) {
   name.textContent = 'You';
   authorRow.appendChild(name);
 
-  const time = document.createElement('span');
-  time.className = 'comment-card-time';
-  time.textContent = 'Draft';
-  authorRow.appendChild(time);
+  const ts = formatRelativeTime(comment.created_at);
+  if (ts) {
+    const time = document.createElement('span');
+    time.className = 'comment-card-time';
+    time.textContent = ts;
+    const iso = formatMessageTimestamp(comment.created_at);
+    if (iso) time.title = iso;
+    authorRow.appendChild(time);
+  }
 
   const remove = document.createElement('button');
   remove.className = 'comment-card-delete';
