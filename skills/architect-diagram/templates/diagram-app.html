@@ -2324,7 +2324,7 @@
       max-height: 260px;
     }
     .thread-message {
-      padding: 8px 0;
+      padding: 10px 0;
       border-bottom: 1px solid var(--color-border-subtle, rgba(148, 163, 184, 0.15));
     }
     .thread-message:first-child {
@@ -2334,34 +2334,48 @@
       border-bottom: 0;
       padding-bottom: 4px;
     }
-    .thread-message-author {
-      display: inline-block;
-      font-size: 10px;
+    .thread-message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .thread-message-avatar {
+      width: 26px;
+      height: 26px;
+      flex: 0 0 26px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1;
+      letter-spacing: 0;
+      user-select: none;
+    }
+    .thread-message-avatar.is-claude {
+      background: #E8703A;
+    }
+    .thread-message-avatar.is-user {
+      background: var(--color-signal, #4A9C95);
+    }
+    .thread-message-name {
+      font-size: 13px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 2px 6px;
-      border-radius: 3px;
-      margin-bottom: 4px;
+      color: var(--color-text-primary);
     }
-    .thread-message-author.is-claude {
-      background: var(--color-brand);
-      color: white;
-    }
-    .thread-message-author.is-user {
-      background: var(--color-subtle-bg, rgba(148, 163, 184, 0.15));
-      color: var(--color-fg-muted, #64748b);
+    .thread-message-time {
+      font-size: 12px;
+      color: var(--color-fg-muted, #94a3b8);
     }
     .thread-message-body {
       font-size: 13px;
       line-height: 1.45;
       white-space: pre-wrap;
       margin: 0;
-    }
-    .thread-message-meta {
-      font-size: 10px;
-      color: var(--color-fg-muted, #94a3b8);
-      margin-top: 3px;
+      padding-left: 34px;
     }
     .thread-reply-error {
       color: var(--color-danger, #dc2626);
@@ -7454,6 +7468,32 @@ function formatMessageTimestamp(value) {
   }
 }
 
+function formatRelativeTime(value) {
+  if (!value) return '';
+  try {
+    const dt = new Date(value);
+    if (isNaN(dt.getTime())) return '';
+    const diffSec = Math.floor((Date.now() - dt.getTime()) / 1000);
+    if (diffSec < 5) return 'Just now';
+    if (diffSec < 60) return diffSec + ' seconds ago';
+    if (diffSec < 3600) {
+      const m = Math.floor(diffSec / 60);
+      return m + ' minute' + (m === 1 ? '' : 's') + ' ago';
+    }
+    if (diffSec < 86400) {
+      const h = Math.floor(diffSec / 3600);
+      return h + ' hour' + (h === 1 ? '' : 's') + ' ago';
+    }
+    if (diffSec < 604800) {
+      const d = Math.floor(diffSec / 86400);
+      return d + ' day' + (d === 1 ? '' : 's') + ' ago';
+    }
+    return dt.toLocaleDateString();
+  } catch (_err) {
+    return '';
+  }
+}
+
 function renderThreadMessageList(thread) {
   const list = $('commentThreadMessages');
   if (!list) return;
@@ -7464,23 +7504,39 @@ function renderThreadMessageList(thread) {
     li.className = 'thread-message';
     if (message.id) li.setAttribute('data-message-id', message.id);
 
-    const author = document.createElement('span');
-    author.className = 'thread-message-author ' + (message.author === 'claude' ? 'is-claude' : 'is-user');
-    author.textContent = message.author === 'claude' ? 'Claude' : 'You';
-    li.appendChild(author);
+    const isClaude = message.author === 'claude';
+
+    const header = document.createElement('div');
+    header.className = 'thread-message-header';
+
+    const avatar = document.createElement('span');
+    avatar.className = 'thread-message-avatar ' + (isClaude ? 'is-claude' : 'is-user');
+    avatar.textContent = isClaude ? 'C' : 'U';
+    avatar.setAttribute('aria-hidden', 'true');
+    header.appendChild(avatar);
+
+    const name = document.createElement('span');
+    name.className = 'thread-message-name';
+    name.textContent = isClaude ? 'Claude' : 'You';
+    header.appendChild(name);
+
+    const ts = formatRelativeTime(message.created_at);
+    if (ts) {
+      const time = document.createElement('span');
+      time.className = 'thread-message-time';
+      time.textContent = ts;
+      const iso = formatMessageTimestamp(message.created_at);
+      if (iso) time.title = iso;
+      header.appendChild(time);
+    }
+
+    li.appendChild(header);
 
     const body = document.createElement('p');
     body.className = 'thread-message-body';
     body.textContent = String(message.body || '');
     li.appendChild(body);
 
-    const ts = formatMessageTimestamp(message.created_at);
-    if (ts) {
-      const meta = document.createElement('div');
-      meta.className = 'thread-message-meta';
-      meta.textContent = ts;
-      li.appendChild(meta);
-    }
     list.appendChild(li);
   });
   list.scrollTop = list.scrollHeight;
