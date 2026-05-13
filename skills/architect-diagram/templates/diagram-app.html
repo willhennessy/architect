@@ -2243,68 +2243,103 @@
     .comment-list-section:first-child {
       margin-top: 0;
     }
-    .comment-list-section-title {
+    /* Sidebar comment groups (per SIDEBAR_SPEC.md) */
+    .comment-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .comment-group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px 8px;
       font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--color-fg-muted, #94a3b8);
-      margin: 0 0 8px 0;
-      padding: 0 16px;
+      color: var(--color-fg-muted, #857c6e);
+    }
+    .comment-group-header-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .comment-group-header-count {
+      flex-shrink: 0;
+      color: var(--color-fg-faint, #a8a092);
+      font-weight: 500;
+    }
+    .comment-group .comment-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
     .comment-card.is-thread {
       cursor: pointer;
       display: flex;
       flex-direction: column;
       gap: 6px;
+      padding: 10px 8px;
     }
-    .comment-card.is-thread .comment-card-target-name {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--color-text-primary);
-      margin: 0;
-      line-height: 1.3;
+    .comment-card.is-thread + .comment-card.is-thread {
+      border-top: 1px solid rgba(31, 28, 23, 0.08);
+    }
+    [data-theme="dark"] .comment-card.is-thread + .comment-card.is-thread {
+      border-top-color: rgba(255, 255, 255, 0.08);
     }
     .comment-card.is-thread .comment-card-author-row {
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
     }
     .comment-card.is-thread .comment-card-avatar {
-      width: 18px;
-      height: 18px;
-      flex: 0 0 18px;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 9px;
+      font-weight: 600;
+      font-size: 10px;
       line-height: 1;
       user-select: none;
     }
-    .comment-card.is-thread .comment-card-avatar.is-claude { background: #E8703A; }
-    .comment-card.is-thread .comment-card-avatar.is-user { background: var(--color-signal, #4A9C95); }
+    .comment-card.is-thread .comment-card-avatar.tone-teal  { background: #cfe2d8; color: #1e5644; }
+    .comment-card.is-thread .comment-card-avatar.tone-amber { background: #f1d9c4; color: #8a431e; }
+    .comment-card.is-thread .comment-card-avatar.tone-blue  { background: #d3deec; color: #34516f; }
+    .comment-card.is-thread .comment-card-avatar.tone-lilac { background: #e1d4ed; color: #5a4471; }
+    .comment-card.is-thread .comment-card-avatar.tone-stone { background: #e2dcd0; color: #534c40; }
     .comment-card.is-thread .comment-card-author-name {
-      font-size: 12px;
+      font-size: 13.5px;
       font-weight: 600;
       color: var(--color-text-primary);
-    }
-    .comment-card.is-thread .comment-card-time {
-      font-size: 11px;
-      color: var(--color-fg-muted, #94a3b8);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .comment-card.is-thread .comment-card-meta-sep {
-      font-size: 11px;
-      color: var(--color-fg-muted, #94a3b8);
+      font-size: 12px;
+      color: var(--color-fg-muted, #857c6e);
+      flex-shrink: 0;
+    }
+    .comment-card.is-thread .comment-card-time {
+      font-size: 12px;
+      color: var(--color-fg-muted, #857c6e);
+      flex-shrink: 0;
     }
     .comment-card.is-thread .comment-card-body {
-      font-size: 12px;
-      line-height: 1.4;
+      font-size: 13.5px;
+      line-height: 1.5;
       color: var(--color-text-primary);
       margin: 0;
-      padding-left: 26px;
+      text-wrap: pretty;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
     .comment-card.is-thread .comment-card-badge {
       font-size: 10px;
@@ -7181,39 +7216,56 @@ function commentToneForTarget(target) {
   return THEME.brand;
 }
 
+function authorIdForMessage(message) {
+  if (!message) return 'claude';
+  return message.author === 'user' ? 'user' : 'claude';
+}
+
+function authorNameForMessage(message) {
+  if (!message) return 'Claude';
+  return message.author === 'user' ? 'You' : 'Claude';
+}
+
+function renderAuthorRow(authorId, authorName, createdAt, options) {
+  const opts = options || {};
+  const row = document.createElement('div');
+  row.className = 'comment-card-author-row';
+
+  const avatar = document.createElement('span');
+  avatar.className = 'comment-card-avatar ' + colorToneForAuthorId(authorId);
+  avatar.textContent = avatarLetter(authorName);
+  avatar.setAttribute('aria-hidden', 'true');
+  row.appendChild(avatar);
+
+  const name = document.createElement('span');
+  name.className = 'comment-card-author-name';
+  name.textContent = authorName;
+  row.appendChild(name);
+
+  const ts = formatRelativeTime(createdAt);
+  if (ts) {
+    const sep = document.createElement('span');
+    sep.className = 'comment-card-meta-sep';
+    sep.textContent = '·';
+    sep.setAttribute('aria-hidden', 'true');
+    row.appendChild(sep);
+
+    const time = document.createElement('span');
+    time.className = 'comment-card-time';
+    time.textContent = ts;
+    const iso = formatMessageTimestamp(createdAt);
+    if (iso) time.title = iso;
+    row.appendChild(time);
+  }
+
+  if (opts.trailing) row.appendChild(opts.trailing);
+  return row;
+}
+
 function renderDraftCard(comment, idx) {
   const card = document.createElement('li');
   card.className = 'comment-card is-thread is-draft';
   card.style.setProperty('--comment-index', String(idx));
-
-  const targetName = document.createElement('p');
-  targetName.className = 'comment-card-target-name';
-  targetName.textContent = commentTargetName(comment);
-  card.appendChild(targetName);
-
-  const authorRow = document.createElement('div');
-  authorRow.className = 'comment-card-author-row';
-
-  const avatar = document.createElement('span');
-  avatar.className = 'comment-card-avatar is-user';
-  avatar.textContent = 'U';
-  avatar.setAttribute('aria-hidden', 'true');
-  authorRow.appendChild(avatar);
-
-  const name = document.createElement('span');
-  name.className = 'comment-card-author-name';
-  name.textContent = 'You';
-  authorRow.appendChild(name);
-
-  const ts = formatRelativeTime(comment.created_at);
-  if (ts) {
-    const time = document.createElement('span');
-    time.className = 'comment-card-time';
-    time.textContent = ts;
-    const iso = formatMessageTimestamp(comment.created_at);
-    if (iso) time.title = iso;
-    authorRow.appendChild(time);
-  }
 
   const remove = document.createElement('button');
   remove.className = 'comment-card-delete';
@@ -7231,9 +7283,8 @@ function renderDraftCard(comment, idx) {
       updateSidebar();
     });
   }
-  authorRow.appendChild(remove);
 
-  card.appendChild(authorRow);
+  card.appendChild(renderAuthorRow('user', 'You', comment.created_at, { trailing: remove }));
 
   const body = document.createElement('p');
   body.className = 'comment-card-body';
@@ -7251,60 +7302,27 @@ function renderThreadCard(thread, options) {
 
   const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
   const latest = messages.length ? messages[messages.length - 1] : null;
-  const hasReplies = messages.length > 1;
-  const latestIsClaude = !latest || latest.author === 'claude';
-  const authorLabel = function (isClaude) { return isClaude ? 'Claude' : 'You'; };
 
-  const targetName = document.createElement('p');
-  targetName.className = 'comment-card-target-name';
-  targetName.textContent = commentTargetName(thread);
-  card.appendChild(targetName);
-
-  const authorRow = document.createElement('div');
-  authorRow.className = 'comment-card-author-row';
-
-  const avatar = document.createElement('span');
-  avatar.className = 'comment-card-avatar ' + (latestIsClaude ? 'is-claude' : 'is-user');
-  avatar.textContent = latestIsClaude ? 'C' : 'U';
-  avatar.setAttribute('aria-hidden', 'true');
-  authorRow.appendChild(avatar);
-
-  const name = document.createElement('span');
-  name.className = 'comment-card-author-name';
-  name.textContent = authorLabel(latestIsClaude) + (hasReplies ? ' replied' : '');
-  authorRow.appendChild(name);
-
-  const ts = latest ? formatRelativeTime(latest.created_at) : '';
-  if (ts) {
-    const sep = document.createElement('span');
-    sep.className = 'comment-card-meta-sep';
-    sep.textContent = '·';
-    sep.setAttribute('aria-hidden', 'true');
-    authorRow.appendChild(sep);
-
-    const time = document.createElement('span');
-    time.className = 'comment-card-time';
-    time.textContent = ts;
-    const iso = formatMessageTimestamp(latest.created_at);
-    if (iso) time.title = iso;
-    authorRow.appendChild(time);
-  }
-
+  let trailing = null;
   if (opts.resolved) {
     const badge = document.createElement('span');
     badge.className = 'comment-card-badge';
     badge.textContent = 'Resolved';
     badge.style.marginLeft = 'auto';
-    authorRow.appendChild(badge);
+    trailing = badge;
   }
 
-  card.appendChild(authorRow);
+  card.appendChild(renderAuthorRow(
+    authorIdForMessage(latest),
+    authorNameForMessage(latest),
+    latest && latest.created_at,
+    { trailing: trailing }
+  ));
 
   const body = document.createElement('p');
   body.className = 'comment-card-body';
-  body.textContent = truncate(String((latest && latest.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
+  body.textContent = String((latest && latest.body) || '(no messages yet)');
   card.appendChild(body);
-
 
   card.addEventListener('click', function () {
     navigateToThread(thread);
@@ -7312,28 +7330,96 @@ function renderThreadCard(thread, options) {
   return card;
 }
 
-function latestMessageAuthor(thread) {
-  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
-  if (!messages.length) return 'claude';
-  const last = messages[messages.length - 1];
-  return last && last.author === 'user' ? 'user' : 'claude';
+function threadGroupKey(target) {
+  if (!target) return 'view:__';
+  if (target.element_id) return 'el:' + target.element_id;
+  if (target.relationship_id) return 'rel:' + target.relationship_id;
+  return 'view:' + (target.view_id || '__');
 }
 
-function appendThreadSection(pane, label, threads) {
-  if (!threads.length) return;
+function threadActivityTime(thread) {
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  if (!messages.length) return 0;
+  const last = messages[messages.length - 1];
+  return last && last.created_at ? new Date(last.created_at).getTime() : 0;
+}
+
+function draftAsSyntheticThread(comment) {
+  return {
+    __isDraft: true,
+    __draftRef: comment,
+    thread_id: comment.id,
+    view_id: comment.view_id,
+    element_id: comment.element_id,
+    relationship_id: comment.relationship_id,
+    target_label: comment.target_label,
+    status: 'open',
+    messages: [{
+      id: comment.id,
+      author: 'user',
+      body: comment.comment,
+      created_at: comment.created_at,
+    }],
+  };
+}
+
+function buildSidebarGroups(items) {
+  const groupsByKey = new Map();
+  items.forEach(function (item) {
+    const key = threadGroupKey(item);
+    let group = groupsByKey.get(key);
+    if (!group) {
+      group = {
+        key: key,
+        name: commentTargetName(item),
+        items: [],
+        latest: 0,
+      };
+      groupsByKey.set(key, group);
+    }
+    group.items.push(item);
+    const t = threadActivityTime(item);
+    if (t > group.latest) group.latest = t;
+  });
+  const groups = Array.from(groupsByKey.values());
+  groups.forEach(function (g) {
+    g.items.sort(function (a, b) { return threadActivityTime(b) - threadActivityTime(a); });
+  });
+  groups.sort(function (a, b) { return b.latest - a.latest; });
+  return groups;
+}
+
+function renderSidebarGroup(group, draftsLocked) {
   const section = document.createElement('section');
-  section.className = 'comment-list-section';
-  const title = document.createElement('h4');
-  title.className = 'comment-list-section-title';
-  title.textContent = label;
-  section.appendChild(title);
+  section.className = 'comment-group';
+
+  const header = document.createElement('div');
+  header.className = 'comment-group-header';
+  const name = document.createElement('span');
+  name.className = 'comment-group-header-name';
+  name.textContent = group.name;
+  header.appendChild(name);
+  const count = document.createElement('span');
+  count.className = 'comment-group-header-count';
+  count.textContent = String(group.items.length);
+  header.appendChild(count);
+  section.appendChild(header);
+
   const list = document.createElement('ul');
   list.className = 'comment-list';
-  threads.forEach(function (thread) {
-    list.appendChild(renderThreadCard(thread, { resolved: false }));
+  if (draftsLocked) {
+    list.classList.add('is-pending');
+    list.setAttribute('aria-disabled', 'true');
+  }
+  group.items.forEach(function (item, idx) {
+    if (item.__isDraft) {
+      list.appendChild(renderDraftCard(item.__draftRef, idx));
+    } else {
+      list.appendChild(renderThreadCard(item, { resolved: false }));
+    }
   });
   section.appendChild(list);
-  pane.appendChild(section);
+  return section;
 }
 
 function updateCommentSidebar() {
@@ -7342,39 +7428,20 @@ function updateCommentSidebar() {
 
   const drafts = state.comments.slice();
   const openThreads = openClaudeThreads();
-  const claudeWaiting = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'claude'; });
-  const userReplied = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'user'; });
   const resolved = resolvedClaudeThreads();
 
   if (!drafts.length && !openThreads.length && !resolved.length) {
-    pane.innerHTML = '<div class="empty-state"><p>Click any element or edge to add a comment</p></div>';
+    pane.innerHTML = '<div class="empty-state"><p>No comments yet. Click a node to start a thread.</p></div>';
     return;
   }
 
-  appendThreadSection(pane, 'Open', claudeWaiting);
+  const items = openThreads.concat(drafts.map(draftAsSyntheticThread));
+  const groups = buildSidebarGroups(items);
+  const draftsLocked = isJobHandlingInProgress(state.activeJob);
 
-  if (drafts.length || userReplied.length) {
-    const section = document.createElement('section');
-    section.className = 'comment-list-section';
-    const title = document.createElement('h4');
-    title.className = 'comment-list-section-title';
-    title.textContent = 'Ready to submit';
-    section.appendChild(title);
-    const list = document.createElement('ul');
-    list.className = 'comment-list';
-    if (isJobHandlingInProgress(state.activeJob)) {
-      list.classList.add('is-pending');
-      list.setAttribute('aria-disabled', 'true');
-    }
-    drafts.forEach(function (comment, idx) {
-      list.appendChild(renderDraftCard(comment, idx));
-    });
-    userReplied.forEach(function (thread) {
-      list.appendChild(renderThreadCard(thread, { resolved: false }));
-    });
-    section.appendChild(list);
-    pane.appendChild(section);
-  }
+  groups.forEach(function (group) {
+    pane.appendChild(renderSidebarGroup(group, draftsLocked));
+  });
 
   if (resolved.length) {
     const details = document.createElement('details');
@@ -7589,24 +7656,31 @@ function formatRelativeTime(value) {
     const dt = new Date(value);
     if (isNaN(dt.getTime())) return '';
     const diffSec = Math.floor((Date.now() - dt.getTime()) / 1000);
-    if (diffSec < 5) return 'Just now';
-    if (diffSec < 60) return diffSec + ' seconds ago';
-    if (diffSec < 3600) {
-      const m = Math.floor(diffSec / 60);
-      return m + ' minute' + (m === 1 ? '' : 's') + ' ago';
-    }
-    if (diffSec < 86400) {
-      const h = Math.floor(diffSec / 3600);
-      return h + ' hour' + (h === 1 ? '' : 's') + ' ago';
-    }
-    if (diffSec < 604800) {
-      const d = Math.floor(diffSec / 86400);
-      return d + ' day' + (d === 1 ? '' : 's') + ' ago';
-    }
-    return dt.toLocaleDateString();
+    if (diffSec < 60) return 'just now';
+    if (diffSec < 3600) return Math.floor(diffSec / 60) + 'm';
+    if (diffSec < 86400) return Math.floor(diffSec / 3600) + 'h';
+    if (diffSec < 604800) return Math.floor(diffSec / 86400) + 'd';
+    return dt.toLocaleString('en-US', { month: 'short', day: 'numeric' });
   } catch (_err) {
     return '';
   }
+}
+
+const AVATAR_TONES = ['tone-teal', 'tone-amber', 'tone-blue', 'tone-lilac', 'tone-stone'];
+function colorToneForAuthorId(authorId) {
+  const key = String(authorId || '');
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  }
+  return AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length];
+}
+
+function avatarLetter(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return '?';
+  const first = trimmed.codePointAt(0);
+  return String.fromCodePoint(first).toUpperCase();
 }
 
 function renderThreadMessageList(thread) {
