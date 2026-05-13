@@ -88,6 +88,9 @@ Publish checklist:
 1. Review the diff from sync + marketplace changes.
 2. Commit the synced plugin files and marketplace changes.
 3. Push to GitHub.
+4. Refresh the local published-plugin install:
+   claude plugin marketplace update plugins && claude plugin update architect@plugins --scope user
+5. Restart Claude so the updated plugin version is actually loaded.
 EOF
 }
 

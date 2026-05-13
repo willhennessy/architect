@@ -11,6 +11,8 @@ The steering loop feels like a whiteboard session:
 3. **comment directly** on any node or edge
 4. **review updates** from Claude in response to your comments
 
+Watch a [video](https://x.com/WillHennessy_/status/2048774427865682062) or try the [live demo](https://willhennessy.io/demos/architect/document-signing)
+
 ## Getting Started
 
 ### 1. Install the plugin
@@ -33,7 +35,7 @@ claude --dangerously-load-development-channels plugin:architect@plugins
 3. After drafting the plan, Claude will ask if you want an interactive diagram. Say yes.
 4. Open `./architecture/diagram.html` in your browser
 
-Or if you're working in an existing repo run `/architect:init`.
+Or generate a diagram for your existing codebase with `/architect:init`.
 
 ## Skills
 
@@ -41,7 +43,7 @@ Or if you're working in an existing repo run `/architect:init`.
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `architect-plan`    | Enhance Plan Mode with a visual, interactive architecture diagram.                                            |
 | `architect-init`    | Generate a diagram and structured architecture files for an existing codebase.                                |
-| `architect-diagram` | Render `diagram.html` from existing architecture artifacts. In normal flows you should not need to call this. |
+| `architect-diagram` | Render `diagram.html` from architecture artifacts, or run `architect-init` first when artifacts are missing. |
 
 ## How it works
 

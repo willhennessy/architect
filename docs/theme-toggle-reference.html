@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architect Theme Toggle Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const storageKey = 'theme';
+      let theme = null;
+
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored === 'light' || stored === 'dark') theme = stored;
+      } catch (_err) {
+        // ignore storage failures in restricted environments
+      }
+
+      if (!theme) {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = prefersDark ? 'dark' : 'light';
+      }
+
+      root.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <style>
+    /*
+     * Architect light/dark toggle copy contract.
+     *
+     * Copy these parts together:
+     * 1. The early head script above. It sets html[data-theme] before paint.
+     * 2. The light/dark CSS tokens and motion tokens below.
+     * 3. The .theme-toggle CSS block and the reduced-motion override.
+     * 4. The #themeToggle button markup.
+     * 5. The THEME_STORAGE_KEY, currentTheme, setTheme, updateThemeToggle,
+     *    click handler, and system-theme listener scripts.
+     *
+     * Do not change the dimensions if the goal is an exact copy:
+     * width 80px, height 40px, slot size 18px, slot edge 11px,
+     * thumb size 30px, padding 4px.
+     */
+
+    :root,
+    [data-theme="light"] {
+      --color-bg-app: #FCFCF8;
+      --color-bg-sidebar: #F6F5F0;
+      --color-bg-surface: #FFFFFF;
+      --color-bg-surface-raised: #FFFFFF;
+      --color-bg-surface-elevated: #FFFFFF;
+      --color-bg-dotted-pattern: #F2F2EE;
+
+      --color-border-default: #E4E3DE;
+      --color-border-subtle: #EDECE6;
+      --color-border-strong: #D9D9D9;
+      --color-border-input: #DADADA;
+
+      --color-text-primary: #121210;
+      --color-text-secondary: #383836;
+      --color-text-tertiary: #6B6B68;
+      --color-text-muted: #969694;
+      --color-text-placeholder: #A8A8A5;
+      --color-text-inverse: #FFFFFF;
+
+      --color-brand: #C99A5B;
+      --color-brand-hover: #B8883F;
+      --color-signal: #4A9C95;
+      --color-signal-hover: #3A8780;
+      --color-focus-ring: #4A9C95;
+
+      --color-icon-default: #383836;
+      --color-icon-muted: #8F8F8C;
+      --color-hover-bg: #EFEEE8;
+    }
+
+    [data-theme="dark"] {
+      --color-bg-app: #1F1F1D;
+      --color-bg-sidebar: #262625;
+      --color-bg-surface: #2C2C2A;
+      --color-bg-surface-raised: #313130;
+      --color-bg-surface-elevated: #3D3D3C;
+      --color-bg-dotted-pattern: #2A2A28;
+
+      --color-border-default: #3A3A38;
+      --color-border-subtle: #2F2F2D;
+      --color-border-strong: #575651;
+      --color-border-input: #575651;
+
+      --color-text-primary: #C2C2B8;
+      --color-text-secondary: #A8A8A0;
+      --color-text-tertiary: #8A8A85;
+      --color-text-muted: #7E7E7C;
+      --color-text-placeholder: #6B6B68;
+      --color-text-inverse: #121210;
+
+      --color-brand: #C99A5B;
+      --color-brand-hover: #D8AB6E;
+      --color-signal: #5FB3AB;
+      --color-signal-hover: #4F9E96;
+      --color-focus-ring: #5FB3AB;
+
+      --color-icon-default: #A8A8A0;
+      --color-icon-muted: #7E7E7C;
+      --color-hover-bg: #313130;
+    }
+
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+      --duration-fast: 180ms;
+      --duration-medium: 240ms;
+      --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--color-bg-app);
+      color-scheme: light;
+      height: 100%;
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--color-bg-app);
+      color: var(--color-text-primary);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    button {
+      border: 1px solid var(--color-border-default);
+      background: var(--color-bg-surface);
+      color: var(--color-text-primary);
+      border-radius: 12px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition-property: transform, border-color, background-color, color, opacity;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-out);
+      transform: translateZ(0);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: 2px;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: default;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    .reference-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      grid-row: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 16px;
+      min-height: 58px;
+      box-sizing: border-box;
+      background: var(--color-bg-app);
+      border-bottom: 1px solid var(--color-border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 42;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 108px;
+      height: 30px;
+      border: 1px solid var(--color-border-default);
+      border-radius: 6px;
+      color: var(--color-text-primary);
+      background: var(--color-bg-surface);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .brand-context {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+      padding-left: 24px;
+      line-height: 1.15;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.35;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(72vw, 980px);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .topbar-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .theme-toggle {
+      --theme-toggle-width: 80px;
+      --theme-toggle-height: 40px;
+      --theme-slot-size: 18px;
+      --theme-slot-edge: 11px;
+      --theme-thumb-size: 30px;
+      --theme-thumb-inset: calc(var(--theme-slot-edge) + (var(--theme-slot-size) / 2) - (var(--theme-thumb-size) / 2));
+      --theme-thumb-left: var(--theme-thumb-inset);
+      --theme-accent: var(--color-brand);
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--theme-toggle-width);
+      min-width: var(--theme-toggle-width);
+      height: var(--theme-toggle-height);
+      padding: 4px;
+      background-color: color-mix(in srgb, var(--color-bg-surface) 88%, var(--color-bg-sidebar));
+      color: var(--color-text-primary);
+      border-color: var(--color-border-default);
+      border-radius: 999px;
+      overflow: hidden;
+      isolation: isolate;
+      transition:
+        border-color var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+
+    .theme-toggle::before {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      border-radius: inherit;
+      background: radial-gradient(circle at 24% 30%, color-mix(in srgb, var(--theme-accent) 16%, transparent), transparent 44%);
+      opacity: 0.95;
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        background-position var(--duration-medium) var(--ease-drawer);
+      pointer-events: none;
+    }
+
+    .theme-toggle[data-current-theme="dark"] {
+      --theme-accent: var(--color-signal);
+      --theme-thumb-left: calc(100% - var(--theme-thumb-size) - var(--theme-thumb-inset));
+    }
+
+    .theme-toggle[data-current-theme="dark"]::before {
+      background: radial-gradient(circle at 76% 30%, color-mix(in srgb, var(--theme-accent) 18%, transparent), transparent 44%);
+    }
+
+    .theme-toggle-track {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .theme-toggle-slot,
+    .theme-toggle-thumb {
+      position: absolute;
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      transform: translateY(-50%);
+    }
+
+    .theme-toggle-slot {
+      width: var(--theme-slot-size);
+      height: var(--theme-slot-size);
+      color: var(--color-text-tertiary);
+      opacity: 0.84;
+      z-index: 2;
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        transform var(--duration-medium) var(--ease-drawer);
+    }
+
+    .theme-toggle-slot svg,
+    .theme-toggle-thumb svg {
+      display: block;
+      width: 15px;
+      height: 15px;
+    }
+
+    .theme-toggle-slot-light {
+      left: var(--theme-slot-edge);
+    }
+
+    .theme-toggle-slot-dark {
+      right: var(--theme-slot-edge);
+    }
+
+    .theme-toggle-thumb {
+      left: var(--theme-thumb-left);
+      width: var(--theme-thumb-size);
+      height: var(--theme-thumb-size);
+      z-index: 1;
+      background-color: color-mix(in srgb, var(--color-bg-surface-elevated) 92%, var(--color-bg-surface));
+      border: 1px solid var(--color-border-default);
+      color: var(--theme-accent);
+      transition:
+        left var(--duration-medium) var(--ease-drawer),
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out);
+    }
+
+    .theme-toggle-thumb::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: inherit;
+      background: radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--theme-accent) 14%, white 14%), transparent 66%);
+      opacity: 0.95;
+      pointer-events: none;
+    }
+
+    .theme-toggle-thumb-icon {
+      position: absolute;
+      inset: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.82);
+      pointer-events: none;
+    }
+
+    .theme-toggle[data-current-theme="dark"] .theme-toggle-thumb {
+      color: var(--color-signal);
+      background-color: color-mix(in srgb, var(--color-bg-surface-elevated) 88%, var(--color-bg-surface-raised));
+      border-color: var(--color-border-strong);
+    }
+
+    .theme-toggle[data-current-theme="light"] .theme-toggle-slot-light {
+      color: var(--color-brand);
+      opacity: 1;
+      transform: translateY(-50%) scale(1.02);
+    }
+
+    .theme-toggle[data-current-theme="dark"] .theme-toggle-slot-dark {
+      color: var(--color-signal);
+      opacity: 1;
+      transform: translateY(-50%) scale(1.02);
+    }
+
+    .theme-toggle[data-current-theme="light"] .theme-toggle-slot-dark {
+      color: var(--color-icon-muted);
+      opacity: 0.74;
+      transform: translateY(-50%) scale(1);
+    }
+
+    .theme-toggle[data-current-theme="dark"] .theme-toggle-slot-light {
+      color: var(--color-icon-muted);
+      opacity: 0.74;
+      transform: translateY(-50%) scale(1);
+    }
+
+    .theme-toggle:hover:not(:disabled) {
+      border-color: var(--color-border-strong);
+      background-color: color-mix(in srgb, var(--color-hover-bg) 72%, var(--color-bg-surface));
+    }
+
+    .reference-content {
+      display: grid;
+      place-items: center;
+      padding: 40px 20px;
+      background:
+        linear-gradient(var(--color-bg-dotted-pattern) 1px, transparent 1px),
+        linear-gradient(90deg, var(--color-bg-dotted-pattern) 1px, transparent 1px),
+        var(--color-bg-app);
+      background-size: 22px 22px;
+    }
+
+    .instruction-panel {
+      width: min(760px, 100%);
+      border: 1px solid var(--color-border-default);
+      border-radius: 8px;
+      background: var(--color-bg-surface);
+      padding: 24px;
+    }
+
+    .instruction-panel h1 {
+      margin: 0 0 12px;
+      color: var(--color-text-primary);
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .instruction-panel p,
+    .instruction-panel li {
+      color: var(--color-text-secondary);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .instruction-panel code {
+      color: var(--color-text-primary);
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+      font-size: 0.94em;
+      background: var(--color-bg-sidebar);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    .instruction-panel ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+
+      .theme-toggle::before,
+      .theme-toggle-thumb,
+      .theme-toggle-thumb::before,
+      .theme-toggle-thumb-icon,
+      .theme-toggle-slot {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="reference-shell">
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-mark">Architect</span>
+        <div class="brand-context">
+          <div class="subtitle">Theme toggle reference</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button
+          id="themeToggle"
+          class="theme-toggle"
+          type="button"
+          aria-label="Switch to dark theme"
+          aria-pressed="false"
+          title="Switch to dark theme"
+        >
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-slot theme-toggle-slot-light">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4.368 18L3.516 18.852C3.2925 19.0768 3.16705 19.381 3.16705 19.698C3.16705 20.015 3.2925 20.3192 3.516 20.544C3.74083 20.7675 4.04498 20.893 4.362 20.893C4.67902 20.893 4.98317 20.7675 5.208 20.544L6.06 19.692C6.25659 19.4624 6.35932 19.1671 6.34765 18.8651C6.33599 18.5631 6.21079 18.2766 5.99708 18.0629C5.78336 17.8492 5.49688 17.724 5.19486 17.7123C4.89285 17.7007 4.59756 17.8034 4.368 18V18ZM3.6 12C3.6 11.6817 3.47357 11.3765 3.24853 11.1515C3.02348 10.9264 2.71826 10.8 2.4 10.8H1.2C0.88174 10.8 0.576515 10.9264 0.351472 11.1515C0.126428 11.3765 0 11.6817 0 12C0 12.3183 0.126428 12.6235 0.351472 12.8485C0.576515 13.0736 0.88174 13.2 1.2 13.2H2.4C2.71826 13.2 3.02348 13.0736 3.24853 12.8485C3.47357 12.6235 3.6 12.3183 3.6 12ZM12 3.6C12.3183 3.6 12.6235 3.47357 12.8485 3.24853C13.0736 3.02348 13.2 2.71826 13.2 2.4V1.2C13.2 0.88174 13.0736 0.576515 12.8485 0.351472C12.6235 0.126428 12.3183 0 12 0C11.6817 0 11.3765 0.126428 11.1515 0.351472C10.9264 0.576515 10.8 0.88174 10.8 1.2V2.4C10.8 2.71826 10.9264 3.02348 11.1515 3.24853C11.3765 3.47357 11.6817 3.6 12 3.6ZM4.368 6.06C4.59151 6.28169 4.89319 6.40667 5.208 6.408C5.36593 6.40891 5.52248 6.37864 5.66869 6.31893C5.81489 6.25921 5.94787 6.17122 6.06 6.06C6.2835 5.83517 6.40895 5.53102 6.40895 5.214C6.40895 4.89698 6.2835 4.59283 6.06 4.368L5.208 3.516C4.97844 3.31941 4.68315 3.21668 4.38114 3.22835C4.07912 3.24001 3.79264 3.36521 3.57892 3.57892C3.36521 3.79264 3.24001 4.07912 3.22835 4.38114C3.21668 4.68315 3.31941 4.97844 3.516 5.208L4.368 6.06ZM18.768 6.408C19.0828 6.40667 19.3845 6.28169 19.608 6.06L20.46 5.208C20.5856 5.10042 20.6876 4.96804 20.7597 4.81916C20.8317 4.67029 20.8722 4.50813 20.8786 4.34286C20.8849 4.1776 20.8571 4.0128 20.7968 3.85881C20.7364 3.70482 20.6449 3.56497 20.528 3.44802C20.411 3.33107 20.2712 3.23956 20.1172 3.17924C19.9632 3.11891 19.7984 3.09106 19.6331 3.09744C19.4679 3.10383 19.3057 3.1443 19.1568 3.21633C19.008 3.28836 18.8756 3.39038 18.768 3.516L18 4.368C17.7765 4.59283 17.651 4.89698 17.651 5.214C17.651 5.53102 17.7765 5.83517 18 6.06C18.2116 6.27043 18.4939 6.3945 18.792 6.408H18.768ZM22.8 10.8H21.6C21.2817 10.8 20.9765 10.9264 20.7515 11.1515C20.5264 11.3765 20.4 11.6817 20.4 12C20.4 12.3183 20.5264 12.6235 20.7515 12.8485C20.9765 13.0736 21.2817 13.2 21.6 13.2H22.8C23.1183 13.2 23.4235 13.0736 23.6485 12.8485C23.8736 12.6235 24 12.3183 24 12C24 11.6817 23.8736 11.3765 23.6485 11.1515C23.4235 10.9264 23.1183 10.8 22.8 10.8ZM12 20.4C11.6817 20.4 11.3765 20.5264 11.1515 20.7515C10.9264 20.9765 10.8 21.2817 10.8 21.6V22.8C10.8 23.1183 10.9264 23.4235 11.1515 23.6485C11.3765 23.8736 11.6817 24 12 24C12.3183 24 12.6235 23.8736 12.8485 23.6485C13.0736 23.4235 13.2 23.1183 13.2 22.8V21.6C13.2 21.2817 13.0736 20.9765 12.8485 20.7515C12.6235 20.5264 12.3183 20.4 12 20.4ZM19.632 18C19.404 17.8732 19.1409 17.8241 18.8826 17.8602C18.6242 17.8964 18.3846 18.0157 18.2002 18.2002C18.0157 18.3846 17.8964 18.6242 17.8602 18.8826C17.8241 19.1409 17.8732 19.404 18 19.632L18.852 20.484C19.0768 20.7075 19.381 20.833 19.698 20.833C20.015 20.833 20.3192 20.7075 20.544 20.484C20.7675 20.2592 20.893 19.955 20.893 19.638C20.893 19.321 20.7675 19.0168 20.544 18.792L19.632 18ZM12 5.4C10.6946 5.4 9.4186 5.78708 8.33324 6.5123C7.24787 7.23752 6.40193 8.2683 5.9024 9.47429C5.40286 10.6803 5.27215 12.0073 5.52682 13.2876C5.78148 14.5679 6.41007 15.7439 7.3331 16.6669C8.25612 17.5899 9.43213 18.2185 10.7124 18.4732C11.9927 18.7278 13.3197 18.5971 14.5257 18.0976C15.7317 17.5981 16.7625 16.7521 17.4877 15.6668C18.2129 14.5814 18.6 13.3054 18.6 12C18.5968 10.2505 17.9005 8.57365 16.6634 7.3366C15.4263 6.09955 13.7495 5.40317 12 5.4ZM12 16.2C11.1693 16.2 10.3573 15.9537 9.6666 15.4922C8.97592 15.0307 8.43759 14.3747 8.11971 13.6073C7.80182 12.8398 7.71864 11.9953 7.8807 11.1806C8.04276 10.3659 8.44277 9.61753 9.03015 9.03015C9.61753 8.44277 10.3659 8.04276 11.1806 7.8807C11.9953 7.71864 12.8398 7.80182 13.6073 8.11971C14.3747 8.43759 15.0307 8.97592 15.4922 9.6666C15.9537 10.3573 16.2 11.1693 16.2 12C16.2 13.1139 15.7575 14.1822 14.9698 14.9698C14.1822 15.7575 13.1139 16.2 12 16.2V16.2Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="theme-toggle-slot theme-toggle-slot-dark">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M23.5286 13.2059C23.3555 13.0587 23.1457 12.9645 22.9231 12.9339C22.7005 12.9034 22.4741 12.9378 22.2695 13.0332C21.0016 13.6302 19.6229 13.9375 18.2285 13.9339C15.649 13.9307 13.1754 12.8783 11.3469 11.0061C9.51847 9.13384 8.4835 6.59371 8.46768 3.93951C8.47314 3.10767 8.57376 2.27938 8.76745 1.47175C8.80856 1.25649 8.79314 1.03384 8.72279 0.82675C8.65245 0.619657 8.52971 0.435608 8.36724 0.293564C8.20476 0.151519 8.00842 0.0566175 7.79844 0.0186347C7.58846 -0.019348 7.37244 0.000962081 7.17263 0.0774727C5.2928 0.947243 3.65869 2.29445 2.42383 3.99255C1.18896 5.69064 0.393863 7.68387 0.113232 9.78499C-0.167398 11.8861 0.0756479 14.0262 0.819538 16.0041C1.56343 17.982 2.78375 19.7329 4.36585 21.0922C5.94795 22.4516 7.83991 23.3748 9.86398 23.7751C11.8881 24.1754 13.9778 24.0397 15.9369 23.3808C17.896 22.7218 19.6602 21.5612 21.0637 20.008C22.4672 18.4548 23.4639 16.56 23.9603 14.5015C24.0207 14.2658 24.012 14.017 23.9352 13.7864C23.8584 13.5559 23.7169 13.3539 23.5286 13.2059V13.2059ZM12.137 21.4606C10.1246 21.446 8.16574 20.7916 6.52869 19.5872C4.89164 18.3828 3.65641 16.6871 2.99212 14.7324C2.32783 12.7777 2.26695 10.6594 2.81783 8.66773C3.36871 6.67603 4.50441 4.90822 6.06944 3.60636V3.93951C6.07261 7.25677 7.35467 10.4372 9.63425 12.7829C11.9138 15.1285 15.0047 16.4478 18.2285 16.451C19.0749 16.4542 19.9192 16.3632 20.7467 16.1796C19.9192 17.7904 18.6799 19.1382 17.1627 20.0776C15.6454 21.0169 13.9077 21.5122 12.137 21.5099V21.4606Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="theme-toggle-thumb">
+              <span class="theme-toggle-thumb-icon theme-toggle-thumb-icon-sun">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4.368 18L3.516 18.852C3.2925 19.0768 3.16705 19.381 3.16705 19.698C3.16705 20.015 3.2925 20.3192 3.516 20.544C3.74083 20.7675 4.04498 20.893 4.362 20.893C4.67902 20.893 4.98317 20.7675 5.208 20.544L6.06 19.692C6.25659 19.4624 6.35932 19.1671 6.34765 18.8651C6.33599 18.5631 6.21079 18.2766 5.99708 18.0629C5.78336 17.8492 5.49688 17.724 5.19486 17.7123C4.89285 17.7007 4.59756 17.8034 4.368 18V18ZM3.6 12C3.6 11.6817 3.47357 11.3765 3.24853 11.1515C3.02348 10.9264 2.71826 10.8 2.4 10.8H1.2C0.88174 10.8 0.576515 10.9264 0.351472 11.1515C0.126428 11.3765 0 11.6817 0 12C0 12.3183 0.126428 12.6235 0.351472 12.8485C0.576515 13.0736 0.88174 13.2 1.2 13.2H2.4C2.71826 13.2 3.02348 13.0736 3.24853 12.8485C3.47357 12.6235 3.6 12.3183 3.6 12ZM12 3.6C12.3183 3.6 12.6235 3.47357 12.8485 3.24853C13.0736 3.02348 13.2 2.71826 13.2 2.4V1.2C13.2 0.88174 13.0736 0.576515 12.8485 0.351472C12.6235 0.126428 12.3183 0 12 0C11.6817 0 11.3765 0.126428 11.1515 0.351472C10.9264 0.576515 10.8 0.88174 10.8 1.2V2.4C10.8 2.71826 10.9264 3.02348 11.1515 3.24853C11.3765 3.47357 11.6817 3.6 12 3.6ZM4.368 6.06C4.59151 6.28169 4.89319 6.40667 5.208 6.408C5.36593 6.40891 5.52248 6.37864 5.66869 6.31893C5.81489 6.25921 5.94787 6.17122 6.06 6.06C6.2835 5.83517 6.40895 5.53102 6.40895 5.214C6.40895 4.89698 6.2835 4.59283 6.06 4.368L5.208 3.516C4.97844 3.31941 4.68315 3.21668 4.38114 3.22835C4.07912 3.24001 3.79264 3.36521 3.57892 3.57892C3.36521 3.79264 3.24001 4.07912 3.22835 4.38114C3.21668 4.68315 3.31941 4.97844 3.516 5.208L4.368 6.06ZM18.768 6.408C19.0828 6.40667 19.3845 6.28169 19.608 6.06L20.46 5.208C20.5856 5.10042 20.6876 4.96804 20.7597 4.81916C20.8317 4.67029 20.8722 4.50813 20.8786 4.34286C20.8849 4.1776 20.8571 4.0128 20.7968 3.85881C20.7364 3.70482 20.6449 3.56497 20.528 3.44802C20.411 3.33107 20.2712 3.23956 20.1172 3.17924C19.9632 3.11891 19.7984 3.09106 19.6331 3.09744C19.4679 3.10383 19.3057 3.1443 19.1568 3.21633C19.008 3.28836 18.8756 3.39038 18.768 3.516L18 4.368C17.7765 4.59283 17.651 4.89698 17.651 5.214C17.651 5.53102 17.7765 5.83517 18 6.06C18.2116 6.27043 18.4939 6.3945 18.792 6.408H18.768ZM22.8 10.8H21.6C21.2817 10.8 20.9765 10.9264 20.7515 11.1515C20.5264 11.3765 20.4 11.6817 20.4 12C20.4 12.3183 20.5264 12.6235 20.7515 12.8485C20.9765 13.0736 21.2817 13.2 21.6 13.2H22.8C23.1183 13.2 23.4235 13.0736 23.6485 12.8485C23.8736 12.6235 24 12.3183 24 12C24 11.6817 23.8736 11.3765 23.6485 11.1515C23.4235 10.9264 23.1183 10.8 22.8 10.8ZM12 20.4C11.6817 20.4 11.3765 20.5264 11.1515 20.7515C10.9264 20.9765 10.8 21.2817 10.8 21.6V22.8C10.8 23.1183 10.9264 23.4235 11.1515 23.6485C11.3765 23.8736 11.6817 24 12 24C12.3183 24 12.6235 23.8736 12.8485 23.6485C13.0736 23.4235 13.2 23.1183 13.2 22.8V21.6C13.2 21.2817 13.0736 20.9765 12.8485 20.7515C12.6235 20.5264 12.3183 20.4 12 20.4ZM19.632 18C19.404 17.8732 19.1409 17.8241 18.8826 17.8602C18.6242 17.8964 18.3846 18.0157 18.2002 18.2002C18.0157 18.3846 17.8964 18.6242 17.8602 18.8826C17.8241 19.1409 17.8732 19.404 18 19.632L18.852 20.484C19.0768 20.7075 19.381 20.833 19.698 20.833C20.015 20.833 20.3192 20.7075 20.544 20.484C20.7675 20.2592 20.893 19.955 20.893 19.638C20.893 19.321 20.7675 19.0168 20.544 18.792L19.632 18ZM12 5.4C10.6946 5.4 9.4186 5.78708 8.33324 6.5123C7.24787 7.23752 6.40193 8.2683 5.9024 9.47429C5.40286 10.6803 5.27215 12.0073 5.52682 13.2876C5.78148 14.5679 6.41007 15.7439 7.3331 16.6669C8.25612 17.5899 9.43213 18.2185 10.7124 18.4732C11.9927 18.7278 13.3197 18.5971 14.5257 18.0976C15.7317 17.5981 16.7625 16.7521 17.4877 15.6668C18.2129 14.5814 18.6 13.3054 18.6 12C18.5968 10.2505 17.9005 8.57365 16.6634 7.3366C15.4263 6.09955 13.7495 5.40317 12 5.4ZM12 16.2C11.1693 16.2 10.3573 15.9537 9.6666 15.4922C8.97592 15.0307 8.43759 14.3747 8.11971 13.6073C7.80182 12.8398 7.71864 11.9953 7.8807 11.1806C8.04276 10.3659 8.44277 9.61753 9.03015 9.03015C9.61753 8.44277 10.3659 8.04276 11.1806 7.8807C11.9953 7.71864 12.8398 7.80182 13.6073 8.11971C14.3747 8.43759 15.0307 8.97592 15.4922 9.6666C15.9537 10.3573 16.2 11.1693 16.2 12C16.2 13.1139 15.7575 14.1822 14.9698 14.9698C14.1822 15.7575 13.1139 16.2 12 16.2V16.2Z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="theme-toggle-thumb-icon theme-toggle-thumb-icon-moon">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M23.5286 13.2059C23.3555 13.0587 23.1457 12.9645 22.9231 12.9339C22.7005 12.9034 22.4741 12.9378 22.2695 13.0332C21.0016 13.6302 19.6229 13.9375 18.2285 13.9339C15.649 13.9307 13.1754 12.8783 11.3469 11.0061C9.51847 9.13384 8.4835 6.59371 8.46768 3.93951C8.47314 3.10767 8.57376 2.27938 8.76745 1.47175C8.80856 1.25649 8.79314 1.03384 8.72279 0.82675C8.65245 0.619657 8.52971 0.435608 8.36724 0.293564C8.20476 0.151519 8.00842 0.0566175 7.79844 0.0186347C7.58846 -0.019348 7.37244 0.000962081 7.17263 0.0774727C5.2928 0.947243 3.65869 2.29445 2.42383 3.99255C1.18896 5.69064 0.393863 7.68387 0.113232 9.78499C-0.167398 11.8861 0.0756479 14.0262 0.819538 16.0041C1.56343 17.982 2.78375 19.7329 4.36585 21.0922C5.94795 22.4516 7.83991 23.3748 9.86398 23.7751C11.8881 24.1754 13.9778 24.0397 15.9369 23.3808C17.896 22.7218 19.6602 21.5612 21.0637 20.008C22.4672 18.4548 23.4639 16.56 23.9603 14.5015C24.0207 14.2658 24.012 14.017 23.9352 13.7864C23.8584 13.5559 23.7169 13.3539 23.5286 13.2059V13.2059ZM12.137 21.4606C10.1246 21.446 8.16574 20.7916 6.52869 19.5872C4.89164 18.3828 3.65641 16.6871 2.99212 14.7324C2.32783 12.7777 2.26695 10.6594 2.81783 8.66773C3.36871 6.67603 4.50441 4.90822 6.06944 3.60636V3.93951C6.07261 7.25677 7.35467 10.4372 9.63425 12.7829C11.9138 15.1285 15.0047 16.4478 18.2285 16.451C19.0749 16.4542 19.9192 16.3632 20.7467 16.1796C19.9192 17.7904 18.6799 19.1382 17.1627 20.0776C15.6454 21.0169 13.9077 21.5122 12.137 21.5099V21.4606Z" fill="currentColor"/>
+                </svg>
+              </span>
+            </span>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <main class="reference-content">
+      <section class="instruction-panel" aria-labelledby="copyTitle">
+        <h1 id="copyTitle">Copy contract for coding agents</h1>
+        <p>
+          This page is a standalone export of Architect's light/dark mode toggle.
+          The real control is the button in the top-right. Hand this file to an
+          agent and tell it to copy the marked contract together.
+        </p>
+        <ul>
+          <li>Set <code>html[data-theme]</code> before paint using the head script.</li>
+          <li>Persist only <code>light</code> or <code>dark</code> in <code>localStorage.theme</code>.</li>
+          <li>Use system preference only when no stored theme exists.</li>
+          <li>Keep <code>data-current-theme</code>, <code>aria-label</code>, <code>title</code>, and <code>aria-pressed</code> synchronized after every theme change.</li>
+          <li>Keep the exact toggle sizing tokens if visual parity matters.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const THEME_STORAGE_KEY = 'theme';
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function storedTheme() {
+      try {
+        const value = localStorage.getItem(THEME_STORAGE_KEY);
+        return value === 'light' || value === 'dark' ? value : null;
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    function currentTheme() {
+      return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    }
+
+    function setTheme(theme, persist) {
+      const nextTheme = theme === 'dark' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      if (persist) {
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+        } catch (_err) {
+          // ignore storage failures in restricted environments
+        }
+      }
+      updateThemeToggle();
+    }
+
+    function updateThemeToggle() {
+      const toggle = $('themeToggle');
+      if (!toggle) return;
+      const theme = currentTheme();
+      const nextTheme = theme === 'dark' ? 'light' : 'dark';
+      toggle.setAttribute('data-current-theme', theme);
+      toggle.setAttribute('data-next-theme', nextTheme);
+      toggle.setAttribute('aria-label', 'Switch to ' + nextTheme + ' theme');
+      toggle.setAttribute('title', 'Switch to ' + nextTheme + ' theme');
+      toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+    }
+
+    $('themeToggle').addEventListener('click', function () {
+      setTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
+    });
+
+    if (window.matchMedia) {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const syncSystemTheme = function (event) {
+        if (storedTheme()) return;
+        setTheme(event.matches ? 'dark' : 'light', false);
+      };
+      if (typeof media.addEventListener === 'function') media.addEventListener('change', syncSystemTheme);
+      else if (typeof media.addListener === 'function') media.addListener(syncSystemTheme);
+    }
+
+    updateThemeToggle();
+  </script>
+</body>
+</html>

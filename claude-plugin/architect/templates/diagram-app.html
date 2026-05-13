@@ -294,7 +294,7 @@
     .subtitle {
       font-size: 13px;
       font-weight: 400;
-      line-height: 1.15;
+      line-height: 1.35;
       color: var(--color-text-muted);
       white-space: nowrap;
       overflow: hidden;
@@ -932,7 +932,7 @@
       justify-content: space-between;
       height: 44px;
       box-sizing: border-box;
-      padding: 10px 22px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--color-border-default);
       background: var(--color-bg-surface);
     }
@@ -941,7 +941,7 @@
       font-size: 13px;
       letter-spacing: 0;
       text-transform: none;
-      color: var(--color-text-tertiary);
+      color: var(--color-text-primary);
       font-weight: 500;
       line-height: 1.3;
       margin: 0;
@@ -989,10 +989,6 @@
       height: auto;
       min-height: 44px;
       padding: 12px 16px;
-    }
-
-    .sidebar[data-mode="comment"] .sidebar-title {
-      color: var(--color-text-primary);
     }
 
     .sidebar[data-mode="comment"] .sidebar-count {
@@ -1325,12 +1321,6 @@
       text-wrap: balance;
     }
 
-    .empty-state-hint {
-      font-size: 12px;
-      max-width: 26ch;
-      text-wrap: pretty;
-    }
-
     .empty-note {
       color: var(--color-text-secondary);
       text-align: center;
@@ -1444,20 +1434,11 @@
     }
 
     .relationship-endpoints {
-      display: flex;
-      align-items: center;
-      column-gap: 8px;
-      row-gap: 0;
-      flex-wrap: wrap;
       color: var(--color-text-tertiary);
       font-size: 11px;
       font-weight: 500;
       line-height: 1.1;
       margin: 0 0 4px;
-    }
-
-    .relationship-arrow {
-      color: var(--color-text-muted);
     }
 
     .relationship-label {
@@ -2057,10 +2038,6 @@
       view-transition-name: active-tab;
     }
 
-    html[data-ui-transition="mode"] #canvas {
-      view-transition-name: mode-canvas;
-    }
-
     html[data-ui-transition="mode"] #sidebar {
       view-transition-name: mode-sidebar;
     }
@@ -2071,11 +2048,16 @@
 
     ::view-transition-group(canvas-stage),
     ::view-transition-group(active-tab),
-    ::view-transition-group(mode-canvas),
     ::view-transition-group(mode-sidebar),
     ::view-transition-group(detail-sidebar) {
       animation-duration: var(--duration-slow);
       animation-timing-function: var(--ease-drawer);
+    }
+
+    html[data-ui-transition="mode"]::view-transition-old(root),
+    html[data-ui-transition="mode"]::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
     }
 
     ::view-transition-group(mode-toggle-control),
@@ -2100,12 +2082,10 @@
       animation: canvas-slide-in-left 360ms var(--ease-drawer) both;
     }
 
-    html[data-ui-transition="mode"]::view-transition-old(mode-canvas),
     html[data-ui-transition="mode"]::view-transition-old(mode-sidebar) {
       animation: surface-fade-out 180ms var(--ease-out) both;
     }
 
-    html[data-ui-transition="mode"]::view-transition-new(mode-canvas),
     html[data-ui-transition="mode"]::view-transition-new(mode-sidebar) {
       animation: surface-fade-in 260ms var(--ease-drawer) both;
     }
@@ -2899,12 +2879,14 @@ function mountedViewNeedsRemount(view) {
   return !mountedViewRuntime.svg || !mountedViewRuntime.svg.isConnected;
 }
 
-function relationshipRouteText(rel) {
-  return displayNameForElementId(rel.source_id) + ' → ' + displayNameForElementId(rel.target_id);
+function relationshipEndpointText(rel, direction) {
+  const endpointId = direction === 'inbound' ? rel.source_id : rel.target_id;
+  const prefix = direction === 'inbound' ? '← ' : '→ ';
+  return prefix + displayNameForElementId(endpointId);
 }
 
-function relationshipCollisionKey(rel) {
-  return [relationshipRouteText(rel), rel.label || ''].join('::');
+function relationshipCollisionKeyForNode(rel, direction) {
+  return [relationshipEndpointText(rel, direction), rel.label || ''].join('::');
 }
 
 function relationshipDetailParts(rel) {
@@ -2917,12 +2899,12 @@ function relationshipDetailParts(rel) {
   return details;
 }
 
-function relationshipCardHtml(rel, showDifferentiator) {
+function relationshipCardHtml(rel, showDifferentiator, endpointText) {
   const detailParts = relationshipDetailParts(rel);
   const bodyText = rel.label || humanizeSlug(rel.id || 'relationship');
   const html = [];
   html.push('<li class="relationship-card">');
-  html.push('<p class="relationship-endpoints"><span>' + esc(displayNameForElementId(rel.source_id)) + '</span><span class="relationship-arrow" aria-hidden="true">→</span><span>' + esc(displayNameForElementId(rel.target_id)) + '</span></p>');
+  html.push('<p class="relationship-endpoints">' + esc(endpointText) + '</p>');
   html.push('<p class="relationship-label">' + esc(bodyText) + '</p>');
   if (showDifferentiator && detailParts.length) {
     html.push('<p class="relationship-card-meta">' + esc(detailParts.join(' • ')) + '</p>');
@@ -3575,6 +3557,23 @@ function isJobHandlingInProgress(status) {
   return ['received', 'acknowledged', 'analyzing', 'fast_patch_running', 'fast_patch_ready', 'slow_patch_running'].indexOf(status.state) !== -1;
 }
 
+const CLAUDE_NOT_CONNECTED_ERROR_CODE = 'CLAUDE_NOT_CONNECTED';
+
+function isClaudeDisconnectedStatus(status) {
+  if (!status) return false;
+  const code = String(status.error_code || status.code || '').toUpperCase();
+  if (code === CLAUDE_NOT_CONNECTED_ERROR_CODE) return true;
+
+  const message = [
+    status.message,
+    status.error,
+  ].map(function (value) {
+    return String(value || '');
+  }).join(' ');
+
+  return /claude channel delivery failed|channel delivery failed|could not reach the local bridge|failed to fetch|load failed|networkerror|network request failed|err_connection_refused/i.test(message);
+}
+
 function statusSummaryForActiveJob() {
   if (!state.activeJob) return null;
   const count = Math.max(
@@ -3600,6 +3599,15 @@ function statusSummaryForActiveJob() {
     };
   }
   if (tone === 'failed') {
+    if (isClaudeDisconnectedStatus(state.activeJob)) {
+      return {
+        tone: tone,
+        title: 'Claude is not connected',
+        subtitle: 'Restart Claude in the terminal',
+        animated: false,
+        allowRetry: false,
+      };
+    }
     return {
       tone: tone,
       title: "Couldn't process comments",
@@ -3687,7 +3695,7 @@ function renderSidebarStatusCard() {
     const actions = document.createElement('div');
     actions.className = 'comment-status-actions';
 
-    if (summary.tone === 'failed') {
+    if (summary.tone === 'failed' && summary.allowRetry !== false) {
       const retry = document.createElement('button');
       retry.className = 'comment-status-primary-action';
       retry.type = 'button';
@@ -7021,11 +7029,33 @@ function updateDetails() {
     }
 
     const rels = relationshipsForNode(node.id);
-    const relationshipCollisionCounts = new Map();
-    rels.forEach(function (rel) {
-      const key = relationshipCollisionKey(rel);
-      relationshipCollisionCounts.set(key, (relationshipCollisionCounts.get(key) || 0) + 1);
-    });
+    const inboundRelationships = rels.filter(function (rel) { return rel.target_id === node.id; });
+    const outboundRelationships = rels.filter(function (rel) { return rel.source_id === node.id; });
+
+    function relationshipCollisionCountsForDirection(directionRels, direction) {
+      const counts = new Map();
+      directionRels.forEach(function (rel) {
+        const key = relationshipCollisionKeyForNode(rel, direction);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      return counts;
+    }
+
+    const inboundCollisionCounts = relationshipCollisionCountsForDirection(inboundRelationships, 'inbound');
+    const outboundCollisionCounts = relationshipCollisionCountsForDirection(outboundRelationships, 'outbound');
+
+    function relationshipSectionHtml(title, directionRels, direction, collisionCounts) {
+      if (!directionRels.length) return '';
+      const sectionHtml = [];
+      sectionHtml.push('<section class="field-group"><h3 class="field-label">' + esc(title) + '</h3><ul class="relationship-list">');
+      directionRels.slice(0, 20).forEach(function (rel) {
+        const endpointText = relationshipEndpointText(rel, direction);
+        const showDifferentiator = (collisionCounts.get(relationshipCollisionKeyForNode(rel, direction)) || 0) > 1;
+        sectionHtml.push(relationshipCardHtml(rel, showDifferentiator, endpointText));
+      });
+      sectionHtml.push('</ul></section>');
+      return sectionHtml.join('');
+    }
 
     const html = [];
     html.push('<header class="component-header">'
@@ -7047,14 +7077,8 @@ function updateDetails() {
         + '</section>');
     }
 
-    if (rels.length) {
-      html.push('<section class="field-group"><h3 class="field-label">Relationships</h3><ul class="relationship-list">');
-      rels.slice(0, 20).forEach(function (rel) {
-        const showDifferentiator = (relationshipCollisionCounts.get(relationshipCollisionKey(rel)) || 0) > 1;
-        html.push(relationshipCardHtml(rel, showDifferentiator));
-      });
-      html.push('</ul></section>');
-    }
+    html.push(relationshipSectionHtml('Inbound', inboundRelationships, 'inbound', inboundCollisionCounts));
+    html.push(relationshipSectionHtml('Outbound', outboundRelationships, 'outbound', outboundCollisionCounts));
 
     if (node.confidence) {
       html.push('<section class="field-group">'
@@ -7201,7 +7225,7 @@ function updateCommentSidebar() {
   const resolved = resolvedClaudeThreads();
 
   if (!drafts.length && !openThreads.length && !resolved.length) {
-    pane.innerHTML = '<div class="empty-state"><p>No comments yet</p><p class="empty-state-hint">Click any element or edge to add a comment</p></div>';
+    pane.innerHTML = '<div class="empty-state"><p>Click any element or edge to add a comment</p></div>';
     return;
   }
 
@@ -8210,10 +8234,13 @@ async function submitPayload() {
       events_url: accepted.events_url,
     });
   } catch (err) {
+    const errorMessage = String(err && err.message ? err.message : 'Could not reach the local bridge.');
+    const claudeDisconnected = isClaudeDisconnectedStatus({ error: errorMessage });
     applyJobStatus({
       state: 'failed',
-      message: 'The update hit a problem.',
-      error: String(err && err.message ? err.message : 'Could not reach the local bridge.'),
+      message: claudeDisconnected ? 'Restart Claude in the terminal' : 'The update hit a problem.',
+      error: errorMessage,
+      error_code: claudeDisconnected ? CLAUDE_NOT_CONNECTED_ERROR_CODE : '',
       submitted_comment_count: payload.comments.length,
       needs_refresh: false,
     });
