@@ -2228,19 +2228,17 @@
     }
 
     .claude-thread-marker {
-      color: #E8703A;
       cursor: pointer;
       pointer-events: all;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.12));
     }
     .claude-thread-marker use {
-      color: inherit;
       transform-box: fill-box;
-      transform-origin: center;
-      transition: transform 0.15s ease;
+      transform-origin: bottom left;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .claude-thread-marker:hover use {
-      transform: scale(1.12);
+      transform: scale(1.18);
     }
 
     .comment-list-section {
@@ -2495,7 +2493,11 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
     <symbol id="icon-comment-marker" viewBox="0 0 24 24">
-      <path d="M12 22H3.00001C2.80224 22 2.60891 21.9414 2.44447 21.8315C2.28003 21.7216 2.15187 21.5654 2.07619 21.3827C2.00052 21.2 1.98072 20.9989 2.01932 20.805C2.05791 20.611 2.15315 20.4328 2.29301 20.293L4.25685 18.3291C2.81962 16.5711 2.02348 14.3763 1.99934 12.1057C1.97521 9.83506 2.72453 7.62384 4.12407 5.83567C5.52361 4.0475 7.49003 2.78885 9.69993 2.26674C11.9098 1.74462 14.2316 1.99012 16.2835 2.96286C18.3353 3.9356 19.995 5.57767 20.9896 7.61899C21.9842 9.66031 22.2545 11.9793 21.7561 14.1947C21.2576 16.4101 20.0201 18.3898 18.2469 19.8084C16.4738 21.227 14.2707 21.9999 12 22Z" fill="currentColor"/>
+      <path d="M5 0 L19 0 A5 5 0 0 1 24 5 L24 19 A5 5 0 0 1 19 24 L0 24 L0 5 A5 5 0 0 1 5 0 Z"
+            fill="#FFFFFF" stroke="rgba(0,0,0,0.12)" stroke-width="0.75"/>
+      <circle cx="12" cy="11" r="6" fill="#E8703A"/>
+      <text x="12" y="11.5" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="9" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">C</text>
     </symbol>
   </defs>
 </svg>
@@ -7380,7 +7382,7 @@ function computeThreadMarkerPoint(anchorEl) {
   }
   const box = elementBBox(anchorEl);
   if (!box || !isFinite(box.x) || !isFinite(box.width)) return null;
-  return { x: box.x + box.width - 6, y: box.y + 6, edge: false };
+  return { x: box.x + box.width, y: box.y, edge: false };
 }
 
 function clearThreadIndicators(svg) {
@@ -7414,8 +7416,10 @@ function applyThreadIndicators(svg) {
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.setAttribute('class', 'claude-thread-marker');
     group.setAttribute('data-thread-id', thread.thread_id);
-    const x = point.x - markerSize / 2;
-    const y = point.y - markerSize / 2 + stackIndex * (markerSize * 1.5);
+    // Marker's 90° corner (its local bottom-left) anchors to `point`.
+    // For edge midpoints, center horizontally on the path; for nodes, hang from the top-right.
+    const x = point.edge ? point.x - markerSize / 2 : point.x + stackIndex * (markerSize * 1.1);
+    const y = point.y - markerSize;
     group.setAttribute('transform', 'translate(' + x + ', ' + y + ')');
 
     const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
