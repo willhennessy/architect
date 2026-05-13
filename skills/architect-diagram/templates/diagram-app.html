@@ -2251,13 +2251,25 @@
     .comment-group-header {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 8px 8px;
+      gap: 8px;
+      padding: 8px 8px 8px;
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.6px;
       text-transform: uppercase;
       color: var(--color-fg-muted, #857c6e);
+      border-bottom: 1px solid rgba(31, 28, 23, 0.08);
+    }
+    [data-theme="dark"] .comment-group-header {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+    .comment-group-header-dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 6px;
+      border-radius: 1.5px;
+      background: var(--group-tone, #534c40);
+      display: inline-block;
     }
     .comment-group-header-name {
       flex: 1;
@@ -7372,6 +7384,7 @@ function buildSidebarGroups(items) {
       group = {
         key: key,
         name: commentTargetName(item),
+        tone: commentToneForTarget(item),
         items: [],
         latest: 0,
       };
@@ -7395,6 +7408,13 @@ function renderSidebarGroup(group, draftsLocked) {
 
   const header = document.createElement('div');
   header.className = 'comment-group-header';
+  if (group.tone) header.style.setProperty('--group-tone', group.tone);
+
+  const dot = document.createElement('span');
+  dot.className = 'comment-group-header-dot';
+  dot.setAttribute('aria-hidden', 'true');
+  header.appendChild(dot);
+
   const name = document.createElement('span');
   name.className = 'comment-group-header-name';
   name.textContent = group.name;
