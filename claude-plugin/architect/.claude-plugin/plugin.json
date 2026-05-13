@@ -1,6 +1,6 @@
 {
   "name": "architect",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Architecture discovery, planning, diagram rendering, and live Claude comment handoff.",
   "author": {
     "name": "Will"
