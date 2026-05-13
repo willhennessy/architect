@@ -8465,6 +8465,11 @@ document.addEventListener('keydown', function (e) {
       attemptCloseCommentDialog('escape');
       return;
     }
+    if (isCommentMode()) {
+      e.preventDefault();
+      setMode('explore', { animate: false });
+      return;
+    }
     $('payloadOverlay').className = 'overlay';
   }
 });
