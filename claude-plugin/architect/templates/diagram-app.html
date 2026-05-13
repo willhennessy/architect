@@ -8505,8 +8505,8 @@ $('commentText').addEventListener('keydown', function (e) {
     attemptCloseCommentDialog('escape');
     return;
   }
-  if (e.key !== 'Enter' || e.shiftKey || e.altKey || e.isComposing) return;
-  if (!e.metaKey && !e.ctrlKey) return;
+  if (e.key !== 'Enter' || e.isComposing) return;
+  if (e.shiftKey) return;
   e.preventDefault();
   e.stopPropagation();
   if (isThreadDialogMode()) submitThreadReply();
