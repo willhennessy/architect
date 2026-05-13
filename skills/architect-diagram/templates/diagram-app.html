@@ -7176,54 +7176,61 @@ function commentToneForTarget(target) {
   return THEME.brand;
 }
 
-function renderDraftCommentList() {
-  const list = document.createElement('ul');
-  list.className = 'comment-list';
-  if (isJobHandlingInProgress(state.activeJob)) {
-    list.classList.add('is-pending');
-    list.setAttribute('aria-disabled', 'true');
-  }
+function renderDraftCard(comment, idx) {
+  const card = document.createElement('li');
+  card.className = 'comment-card is-thread is-draft';
+  card.style.setProperty('--comment-index', String(idx));
 
-  state.comments.forEach(function (comment, idx) {
-    const item = document.createElement('li');
-    item.className = 'comment-card';
-    item.style.setProperty('--comment-index', String(idx));
+  const targetName = document.createElement('p');
+  targetName.className = 'comment-card-target-name';
+  targetName.textContent = commentTargetName(comment);
+  card.appendChild(targetName);
 
-    const header = document.createElement('header');
-    header.className = 'comment-card-header';
+  const authorRow = document.createElement('div');
+  authorRow.className = 'comment-card-author-row';
 
-    const target = document.createElement('span');
-    target.className = 'comment-card-target';
-    target.textContent = commentTargetName(comment);
-    target.style.setProperty('--comment-tone', commentToneForTarget(comment));
+  const avatar = document.createElement('span');
+  avatar.className = 'comment-card-avatar is-user';
+  avatar.textContent = 'U';
+  avatar.setAttribute('aria-hidden', 'true');
+  authorRow.appendChild(avatar);
 
-    const remove = document.createElement('button');
-    remove.className = 'comment-card-delete';
-    remove.type = 'button';
-    remove.setAttribute('aria-label', 'Delete comment');
-    remove.textContent = '×';
-    remove.disabled = isJobHandlingInProgress(state.activeJob);
-    if (!remove.disabled) {
-      remove.addEventListener('click', function () {
-        state.comments = state.comments.filter(function (entry) {
-          return entry.id !== comment.id;
-        });
-        updateSidebar();
+  const name = document.createElement('span');
+  name.className = 'comment-card-author-name';
+  name.textContent = 'You';
+  authorRow.appendChild(name);
+
+  const time = document.createElement('span');
+  time.className = 'comment-card-time';
+  time.textContent = 'Draft';
+  authorRow.appendChild(time);
+
+  const remove = document.createElement('button');
+  remove.className = 'comment-card-delete';
+  remove.type = 'button';
+  remove.setAttribute('aria-label', 'Delete comment');
+  remove.textContent = '×';
+  remove.disabled = isJobHandlingInProgress(state.activeJob);
+  remove.style.marginLeft = 'auto';
+  if (!remove.disabled) {
+    remove.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      state.comments = state.comments.filter(function (entry) {
+        return entry.id !== comment.id;
       });
-    }
+      updateSidebar();
+    });
+  }
+  authorRow.appendChild(remove);
 
-    header.appendChild(target);
-    header.appendChild(remove);
+  card.appendChild(authorRow);
 
-    const body = document.createElement('p');
-    body.className = 'comment-card-body';
-    body.textContent = comment.comment;
+  const body = document.createElement('p');
+  body.className = 'comment-card-body';
+  body.textContent = String(comment.comment || '');
+  card.appendChild(body);
 
-    item.appendChild(header);
-    item.appendChild(body);
-    list.appendChild(item);
-  });
-  return list;
+  return card;
 }
 
 function renderThreadCard(thread, options) {
@@ -7325,19 +7332,30 @@ function updateCommentSidebar() {
     return;
   }
 
-  if (drafts.length) {
+  appendThreadSection(pane, 'Open', claudeWaiting);
+
+  if (drafts.length || userReplied.length) {
     const section = document.createElement('section');
     section.className = 'comment-list-section';
     const title = document.createElement('h4');
     title.className = 'comment-list-section-title';
-    title.textContent = 'Drafts';
+    title.textContent = 'Ready to submit';
     section.appendChild(title);
-    section.appendChild(renderDraftCommentList());
+    const list = document.createElement('ul');
+    list.className = 'comment-list';
+    if (isJobHandlingInProgress(state.activeJob)) {
+      list.classList.add('is-pending');
+      list.setAttribute('aria-disabled', 'true');
+    }
+    drafts.forEach(function (comment, idx) {
+      list.appendChild(renderDraftCard(comment, idx));
+    });
+    userReplied.forEach(function (thread) {
+      list.appendChild(renderThreadCard(thread, { resolved: false }));
+    });
+    section.appendChild(list);
     pane.appendChild(section);
   }
-
-  appendThreadSection(pane, 'Open', claudeWaiting);
-  appendThreadSection(pane, 'Ready to submit', userReplied);
 
   if (resolved.length) {
     const details = document.createElement('details');
