@@ -7475,7 +7475,6 @@ function clearThreadIndicators(svg) {
 function applyThreadIndicators(svg) {
   if (!svg) return;
   clearThreadIndicators(svg);
-  if (!isCommentMode()) return;
 
   const threads = openClaudeThreads().filter(function (t) {
     return t.view_id === state.viewId;
