@@ -7246,8 +7246,8 @@ function renderThreadCard(thread, options) {
   if (opts.resolved) card.classList.add('is-resolved');
 
   const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
-  const latest = messages.length ? messages[messages.length - 1] : null;
-  const isClaude = !latest || latest.author === 'claude';
+  const first = messages.length ? messages[0] : null;
+  const isClaude = !first || first.author === 'claude';
 
   const targetName = document.createElement('p');
   targetName.className = 'comment-card-target-name';
@@ -7268,12 +7268,12 @@ function renderThreadCard(thread, options) {
   name.textContent = isClaude ? 'Claude' : 'You';
   authorRow.appendChild(name);
 
-  const ts = latest ? formatRelativeTime(latest.created_at) : '';
+  const ts = first ? formatRelativeTime(first.created_at) : '';
   if (ts) {
     const time = document.createElement('span');
     time.className = 'comment-card-time';
     time.textContent = ts;
-    const iso = formatMessageTimestamp(latest.created_at);
+    const iso = formatMessageTimestamp(first.created_at);
     if (iso) time.title = iso;
     authorRow.appendChild(time);
   }
@@ -7290,7 +7290,7 @@ function renderThreadCard(thread, options) {
 
   const body = document.createElement('p');
   body.className = 'comment-card-body';
-  body.textContent = truncate(String((latest && latest.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
+  body.textContent = truncate(String((first && first.body) || '(no messages yet)').replace(/\s+/g, ' ').trim(), 160);
   card.appendChild(body);
 
   card.addEventListener('click', function () {
