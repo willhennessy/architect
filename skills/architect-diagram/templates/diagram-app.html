@@ -1255,14 +1255,6 @@
       text-wrap: pretty;
     }
 
-    .comment-card-target::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      flex: 0 0 auto;
-      border-radius: 999px;
-      background: var(--comment-tone, var(--color-signal));
-    }
 
     .comment-card-delete {
       background: none;
@@ -1566,6 +1558,10 @@
       opacity: 0;
       transform: translate3d(0, 12px, 0) scale(0.96);
       filter: blur(10px);
+      box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.14),
+        0 4px 8px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.06);
     }
 
     .comment-popover[data-placement] {
@@ -2301,12 +2297,7 @@
       margin: 0;
     }
     .thread-target-tag {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--thread-tone, var(--color-brand));
-      flex-shrink: 0;
+      display: none;
     }
     .thread-dialog-banner {
       background: var(--color-subtle-bg, rgba(148, 163, 184, 0.08));
@@ -2325,13 +2316,11 @@
     }
     .thread-message {
       padding: 10px 0;
-      border-bottom: 1px solid var(--color-border-subtle, rgba(148, 163, 184, 0.15));
     }
     .thread-message:first-child {
       padding-top: 4px;
     }
     .thread-message:last-child {
-      border-bottom: 0;
       padding-bottom: 4px;
     }
     .thread-message-header {
