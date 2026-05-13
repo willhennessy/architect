@@ -7415,6 +7415,19 @@ function appendThreadMessage(threadId, message) {
   if (!thread) return;
   const messages = Array.isArray(thread.messages) ? thread.messages : (thread.messages = []);
   if (message.id && messages.some(function (m) { return m && m.id === message.id; })) return;
+  if (message.author && message.body != null) {
+    const incomingBody = String(message.body).trim();
+    const optimisticIdx = messages.findIndex(function (m) {
+      return m && m.optimistic
+        && m.author === message.author
+        && String(m.body || '').trim() === incomingBody;
+    });
+    if (optimisticIdx !== -1) {
+      messages[optimisticIdx] = Object.assign({}, message, { optimistic: false });
+      refreshThreadsUi();
+      return;
+    }
+  }
   messages.push(message);
   refreshThreadsUi();
 }
@@ -7755,12 +7768,28 @@ async function submitThreadReply() {
       const text = await response.text();
       throw new Error('Bridge returned ' + response.status + ': ' + text);
     }
-    // Remove the optimistic placeholder; the SSE event carries the real message.
+    // Promote the optimistic placeholder to a real message in place. The SSE
+    // event that follows shares the same id, so appendThreadMessage dedupes.
+    let realMessage = null;
+    try {
+      const json = await response.json();
+      realMessage = json && json.message;
+    } catch (_jsonErr) { /* fall through */ }
     const live = threadById(thread.thread_id);
     if (live && Array.isArray(live.messages)) {
-      live.messages = live.messages.filter(function (m) { return m && m.id !== optimisticId; });
+      const placeholder = live.messages.find(function (m) { return m && m.id === optimisticId; });
+      if (placeholder && realMessage && realMessage.id) {
+        placeholder.id = realMessage.id;
+        placeholder.created_at = realMessage.created_at || placeholder.created_at;
+        placeholder.optimistic = false;
+      } else if (placeholder) {
+        live.messages = live.messages.filter(function (m) { return m && m.id !== optimisticId; });
+      }
     }
-    if (replyText) replyText.value = '';
+    if (replyText) {
+      replyText.value = '';
+      autosizeCommentTextarea();
+    }
     if (err) { err.hidden = true; err.textContent = ''; }
   } catch (error) {
     // Roll back the optimistic append and surface the error
@@ -7772,6 +7801,9 @@ async function submitThreadReply() {
   } finally {
     state.threadReplyInFlight = false;
     refreshThreadsUi();
+    if (replyText && state.activeThread && state.activeThread.status !== 'resolved') {
+      window.requestAnimationFrame(function () { try { replyText.focus(); } catch (_err) { /* ignore */ } });
+    }
   }
 }
 
