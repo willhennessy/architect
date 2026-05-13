@@ -7964,7 +7964,7 @@ function attemptCloseCommentDialog(reason) {
   armDiscardPrompt(
     reason === 'escape'
       ? 'Press Escape again to discard'
-      : 'Click empty canvas again or press Escape to discard'
+      : 'Click outside again or press Escape to discard'
   );
   return false;
 }
@@ -8460,9 +8460,7 @@ $('commentDialogOverlay').addEventListener('click', function (e) {
     openCommentDialog(target, commentAnchorFromEvent(interactionTarget, e));
     return;
   }
-  if (underlying.closest('#canvas')) {
-    attemptCloseCommentDialog('canvas');
-  }
+  attemptCloseCommentDialog('outside');
 });
 
 $('canvas').addEventListener('click', function (e) {
