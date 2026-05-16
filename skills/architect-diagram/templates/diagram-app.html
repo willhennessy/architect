@@ -8516,15 +8516,19 @@ function isPendingTargetMatch(el) {
 
 async function submitPayload() {
   const payload = buildCommentPayload();
+  // Snapshot the count visible on the submit button at click time — drafts
+  // plus user-replied threads — so the in-flight / completed status card
+  // matches the number the user just acted on.
+  const submittedCount = payload.comments.length + userRepliedThreadCount();
   if (!payload.comments.length) {
     // No drafts queued — only user replies to Claude threads, which were
     // already POSTed to the bridge at the time they were submitted in the
     // popover. Surface a friendly acknowledgement so the click isn't silent.
-    if (userRepliedThreadCount() > 0) {
+    if (submittedCount > 0) {
       applyJobStatus({
         state: 'received',
         message: 'Your replies were sent automatically. Awaiting Claude.',
-        submitted_comment_count: 0,
+        submitted_comment_count: submittedCount,
         needs_refresh: false,
       });
     }
@@ -8537,7 +8541,7 @@ async function submitPayload() {
       state: 'failed',
       message: 'The local bridge is not configured in this diagram.',
       error: 'The local bridge is not configured in this diagram.',
-      submitted_comment_count: payload.comments.length,
+      submitted_comment_count: submittedCount,
       needs_refresh: false,
     });
     return;
@@ -8548,7 +8552,7 @@ async function submitPayload() {
   applyJobStatus({
     state: 'received',
     message: 'Comments sent. The agent is reviewing them now.',
-    submitted_comment_count: payload.comments.length,
+    submitted_comment_count: submittedCount,
     needs_refresh: false,
   });
 
@@ -8564,7 +8568,7 @@ async function submitPayload() {
         applyJobStatus({
           state: 'received',
           message: 'Another comment update is already in progress. Refreshing status…',
-          submitted_comment_count: payload.comments.length,
+          submitted_comment_count: submittedCount,
           needs_refresh: false,
         });
         hydrateLatestStatus();
@@ -8581,7 +8585,7 @@ async function submitPayload() {
       message: accepted.message,
       status_url: accepted.status_url,
       events_url: accepted.events_url,
-      submitted_comment_count: payload.comments.length,
+      submitted_comment_count: submittedCount,
       needs_refresh: false,
     });
     subscribeToJob({
@@ -8597,7 +8601,7 @@ async function submitPayload() {
       message: claudeDisconnected ? 'Restart Claude in the terminal' : 'The update hit a problem.',
       error: errorMessage,
       error_code: claudeDisconnected ? CLAUDE_NOT_CONNECTED_ERROR_CODE : '',
-      submitted_comment_count: payload.comments.length,
+      submitted_comment_count: submittedCount,
       needs_refresh: false,
     });
   } finally {
