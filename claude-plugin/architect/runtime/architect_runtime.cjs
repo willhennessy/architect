@@ -1613,7 +1613,32 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  log("fatal", { error: String(error), stack: error && error.stack ? error.stack : "" });
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    log("fatal", { error: String(error), stack: error && error.stack ? error.stack : "" });
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  // Class + constants used by tests
+  ClaudeThreadStore,
+  JobStore,
+  THREAD_SCHEMA_VERSION,
+  STATE_ORDER,
+  // Pure helpers
+  buildChannelEvent,
+  sanitizeMeta,
+  shortHash,
+  utcNowIso,
+  normalizeAuthor,
+  // Path helpers
+  claudeThreadsPath,
+  architectureDir,
+  runtimeDir,
+  feedbackJobsDir,
+  diagramPathFor,
+  // For HTTP integration tests that need to spin up the bridge in-process
+  requestHandler,
+  bridgeBaseUrl,
+};
