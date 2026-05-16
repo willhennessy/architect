@@ -7214,8 +7214,22 @@ function updateDetails() {
   });
 }
 
+function userRepliedThreadCount() {
+  return (state.threads || []).filter(function (t) {
+    if (!t || t.status === 'resolved') return false;
+    const messages = Array.isArray(t.messages) ? t.messages : [];
+    if (!messages.length) return false;
+    const last = messages[messages.length - 1];
+    return last && last.author === 'user';
+  }).length;
+}
+
+function readyToSubmitCount() {
+  return state.comments.length + userRepliedThreadCount();
+}
+
 function submitButtonLabel() {
-  const count = state.comments.length;
+  const count = readyToSubmitCount();
   if (state.submitInFlight) {
     return 'Sending ' + count + ' comment' + (count === 1 ? '' : 's') + '…';
   }
@@ -7226,7 +7240,7 @@ function updateSubmitButton() {
   const submitBtn = $('submitBtn');
   if (!submitBtn) return;
   submitBtn.textContent = submitButtonLabel();
-  submitBtn.disabled = state.comments.length === 0 || state.submitInFlight || isJobHandlingInProgress(state.activeJob);
+  submitBtn.disabled = readyToSubmitCount() === 0 || state.submitInFlight || isJobHandlingInProgress(state.activeJob);
 }
 
 function isCommentEditingLocked() {
@@ -8502,7 +8516,20 @@ function isPendingTargetMatch(el) {
 
 async function submitPayload() {
   const payload = buildCommentPayload();
-  if (!payload.comments.length) return;
+  if (!payload.comments.length) {
+    // No drafts queued — only user replies to Claude threads, which were
+    // already POSTed to the bridge at the time they were submitted in the
+    // popover. Surface a friendly acknowledgement so the click isn't silent.
+    if (userRepliedThreadCount() > 0) {
+      applyJobStatus({
+        state: 'received',
+        message: 'Your replies were sent automatically. Awaiting Claude.',
+        submitted_comment_count: 0,
+        needs_refresh: false,
+      });
+    }
+    return;
+  }
   state.lastSubmittedPayload = payload;
 
   if (!HANDOFF.bridge_url || !HANDOFF.output_root) {
