@@ -29,6 +29,25 @@ Optional debug output:
 
 - `<output-root>/architecture/.out/diagram-data.json` (when `--write-data-json` is enabled)
 
+Runtime state (managed by the bridge):
+
+- `<output-root>/architecture/.out/claude-comments.json` — persisted Claude-authored comment threads. Source of truth for the bidirectional comments surface. Read by `render-diagram-html.py` at render time and embedded into the diagram handoff; mutated only by the bridge in response to channel tool calls or user reply POSTs.
+
+## Channel surface (architect-comments)
+
+The `architect-comments` MCP channel exposes these tools:
+
+- `update_feedback_status` — progress updates for user-submitted feedback batches.
+- `finalize_feedback_update` — validate artifacts + rerender after Claude-authored edits.
+- `post_claude_comment` — open a new Claude-authored thread anchored to a specific view/element/relationship. Use during plan mode for genuine design questions.
+- `post_claude_reply` — reply into an existing thread, optionally with `resolves=true` to close on reply or `silent_resolve=true` to resolve without writing a message.
+- `resolve_thread` — silently resolve a thread without posting a reply.
+
+The channel delivers two event types to Claude:
+
+- `architect_feedback_batch` — user submitted a batch of comments. May include `open_thread_ids` + `open_thread_summary` for threads the user did **not** reply to in this batch. Claude must not act on those threads this turn.
+- `architect_thread_user_reply` — the user replied into a specific Claude-authored thread. Claude should use `post_claude_reply` (not `finalize_feedback_update`) to respond.
+
 ## Hard Rules
 
 - Do not invent architecture facts.

@@ -280,20 +280,56 @@ function buildFeedbackContent(body) {
 }
 
 function buildChannelEvent(body) {
+  const eventType = String(body.event_type || "architect_feedback_batch");
+
+  if (eventType === "architect_thread_user_reply") {
+    return {
+      meta: sanitizeMeta({
+        event_type: eventType,
+        bridge_url: body.bridge_url || "",
+        output_root: body.output_root || "",
+        diagram_revision_id: body.diagram_revision_id || "",
+        thread_id: body.thread_id || "",
+        view_id: body.view_id || "",
+        element_id: body.element_id || "",
+        relationship_id: body.relationship_id || "",
+        target_label: body.target_label || "",
+        status: body.status || "",
+        message_id: body.message_id || "",
+        message_author: body.message_author || "",
+        message_body: body.message_body || "",
+        parent_message_id: body.parent_message_id || "",
+      }),
+      content:
+        "The user replied to one of your comment threads on the architecture diagram. " +
+        "Read thread_id and message_body from the channel attributes and respond via post_claude_reply. " +
+        "Set resolves=true when the reply fully answers your question and no further conversation is needed.",
+    };
+  }
+
   const comments = Array.isArray(body.comments) ? body.comments : [];
   const commentLines = buildCommentLines(comments);
+  const meta = {
+    event_type: eventType,
+    state: body.state || "",
+    job_id: body.job_id || randomUUID(),
+    bridge_url: body.bridge_url || "",
+    output_root: body.output_root || "",
+    diagram_revision_id: body.diagram_revision_id || "",
+    comment_count: String(comments.length),
+    comments_json: comments,
+    comments_summary: commentLines,
+  };
+
+  if (Array.isArray(body.open_thread_ids) && body.open_thread_ids.length) {
+    meta.open_thread_ids = body.open_thread_ids;
+  }
+  if (Array.isArray(body.open_thread_summary) && body.open_thread_summary.length) {
+    meta.open_thread_summary = body.open_thread_summary;
+  }
+
   return {
-    meta: sanitizeMeta({
-      event_type: String(body.event_type || "architect_feedback_batch"),
-      state: body.state || "",
-      job_id: body.job_id || randomUUID(),
-      bridge_url: body.bridge_url || "",
-      output_root: body.output_root || "",
-      diagram_revision_id: body.diagram_revision_id || "",
-      comment_count: String(comments.length),
-      comments_json: comments,
-      comments_summary: commentLines,
-    }),
+    meta: sanitizeMeta(meta),
     content: buildFeedbackContent(body),
   };
 }
@@ -523,6 +559,245 @@ class JobStore {
   }
 }
 
+function claudeThreadsPath(outputRoot) {
+  return path.join(runtimeDir(outputRoot), "claude-comments.json");
+}
+
+const THREAD_SCHEMA_VERSION = 1;
+
+function sendThreadEvent(res, eventName, data) {
+  res.write(`event: ${eventName}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function normalizeAuthor(author) {
+  return author === "user" ? "user" : "claude";
+}
+
+class ClaudeThreadStore {
+  constructor() {
+    // subscribers keyed by resolved output_root path
+    this.subscribers = new Map();
+    // per-output-root write-lock chains so concurrent mutations serialize
+    this.locks = new Map();
+  }
+
+  async _withLock(outputRoot, fn) {
+    const prev = this.locks.get(outputRoot) || Promise.resolve();
+    let release;
+    const next = new Promise((resolve) => { release = resolve; });
+    this.locks.set(outputRoot, prev.then(() => next));
+    try {
+      await prev;
+      return await fn();
+    } finally {
+      release();
+      // Cleanup if no waiters are queued behind us.
+      if (this.locks.get(outputRoot) === prev.then(() => next)) {
+        this.locks.delete(outputRoot);
+      }
+    }
+  }
+
+  async _load(outputRoot) {
+    const filePath = claudeThreadsPath(outputRoot);
+    const raw = await readJson(filePath, null);
+    if (!raw || typeof raw !== "object") {
+      return { schema_version: THREAD_SCHEMA_VERSION, diagram_revision_id: "", threads: [] };
+    }
+    if (!Array.isArray(raw.threads)) raw.threads = [];
+    return raw;
+  }
+
+  async _save(outputRoot, data) {
+    data.schema_version = THREAD_SCHEMA_VERSION;
+    try {
+      data.diagram_revision_id = currentDiagramRevisionId(outputRoot) || data.diagram_revision_id || "";
+    } catch (_err) {
+      // Keep whatever was already set.
+    }
+    await writeJson(claudeThreadsPath(outputRoot), data);
+  }
+
+  _resolveRoot(outputRoot) {
+    const archDir = architectureDir(outputRoot);
+    if (!fs.existsSync(outputRoot) || !fs.existsSync(archDir)) {
+      throw new Error(`output_root must contain architecture/: ${outputRoot}`);
+    }
+    return path.resolve(outputRoot);
+  }
+
+  async snapshot(outputRoot) {
+    const resolved = path.resolve(outputRoot);
+    return await this._load(resolved);
+  }
+
+  async openThreads(outputRoot) {
+    const data = await this.snapshot(outputRoot);
+    return data.threads.filter((t) => t && t.status !== "resolved");
+  }
+
+  async threadSummary(outputRoot, threadIds) {
+    if (!Array.isArray(threadIds) || threadIds.length === 0) return [];
+    const data = await this.snapshot(outputRoot);
+    const byId = new Map(data.threads.map((t) => [t.thread_id, t]));
+    return threadIds
+      .map((tid) => {
+        const t = byId.get(tid);
+        if (!t) return null;
+        const label = t.target_label || t.element_id || t.relationship_id || "canvas";
+        return `- ${tid} (${label}): awaiting reply`;
+      })
+      .filter(Boolean);
+  }
+
+  async createThread(outputRoot, params) {
+    const resolved = this._resolveRoot(outputRoot);
+    const viewId = String(params.view_id || "").trim();
+    const body = String(params.body || "").trim();
+    if (!viewId) throw new Error("view_id is required");
+    if (!body) throw new Error("body is required");
+    if (params.element_id && params.relationship_id) {
+      throw new Error("element_id and relationship_id are mutually exclusive");
+    }
+
+    const author = normalizeAuthor(params.author);
+    const now = utcNowIso();
+    const threadHashInput = `${resolved}|${viewId}|${params.element_id || ""}|${params.relationship_id || ""}|${body}|${now}|${Math.random()}`;
+    const threadId = "thr_" + shortHash(threadHashInput, 10);
+    const messageId = "msg_" + shortHash(`${threadId}|${author}|${body}|${now}`, 10);
+
+    const message = {
+      id: messageId,
+      author: author,
+      body: body,
+      created_at: now,
+    };
+    const thread = {
+      thread_id: threadId,
+      view_id: viewId,
+      element_id: params.element_id || null,
+      relationship_id: params.relationship_id || null,
+      target_label: params.target_label ? String(params.target_label) : "",
+      status: "open",
+      resolved_at: null,
+      resolved_by: null,
+      diagram_revision_id: params.diagram_revision_id || currentDiagramRevisionId(resolved) || "",
+      created_at: now,
+      updated_at: now,
+      messages: [message],
+    };
+
+    await this._withLock(resolved, async () => {
+      const data = await this._load(resolved);
+      data.threads.push(thread);
+      await this._save(resolved, data);
+    });
+
+    this._broadcast(resolved, "thread_created", { thread });
+    return { thread, message };
+  }
+
+  async appendMessage(outputRoot, threadId, params) {
+    const resolved = this._resolveRoot(outputRoot);
+    const author = normalizeAuthor(params.author);
+    const body = String(params.body || "").trim();
+    if (!threadId) throw new Error("thread_id is required");
+    if (!body) throw new Error("body is required");
+
+    const now = utcNowIso();
+    const messageId = "msg_" + shortHash(`${threadId}|${author}|${body}|${now}|${Math.random()}`, 10);
+    const message = {
+      id: messageId,
+      author: author,
+      body: body,
+      created_at: now,
+    };
+
+    let updatedThread = null;
+    await this._withLock(resolved, async () => {
+      const data = await this._load(resolved);
+      const thread = data.threads.find((t) => t && t.thread_id === threadId);
+      if (!thread) {
+        const err = new Error(`thread not found: ${threadId}`);
+        err.code = "THREAD_NOT_FOUND";
+        throw err;
+      }
+      if (thread.status !== "open") {
+        const err = new Error(`thread ${threadId} is not open`);
+        err.code = "THREAD_NOT_OPEN";
+        throw err;
+      }
+      if (!Array.isArray(thread.messages)) thread.messages = [];
+      thread.messages.push(message);
+      thread.updated_at = now;
+      updatedThread = thread;
+      await this._save(resolved, data);
+    });
+
+    this._broadcast(resolved, "message_appended", { thread_id: threadId, message });
+    return { thread: updatedThread, message };
+  }
+
+  async resolveThread(outputRoot, threadId, params) {
+    const resolved = this._resolveRoot(outputRoot);
+    if (!threadId) throw new Error("thread_id is required");
+    const resolvedBy = normalizeAuthor(params && params.resolved_by);
+    const now = utcNowIso();
+
+    let updatedThread = null;
+    await this._withLock(resolved, async () => {
+      const data = await this._load(resolved);
+      const thread = data.threads.find((t) => t && t.thread_id === threadId);
+      if (!thread) {
+        const err = new Error(`thread not found: ${threadId}`);
+        err.code = "THREAD_NOT_FOUND";
+        throw err;
+      }
+      thread.status = "resolved";
+      thread.resolved_at = now;
+      thread.resolved_by = resolvedBy;
+      thread.updated_at = now;
+      updatedThread = thread;
+      await this._save(resolved, data);
+    });
+
+    this._broadcast(resolved, "thread_resolved", {
+      thread_id: threadId,
+      resolved_by: resolvedBy,
+      resolved_at: now,
+    });
+    return { thread: updatedThread };
+  }
+
+  subscribe(outputRoot, response) {
+    const key = path.resolve(outputRoot);
+    if (!this.subscribers.has(key)) this.subscribers.set(key, new Set());
+    this.subscribers.get(key).add(response);
+  }
+
+  unsubscribe(outputRoot, response) {
+    const key = path.resolve(outputRoot);
+    const set = this.subscribers.get(key);
+    if (!set) return;
+    set.delete(response);
+    if (set.size === 0) this.subscribers.delete(key);
+  }
+
+  _broadcast(outputRoot, eventName, data) {
+    const key = path.resolve(outputRoot);
+    const set = this.subscribers.get(key);
+    if (!set) return;
+    for (const response of set) {
+      try {
+        sendThreadEvent(response, eventName, data);
+      } catch (_err) {
+        // Subscriber will be cleaned up on req close.
+      }
+    }
+  }
+}
+
 function parseRequestBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -696,7 +971,7 @@ function finalizeFeedbackUpdate(args) {
 }
 
 const mcp = new Server(
-  { name, version: "0.1.2" },
+  { name, version: "0.1.3" },
   {
     capabilities: {
       experimental: { "claude/channel": {} },
@@ -711,11 +986,15 @@ const mcp = new Server(
       "Use update_feedback_status to report progress back to the browser bridge in a compact, implementation-aware voice. " +
       "After you edit the artifacts, call finalize_feedback_update instead of guessing shell commands so validation and rendering stay deterministic. " +
       "Keep model edits contract-safe, for example use `database` instead of `datastore`. " +
-      "When you summarize the result, describe the actual written graph changes and keep the browser-ready completion message short.",
+      "When you summarize the result, describe the actual written graph changes and keep the browser-ready completion message short. " +
+      "When you need to ask the user a design question during plan mode, call post_claude_comment anchored to the specific view_id and element_id or relationship_id that the question is about. One focused question per comment, always state the default you assumed. Do not post comments for stylistic or minor concerns. " +
+      "When a <channel source=\"architect-comments\" ...> event arrives with event_type=architect_thread_user_reply, use post_claude_reply (NOT finalize_feedback_update) to respond. Read thread_id and message_body from the channel attributes. Set resolves=true when the user's reply fully answers your question and no further conversation is needed; otherwise reply without resolving. Use resolve_thread for silent resolution when the question became moot without needing a textual reply. " +
+      "If a feedback batch event includes open_thread_ids or open_thread_summary, the user did NOT reply to those Claude-authored threads on this turn. Do not resolve them, do not add a follow-up reply, and do not mention them in your completion message — treat them as pending for a future turn.",
   },
 );
 
 const store = new JobStore();
+const threadStore = new ClaudeThreadStore();
 
 mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -754,6 +1033,56 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["output_root"],
       },
     },
+    {
+      name: "post_claude_comment",
+      description:
+        "Post a Claude-authored comment anchored to a specific view + element/relationship on the rendered architecture diagram. Use during plan mode for genuine open design questions. One focused question per comment; always state the default you assumed.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bridge_url: { type: "string", description: "Bridge base URL (the runtime's HTTP listener)." },
+          output_root: { type: "string", description: "Absolute or repo-relative output root that contains architecture/." },
+          view_id: { type: "string", description: "View id the comment targets (e.g. system-context, container)." },
+          element_id: { type: "string", description: "Optional element id to anchor. Mutually exclusive with relationship_id." },
+          relationship_id: { type: "string", description: "Optional relationship id to anchor. Mutually exclusive with element_id." },
+          target_label: { type: "string", description: "Human-readable label preserved if the anchor is later removed." },
+          body: { type: "string", description: "Comment text. One focused question. State the default you assumed." },
+          diagram_revision_id: { type: "string", description: "Stamp the thread with this diagram revision id." },
+        },
+        required: ["bridge_url", "output_root", "view_id", "body"],
+      },
+    },
+    {
+      name: "post_claude_reply",
+      description:
+        "Reply into an existing Claude comment thread, optionally resolving it. Call this in response to an architect_thread_user_reply channel event.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bridge_url: { type: "string" },
+          output_root: { type: "string" },
+          thread_id: { type: "string", description: "Thread id from the architect_thread_user_reply event." },
+          body: { type: "string", description: "Reply text. Required unless silent_resolve is true." },
+          resolves: { type: "boolean", description: "Mark thread resolved after appending the reply." },
+          silent_resolve: { type: "boolean", description: "Resolve without appending a reply (ignores body)." },
+        },
+        required: ["bridge_url", "output_root", "thread_id"],
+      },
+    },
+    {
+      name: "resolve_thread",
+      description:
+        "Silently resolve a Claude comment thread without appending a reply. Use when the question became moot without needing further conversation.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bridge_url: { type: "string" },
+          output_root: { type: "string" },
+          thread_id: { type: "string" },
+        },
+        required: ["bridge_url", "output_root", "thread_id"],
+      },
+    },
   ],
 }));
 
@@ -786,6 +1115,102 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
   if (req.params.name === "finalize_feedback_update") {
     const result = finalizeFeedbackUpdate(req.params.arguments || {});
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+
+  if (req.params.name === "post_claude_comment") {
+    const args = req.params.arguments || {};
+    const bridgeUrl = String(args.bridge_url || "").replace(/\/$/, "");
+    if (!bridgeUrl) throw new Error("bridge_url is required");
+    if (!args.output_root) throw new Error("output_root is required");
+    if (!args.view_id) throw new Error("view_id is required");
+    if (!args.body) throw new Error("body is required");
+    if (args.element_id && args.relationship_id) {
+      throw new Error("element_id and relationship_id are mutually exclusive");
+    }
+    const response = await fetch(`${bridgeUrl}/claude-threads`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        output_root: args.output_root,
+        view_id: args.view_id,
+        element_id: args.element_id || null,
+        relationship_id: args.relationship_id || null,
+        target_label: args.target_label || "",
+        body: args.body,
+        diagram_revision_id: args.diagram_revision_id || "",
+        author: "claude",
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`bridge create-thread failed (${response.status}): ${await response.text()}`);
+    }
+    const result = await response.json();
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+
+  if (req.params.name === "post_claude_reply") {
+    const args = req.params.arguments || {};
+    const bridgeUrl = String(args.bridge_url || "").replace(/\/$/, "");
+    if (!bridgeUrl) throw new Error("bridge_url is required");
+    if (!args.output_root) throw new Error("output_root is required");
+    if (!args.thread_id) throw new Error("thread_id is required");
+
+    const resolves = Boolean(args.resolves);
+    const silentResolve = Boolean(args.silent_resolve);
+
+    if (silentResolve) {
+      const r = await fetch(`${bridgeUrl}/claude-threads/${encodeURIComponent(args.thread_id)}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ output_root: args.output_root, resolved_by: "claude" }),
+      });
+      if (!r.ok) throw new Error(`bridge resolve failed (${r.status}): ${await r.text()}`);
+      return { content: [{ type: "text", text: JSON.stringify(await r.json(), null, 2) }] };
+    }
+
+    if (!args.body) throw new Error("body is required unless silent_resolve is true");
+
+    const messageRes = await fetch(`${bridgeUrl}/claude-threads/${encodeURIComponent(args.thread_id)}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ output_root: args.output_root, author: "claude", body: args.body }),
+    });
+    if (!messageRes.ok) {
+      throw new Error(`bridge append-message failed (${messageRes.status}): ${await messageRes.text()}`);
+    }
+    const messageResult = await messageRes.json();
+
+    if (resolves) {
+      const resolveRes = await fetch(`${bridgeUrl}/claude-threads/${encodeURIComponent(args.thread_id)}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ output_root: args.output_root, resolved_by: "claude" }),
+      });
+      if (!resolveRes.ok) {
+        throw new Error(`bridge resolve failed (${resolveRes.status}): ${await resolveRes.text()}`);
+      }
+      const resolveResult = await resolveRes.json();
+      return { content: [{ type: "text", text: JSON.stringify({ message: messageResult, resolve: resolveResult }, null, 2) }] };
+    }
+
+    return { content: [{ type: "text", text: JSON.stringify({ message: messageResult }, null, 2) }] };
+  }
+
+  if (req.params.name === "resolve_thread") {
+    const args = req.params.arguments || {};
+    const bridgeUrl = String(args.bridge_url || "").replace(/\/$/, "");
+    if (!bridgeUrl) throw new Error("bridge_url is required");
+    if (!args.output_root) throw new Error("output_root is required");
+    if (!args.thread_id) throw new Error("thread_id is required");
+    const response = await fetch(`${bridgeUrl}/claude-threads/${encodeURIComponent(args.thread_id)}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ output_root: args.output_root, resolved_by: "claude" }),
+    });
+    if (!response.ok) {
+      throw new Error(`bridge resolve failed (${response.status}): ${await response.text()}`);
+    }
+    return { content: [{ type: "text", text: JSON.stringify(await response.json(), null, 2) }] };
   }
 
   throw new Error(`unknown tool: ${req.params.name}`);
@@ -1006,6 +1431,164 @@ function requestHandler(server) {
       return;
     }
 
+    // === Claude comment threads ===
+
+    if (req.method === "GET" && parsed.pathname === "/claude-threads") {
+      const outputRoot = parsed.searchParams.get("output_root");
+      if (!outputRoot) {
+        sendJson(res, 400, { error: "output_root is required" });
+        return;
+      }
+      try {
+        const data = await threadStore.snapshot(path.resolve(outputRoot));
+        sendJson(res, 200, data);
+      } catch (error) {
+        sendJson(res, 500, { error: String(error.message || error) });
+      }
+      return;
+    }
+
+    if (req.method === "GET" && parsed.pathname === "/claude-threads/events") {
+      const outputRoot = parsed.searchParams.get("output_root");
+      if (!outputRoot) {
+        sendJson(res, 400, { error: "output_root is required" });
+        return;
+      }
+      const resolvedRoot = path.resolve(outputRoot);
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+      });
+      threadStore.subscribe(resolvedRoot, res);
+      try {
+        const snapshot = await threadStore.snapshot(resolvedRoot);
+        sendThreadEvent(res, "snapshot", snapshot);
+      } catch (error) {
+        log("claude-threads snapshot failed", { error: String(error) });
+      }
+      const heartbeat = setInterval(() => {
+        try {
+          res.write(": heartbeat\n\n");
+        } catch (_err) {
+          clearInterval(heartbeat);
+        }
+      }, 15000);
+      req.on("close", () => {
+        clearInterval(heartbeat);
+        threadStore.unsubscribe(resolvedRoot, res);
+      });
+      return;
+    }
+
+    if (req.method === "POST" && parsed.pathname === "/claude-threads") {
+      let body;
+      try {
+        body = await parseRequestBody(req);
+      } catch {
+        sendJson(res, 400, { error: "invalid json" });
+        return;
+      }
+      if (!body.output_root) {
+        sendJson(res, 400, { error: "output_root is required" });
+        return;
+      }
+      try {
+        const result = await threadStore.createThread(path.resolve(body.output_root), {
+          view_id: body.view_id,
+          element_id: body.element_id || null,
+          relationship_id: body.relationship_id || null,
+          target_label: body.target_label || "",
+          body: body.body,
+          diagram_revision_id: body.diagram_revision_id || "",
+          author: body.author || "claude",
+        });
+        sendJson(res, 201, result);
+      } catch (error) {
+        sendJson(res, 400, { error: String(error.message || error) });
+      }
+      return;
+    }
+
+    const threadMessagesMatch = parsed.pathname.match(/^\/claude-threads\/([^/]+)\/messages$/);
+    if (req.method === "POST" && threadMessagesMatch) {
+      const threadId = decodeURIComponent(threadMessagesMatch[1]);
+      let body;
+      try {
+        body = await parseRequestBody(req);
+      } catch {
+        sendJson(res, 400, { error: "invalid json" });
+        return;
+      }
+      if (!body.output_root) {
+        sendJson(res, 400, { error: "output_root is required" });
+        return;
+      }
+      const author = body.author === "user" ? "user" : "claude";
+      try {
+        const result = await threadStore.appendMessage(path.resolve(body.output_root), threadId, {
+          author: author,
+          body: body.body,
+        });
+
+        if (author === "user") {
+          try {
+            const thread = result.thread || {};
+            await sendChannelNotification({
+              event_type: "architect_thread_user_reply",
+              bridge_url: bridgeBaseUrl(server),
+              output_root: path.resolve(body.output_root),
+              diagram_revision_id: thread.diagram_revision_id || currentDiagramRevisionId(path.resolve(body.output_root)) || "",
+              thread_id: thread.thread_id || threadId,
+              view_id: thread.view_id || "",
+              element_id: thread.element_id || "",
+              relationship_id: thread.relationship_id || "",
+              target_label: thread.target_label || "",
+              status: thread.status || "open",
+              message_id: result.message.id,
+              message_author: "user",
+              message_body: result.message.body,
+            });
+          } catch (notifyError) {
+            log("architect_thread_user_reply delivery failed", { error: String(notifyError) });
+          }
+        }
+
+        sendJson(res, 200, result);
+      } catch (error) {
+        const code = error && error.code === "THREAD_NOT_FOUND" ? 404 : 400;
+        sendJson(res, code, { error: String(error.message || error) });
+      }
+      return;
+    }
+
+    const threadResolveMatch = parsed.pathname.match(/^\/claude-threads\/([^/]+)\/resolve$/);
+    if (req.method === "POST" && threadResolveMatch) {
+      const threadId = decodeURIComponent(threadResolveMatch[1]);
+      let body;
+      try {
+        body = await parseRequestBody(req);
+      } catch {
+        sendJson(res, 400, { error: "invalid json" });
+        return;
+      }
+      if (!body.output_root) {
+        sendJson(res, 400, { error: "output_root is required" });
+        return;
+      }
+      try {
+        const result = await threadStore.resolveThread(path.resolve(body.output_root), threadId, {
+          resolved_by: body.resolved_by || "claude",
+        });
+        sendJson(res, 200, result);
+      } catch (error) {
+        const code = error && error.code === "THREAD_NOT_FOUND" ? 404 : 400;
+        sendJson(res, code, { error: String(error.message || error) });
+      }
+      return;
+    }
+
     sendJson(res, 404, { error: "not found" });
   };
 }
@@ -1030,7 +1613,32 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  log("fatal", { error: String(error), stack: error && error.stack ? error.stack : "" });
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    log("fatal", { error: String(error), stack: error && error.stack ? error.stack : "" });
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  // Class + constants used by tests
+  ClaudeThreadStore,
+  JobStore,
+  THREAD_SCHEMA_VERSION,
+  STATE_ORDER,
+  // Pure helpers
+  buildChannelEvent,
+  sanitizeMeta,
+  shortHash,
+  utcNowIso,
+  normalizeAuthor,
+  // Path helpers
+  claudeThreadsPath,
+  architectureDir,
+  runtimeDir,
+  feedbackJobsDir,
+  diagramPathFor,
+  // For HTTP integration tests that need to spin up the bridge in-process
+  requestHandler,
+  bridgeBaseUrl,
+};

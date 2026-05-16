@@ -197,6 +197,10 @@ def feedback_jobs_dir(output_root: Path) -> Path:
     return runtime_dir(output_root) / "feedback-jobs"
 
 
+def claude_threads_path(output_root: Path) -> Path:
+    return runtime_dir(output_root) / "claude-comments.json"
+
+
 def diagram_html_path(output_root: Path) -> Path:
     return architecture_dir(output_root) / "diagram.html"
 
@@ -1055,7 +1059,40 @@ class ClaudeChannelNotifier:
     def notify(self, record: JobRecord, state: str, message: str) -> None:
         if not self.url:
             return
-        body = json.dumps(self._payload_for(record, state, message), ensure_ascii=False).encode("utf-8")
+        payload = self._payload_for(record, state, message)
+        job_payload = record.payload
+        open_thread_ids = job_payload.get("open_thread_ids")
+        if isinstance(open_thread_ids, list) and open_thread_ids:
+            payload["open_thread_ids"] = [str(x) for x in open_thread_ids if x]
+            payload["open_thread_summary"] = str(job_payload.get("open_thread_summary") or "")
+        self._post(payload)
+
+    def notify_thread_event(self, event_type: str, output_root: Path, bridge_url: str, diagram_revision_id: str,
+                            thread: Dict[str, Any], message: Optional[Dict[str, Any]] = None) -> None:
+        if not self.url:
+            return
+        payload = {
+            "event_type": event_type,
+            "output_root": str(output_root),
+            "bridge_url": bridge_url or "",
+            "diagram_revision_id": diagram_revision_id or "",
+            "thread_id": str(thread.get("thread_id") or ""),
+            "view_id": str(thread.get("view_id") or ""),
+            "element_id": thread.get("element_id"),
+            "relationship_id": thread.get("relationship_id"),
+            "target_label": str(thread.get("target_label") or ""),
+            "status": str(thread.get("status") or ""),
+        }
+        if message is not None:
+            payload["message_id"] = str(message.get("id") or "")
+            payload["message_author"] = str(message.get("author") or "")
+            payload["message_body"] = str(message.get("body") or "")
+        self._post(payload)
+
+    def _post(self, payload: Dict[str, Any]) -> None:
+        if not self.url:
+            return
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json; charset=utf-8"}
         if self.secret:
             headers["X-Architect-Secret"] = self.secret
@@ -1247,6 +1284,146 @@ class JobStore:
         )
 
 
+class ClaudeThreadStore:
+    """File-backed store for Claude-authored comment threads.
+
+    Threads persist to architecture/.out/claude-comments.json. Subscribers (SSE
+    clients) are keyed by output_root so multiple browser tabs on the same
+    diagram all receive thread_created, message_appended, and thread_resolved
+    events in real time.
+    """
+
+    SCHEMA_VERSION = 1
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._subscribers: Dict[str, List[queue.Queue]] = {}
+
+    def _load(self, output_root: Path) -> Dict[str, Any]:
+        data = read_json(claude_threads_path(output_root), default=None)
+        if not isinstance(data, dict):
+            data = {}
+        if not isinstance(data.get("threads"), list):
+            data["threads"] = []
+        data.setdefault("schema_version", self.SCHEMA_VERSION)
+        return data
+
+    def _save(self, output_root: Path, data: Dict[str, Any]) -> None:
+        data["schema_version"] = self.SCHEMA_VERSION
+        data["diagram_revision_id"] = current_diagram_revision_id(output_root)
+        write_json(claude_threads_path(output_root), data)
+
+    def snapshot(self, output_root: Path) -> Dict[str, Any]:
+        with self._lock:
+            return self._load(output_root)
+
+    def open_threads(self, output_root: Path) -> List[Dict[str, Any]]:
+        data = self.snapshot(output_root)
+        return [t for t in data.get("threads", []) if t.get("status") == "open"]
+
+    def thread_summary(self, output_root: Path, thread_ids: List[str]) -> str:
+        data = self.snapshot(output_root)
+        lookup = {t.get("thread_id"): t for t in data.get("threads", [])}
+        lines: List[str] = []
+        for tid in thread_ids:
+            thread = lookup.get(tid)
+            if not thread:
+                continue
+            label = thread.get("target_label") or thread.get("thread_id")
+            lines.append(f"- {tid} ({label}): awaiting reply")
+        return "\n".join(lines)
+
+    def create_thread(self, output_root: Path, *, view_id: str, element_id: Optional[str],
+                      relationship_id: Optional[str], target_label: str, body: str,
+                      diagram_revision_id: str, author: str = "claude") -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        output_root = Path(output_root).expanduser().resolve()
+        if not architecture_dir(output_root).exists():
+            raise BridgeError(f"output_root must contain architecture/: {output_root}")
+
+        now = utc_now_iso()
+        thread_id = "thr_" + short_hash(f"{output_root}|{view_id}|{element_id}|{relationship_id}|{now}|{random.random()}", 10)
+        message_id = "msg_" + short_hash(thread_id + now + body, 10)
+        message = {"id": message_id, "author": author, "body": body, "created_at": now}
+        thread = {
+            "thread_id": thread_id,
+            "view_id": view_id,
+            "element_id": element_id,
+            "relationship_id": relationship_id,
+            "target_label": target_label,
+            "status": "open",
+            "resolved_at": None,
+            "resolved_by": None,
+            "diagram_revision_id": diagram_revision_id or current_diagram_revision_id(output_root),
+            "created_at": now,
+            "updated_at": now,
+            "messages": [message],
+        }
+
+        with self._lock:
+            data = self._load(output_root)
+            data["threads"].append(thread)
+            self._save(output_root, data)
+        self._broadcast(output_root, "thread_created", {"thread": thread})
+        return thread, message
+
+    def append_message(self, output_root: Path, thread_id: str, *, author: str, body: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        output_root = Path(output_root).expanduser().resolve()
+        now = utc_now_iso()
+        message_id = "msg_" + short_hash(thread_id + now + body + author, 10)
+        message = {"id": message_id, "author": author, "body": body, "created_at": now}
+        with self._lock:
+            data = self._load(output_root)
+            for thread in data.get("threads", []):
+                if thread.get("thread_id") == thread_id:
+                    if thread.get("status") != "open":
+                        raise BridgeError(f"thread is not open: {thread_id}")
+                    thread.setdefault("messages", []).append(message)
+                    thread["updated_at"] = now
+                    self._save(output_root, data)
+                    self._broadcast(output_root, "message_appended", {"thread_id": thread_id, "message": message})
+                    return thread, message
+        raise BridgeError(f"thread not found: {thread_id}")
+
+    def resolve_thread(self, output_root: Path, thread_id: str, *, resolved_by: str) -> Dict[str, Any]:
+        output_root = Path(output_root).expanduser().resolve()
+        now = utc_now_iso()
+        with self._lock:
+            data = self._load(output_root)
+            for thread in data.get("threads", []):
+                if thread.get("thread_id") == thread_id:
+                    thread["status"] = "resolved"
+                    thread["resolved_at"] = now
+                    thread["resolved_by"] = resolved_by
+                    thread["updated_at"] = now
+                    self._save(output_root, data)
+                    self._broadcast(output_root, "thread_resolved", {"thread_id": thread_id, "resolved_by": resolved_by, "resolved_at": now})
+                    return thread
+        raise BridgeError(f"thread not found: {thread_id}")
+
+    def subscribe(self, output_root: Path) -> queue.Queue:
+        q: queue.Queue = queue.Queue(maxsize=32)
+        key = str(Path(output_root).expanduser().resolve())
+        with self._lock:
+            self._subscribers.setdefault(key, []).append(q)
+        return q
+
+    def unsubscribe(self, output_root: Path, subscriber: queue.Queue) -> None:
+        key = str(Path(output_root).expanduser().resolve())
+        with self._lock:
+            subs = self._subscribers.get(key) or []
+            if subscriber in subs:
+                subs.remove(subscriber)
+
+    def _broadcast(self, output_root: Path, event: str, data: Dict[str, Any]) -> None:
+        key = str(Path(output_root).expanduser().resolve())
+        subs = list(self._subscribers.get(key) or [])
+        for q in subs:
+            try:
+                q.put_nowait({"event": event, "data": data})
+            except queue.Full:
+                pass
+
+
 class WorkerManager:
     def __init__(self, store: JobStore, adapter: TerminalHostAdapter, channel_handoff_only: bool = False):
         self.store = store
@@ -1370,10 +1547,13 @@ class WorkerManager:
 
 
 class BridgeServer(ThreadingHTTPServer):
-    def __init__(self, server_address: Tuple[str, int], handler_cls, store: JobStore, worker: WorkerManager):
+    def __init__(self, server_address: Tuple[str, int], handler_cls, store: JobStore, worker: WorkerManager,
+                 thread_store: ClaudeThreadStore, notifier: Optional[ClaudeChannelNotifier]):
         super().__init__(server_address, handler_cls)
         self.store = store
         self.worker = worker
+        self.thread_store = thread_store
+        self.notifier = notifier
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -1398,6 +1578,26 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"event: state\n")
         self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
         self.wfile.flush()
+
+    def _send_sse(self, event_name: str, data: Dict[str, Any]) -> None:
+        body = json.dumps(data, ensure_ascii=False)
+        self.wfile.write(f"event: {event_name}\n".encode("utf-8"))
+        self.wfile.write(f"data: {body}\n\n".encode("utf-8"))
+        self.wfile.flush()
+
+    def _read_json_body(self) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+        try:
+            content_length = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            content_length = 0
+        raw = self.rfile.read(content_length)
+        try:
+            payload = json.loads(raw.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return None, "invalid json"
+        if not isinstance(payload, dict):
+            return None, "body must be a JSON object"
+        return payload, None
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
@@ -1462,6 +1662,46 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.server.store.unsubscribe(record, subscriber)
             return
 
+        if parsed.path == "/claude-threads":
+            query = parse_qs(parsed.query)
+            raw_root = (query.get("output_root") or [""])[0]
+            if not raw_root:
+                self._send_json(400, {"error": "output_root is required"})
+                return
+            output_root = Path(raw_root).expanduser().resolve()
+            snapshot = self.server.thread_store.snapshot(output_root)
+            self._send_json(200, snapshot)
+            return
+
+        if parsed.path == "/claude-threads/events":
+            query = parse_qs(parsed.query)
+            raw_root = (query.get("output_root") or [""])[0]
+            if not raw_root:
+                self._send_json(400, {"error": "output_root is required"})
+                return
+            output_root = Path(raw_root).expanduser().resolve()
+            subscriber = self.server.thread_store.subscribe(output_root)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self._send_sse("snapshot", self.server.thread_store.snapshot(output_root))
+            try:
+                while True:
+                    try:
+                        event = subscriber.get(timeout=15)
+                        self._send_sse(event["event"], event["data"])
+                    except queue.Empty:
+                        self.wfile.write(b": heartbeat\n\n")
+                        self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            finally:
+                self.server.thread_store.unsubscribe(output_root, subscriber)
+            return
+
         self._send_json(404, {"error": "not found"})
 
     def do_POST(self) -> None:
@@ -1512,6 +1752,104 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(200, status)
             return
 
+        if parsed.path == "/claude-threads":
+            payload, err = self._read_json_body()
+            if err or payload is None:
+                self._send_json(400, {"error": err or "invalid body"})
+                return
+            required = ["output_root", "view_id", "target_label", "body"]
+            for key in required:
+                if not isinstance(payload.get(key), str) or not payload.get(key).strip():
+                    self._send_json(400, {"error": f"{key} is required"})
+                    return
+            element_id = payload.get("element_id")
+            relationship_id = payload.get("relationship_id")
+            if element_id and relationship_id:
+                self._send_json(400, {"error": "element_id and relationship_id are mutually exclusive"})
+                return
+            try:
+                thread, message = self.server.thread_store.create_thread(
+                    Path(payload["output_root"]),
+                    view_id=payload["view_id"],
+                    element_id=element_id,
+                    relationship_id=relationship_id,
+                    target_label=payload["target_label"],
+                    body=payload["body"],
+                    diagram_revision_id=str(payload.get("diagram_revision_id") or ""),
+                    author=str(payload.get("author") or "claude"),
+                )
+            except BridgeError as e:
+                self._send_json(400, {"error": str(e)})
+                return
+            self._send_json(201, {"thread": thread, "message": message})
+            return
+
+        m = re.match(r"^/claude-threads/([^/]+)/messages$", parsed.path)
+        if m:
+            thread_id = m.group(1)
+            payload, err = self._read_json_body()
+            if err or payload is None:
+                self._send_json(400, {"error": err or "invalid body"})
+                return
+            for key in ("output_root", "author", "body"):
+                if not isinstance(payload.get(key), str) or not payload.get(key).strip():
+                    self._send_json(400, {"error": f"{key} is required"})
+                    return
+            author = payload["author"]
+            if author not in ("user", "claude"):
+                self._send_json(400, {"error": "author must be 'user' or 'claude'"})
+                return
+            try:
+                thread, message = self.server.thread_store.append_message(
+                    Path(payload["output_root"]),
+                    thread_id,
+                    author=author,
+                    body=payload["body"],
+                )
+            except BridgeError as e:
+                self._send_json(400, {"error": str(e)})
+                return
+            if author == "user" and self.server.notifier:
+                try:
+                    self.server.notifier.notify_thread_event(
+                        "architect_thread_user_reply",
+                        Path(payload["output_root"]),
+                        bridge_url=f"http://{self.server.server_address[0]}:{self.server.server_address[1]}",
+                        diagram_revision_id=str(payload.get("diagram_revision_id") or ""),
+                        thread=thread,
+                        message=message,
+                    )
+                except BridgeError:
+                    pass
+            self._send_json(200, {"thread": thread, "message": message})
+            return
+
+        m = re.match(r"^/claude-threads/([^/]+)/resolve$", parsed.path)
+        if m:
+            thread_id = m.group(1)
+            payload, err = self._read_json_body()
+            if err or payload is None:
+                self._send_json(400, {"error": err or "invalid body"})
+                return
+            if not isinstance(payload.get("output_root"), str) or not payload["output_root"].strip():
+                self._send_json(400, {"error": "output_root is required"})
+                return
+            resolved_by = str(payload.get("resolved_by") or "claude")
+            if resolved_by not in ("user", "claude"):
+                self._send_json(400, {"error": "resolved_by must be 'user' or 'claude'"})
+                return
+            try:
+                thread = self.server.thread_store.resolve_thread(
+                    Path(payload["output_root"]),
+                    thread_id,
+                    resolved_by=resolved_by,
+                )
+            except BridgeError as e:
+                self._send_json(400, {"error": str(e)})
+                return
+            self._send_json(200, {"thread": thread})
+            return
+
         if parsed.path != "/feedback-batches":
             self._send_json(404, {"error": "not found"})
             return
@@ -1536,6 +1874,20 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
 
         payload["bridge_url"] = f"http://{self.server.server_address[0]}:{self.server.server_address[1]}"
+
+        raw_open_thread_ids = payload.get("open_thread_ids")
+        if isinstance(raw_open_thread_ids, list):
+            cleaned_ids = [str(x).strip() for x in raw_open_thread_ids if isinstance(x, str) and x.strip()]
+            if cleaned_ids:
+                payload["open_thread_ids"] = cleaned_ids
+                try:
+                    payload["open_thread_summary"] = self.server.thread_store.thread_summary(
+                        Path(payload["output_root"]), cleaned_ids
+                    )
+                except Exception:  # noqa: BLE001
+                    payload["open_thread_summary"] = ""
+            else:
+                payload.pop("open_thread_ids", None)
 
         try:
             record = self.server.store.create_job(payload)
@@ -1573,12 +1925,13 @@ def main() -> int:
     args = ap.parse_args()
 
     store = JobStore()
+    thread_store = ClaudeThreadStore()
     notifier = None
     if args.claude_channel_url:
         notifier = ClaudeChannelNotifier(args.claude_channel_url, secret=args.claude_channel_secret)
     adapter = TerminalHostAdapter(verbose=not args.quiet, channel_notifier=notifier)
     worker = WorkerManager(store, adapter, channel_handoff_only=args.channel_handoff_only)
-    server = BridgeServer((args.bind, args.port), RequestHandler, store, worker)
+    server = BridgeServer((args.bind, args.port), RequestHandler, store, worker, thread_store, notifier)
 
     print(f"[comment-feedback] listening on http://{args.bind}:{args.port}", flush=True)
     try:

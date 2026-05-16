@@ -268,6 +268,20 @@ If the environment has created a Plan Mode document for the current plan, append
 
 If workspace writes are blocked in native Plan Mode, do **not** replace this with a "deferred" note. Finish the normal plan, then ask the exact handoff question from the Plan Mode++ contract.
 
+### 9a) Post design questions as Claude-authored comments (optional)
+
+If — while drafting the architecture — you have left **genuine open questions that would meaningfully change the design** depending on the answer (async vs sync, single vs split service, which storage engine, auth vs SSO, queue vs stream, etc.), call `post_claude_comment` through the `architect-comments` channel for each question, anchored to the relevant `view_id` and `element_id` or `relationship_id`.
+
+Rules:
+
+- One focused question per comment.
+- State the default you assumed in the comment body so the user can ratify or redirect.
+- Anchor to the most specific element available (node > edge > canvas).
+- Do **not** post comments for stylistic or minor concerns, or questions that are already documented decisions.
+- If there are no real open questions, skip this step entirely. There is no quota.
+
+This runs **after** `architect-diagram` returns successfully (so `bridge_url` and the rendered diagram exist) and **before** the appended `## Architecture Diagram` handoff section.
+
 ### 10) Stay synchronized with the host planning loop
 
 After producing a draft or revision:

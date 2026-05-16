@@ -1006,7 +1006,7 @@
     }
 
     .sidebar[data-mode="comment"] .sidebar-body {
-      padding: 18px 0 0;
+      padding: 18px 16px 0;
     }
 
     .sidebar[data-mode="comment"] .sidebar-footer {
@@ -1255,14 +1255,6 @@
       text-wrap: pretty;
     }
 
-    .comment-card-target::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      flex: 0 0 auto;
-      border-radius: 999px;
-      background: var(--comment-tone, var(--color-signal));
-    }
 
     .comment-card-delete {
       background: none;
@@ -1434,20 +1426,11 @@
     }
 
     .relationship-endpoints {
-      display: flex;
-      align-items: center;
-      column-gap: 8px;
-      row-gap: 0;
-      flex-wrap: wrap;
       color: var(--color-text-tertiary);
       font-size: 11px;
       font-weight: 500;
       line-height: 1.1;
       margin: 0 0 4px;
-    }
-
-    .relationship-arrow {
-      color: var(--color-text-muted);
     }
 
     .relationship-label {
@@ -1575,6 +1558,10 @@
       opacity: 0;
       transform: translate3d(0, 12px, 0) scale(0.96);
       filter: blur(10px);
+      box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.14),
+        0 4px 8px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.06);
     }
 
     .comment-popover[data-placement] {
@@ -1761,7 +1748,7 @@
     }
 
     .comment-popover .modal-header {
-      margin: 0 0 10px;
+      margin: 0 0 16px;
       font-size: 14px;
       font-weight: 600;
       letter-spacing: 0;
@@ -2235,6 +2222,271 @@
         transition: none !important;
       }
     }
+
+    .claude-thread-marker {
+      cursor: pointer;
+      pointer-events: all;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.12));
+    }
+    .claude-thread-marker use {
+      transform-box: fill-box;
+      transform-origin: bottom left;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .claude-thread-marker:hover use {
+      transform: scale(1.18);
+    }
+
+    .comment-list-section {
+      margin-top: 16px;
+    }
+    .comment-list-section:first-child {
+      margin-top: 0;
+    }
+    /* Sidebar comment groups (per SIDEBAR_SPEC.md) */
+    .comment-section + .comment-section {
+      margin-top: 22px;
+    }
+    .comment-section-title {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+    }
+    .comment-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .comment-group + .comment-group {
+      margin-top: 8px;
+    }
+    .comment-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--color-fg-muted, #857c6e);
+      border-bottom: 1px solid rgba(31, 28, 23, 0.08);
+    }
+    [data-theme="dark"] .comment-group-header {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+    .comment-group-header-dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 6px;
+      border-radius: 1.5px;
+      background: var(--group-tone, #534c40);
+      display: inline-block;
+    }
+    .comment-group-header-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .comment-group-header-count {
+      flex-shrink: 0;
+      color: var(--color-fg-faint, #a8a092);
+      font-weight: 500;
+    }
+    .comment-group .comment-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .comment-card.is-thread {
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 0;
+    }
+    .comment-card.is-thread + .comment-card.is-thread {
+      border-top: 1px solid rgba(31, 28, 23, 0.08);
+    }
+    [data-theme="dark"] .comment-card.is-thread + .comment-card.is-thread {
+      border-top-color: rgba(255, 255, 255, 0.08);
+    }
+    .comment-card.is-thread .comment-card-author-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .comment-card.is-thread .comment-card-avatar {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      user-select: none;
+    }
+    .comment-card.is-thread .comment-card-avatar.tone-teal  { background: #cfe2d8; color: #1e5644; }
+    .comment-card.is-thread .comment-card-avatar.tone-amber { background: #f1d9c4; color: #8a431e; }
+    .comment-card.is-thread .comment-card-avatar.tone-blue  { background: #d3deec; color: #34516f; }
+    .comment-card.is-thread .comment-card-avatar.tone-lilac { background: #e1d4ed; color: #5a4471; }
+    .comment-card.is-thread .comment-card-avatar.tone-stone { background: #e2dcd0; color: #534c40; }
+    .comment-card.is-thread .comment-card-author-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .comment-card.is-thread .comment-card-meta-sep {
+      font-size: 12px;
+      color: var(--color-fg-muted, #857c6e);
+      flex-shrink: 0;
+    }
+    .comment-card.is-thread .comment-card-time {
+      font-size: 12px;
+      color: var(--color-fg-muted, #857c6e);
+      flex-shrink: 0;
+    }
+    .comment-card.is-thread .comment-card-body {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--color-text-primary);
+      margin: 0;
+      text-wrap: pretty;
+      white-space: pre-wrap;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .comment-card.is-thread .comment-card-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--color-brand);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .resolved-threads-disclosure {
+      margin-top: 12px;
+    }
+    .resolved-threads-disclosure > summary {
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-fg-muted, #94a3b8);
+      list-style: none;
+      padding: 6px 4px;
+    }
+    .resolved-threads-disclosure > summary::-webkit-details-marker {
+      display: none;
+    }
+    .comment-card.is-resolved {
+      opacity: 0.7;
+    }
+
+    .comment-popover-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .comment-popover-header .modal-header {
+      flex: 1;
+      margin: 0;
+    }
+    .thread-target-tag {
+      display: none;
+    }
+    .thread-dialog-banner {
+      background: var(--color-subtle-bg, rgba(148, 163, 184, 0.08));
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--color-fg-muted, #94a3b8);
+    }
+    .thread-message-list {
+      list-style: none;
+      margin: 8px 0 0 0;
+      padding: 0;
+      overflow-y: auto;
+      max-height: 260px;
+    }
+    .thread-message {
+      padding: 10px 0;
+    }
+    .thread-message:first-child {
+      padding-top: 4px;
+    }
+    .thread-message:last-child {
+      padding-bottom: 4px;
+    }
+    .thread-message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .thread-message-avatar {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 20px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0;
+      user-select: none;
+    }
+    .thread-message-avatar.is-claude {
+      background: #E8703A;
+    }
+    .thread-message-avatar.is-user {
+      background: var(--color-signal, #4A9C95);
+    }
+    .thread-message-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+    .thread-message-time {
+      font-size: 12px;
+      color: var(--color-fg-muted, #94a3b8);
+    }
+    .thread-message-body {
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      margin: 0;
+      padding-left: 28px;
+    }
+    .thread-reply-error {
+      color: var(--color-danger, #dc2626);
+      font-size: 12px;
+      margin: 6px 0 0 0;
+    }
+    #commentDialog[data-mode="thread"] #commentInputWrap {
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -2351,11 +2603,28 @@
   </div>
 </div>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="icon-comment-marker" viewBox="0 0 24 24" overflow="visible">
+      <path d="M11.5 0.5 A11 11 0 0 1 23.5 12 L23.5 12 A11 11 0 0 1 12 23.5 L0.5 23.5 L0.5 12 A11 11 0 0 1 11.5 0.5 Z"
+            fill="#FFFFFF" stroke="#D8D8D8" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="12" cy="12" r="9" fill="#E8703A"/>
+      <text x="12" y="12" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="12" font-weight="700"
+            fill="#FFFFFF" text-anchor="middle" dominant-baseline="middle" dy="0.08em">C</text>
+    </symbol>
+  </defs>
+</svg>
+
 <div class="overlay overlay-popover" id="commentDialogOverlay">
-  <div class="dialog dialog-floating comment-popover" id="commentDialog" data-placement="right">
+  <div class="dialog dialog-floating comment-popover" id="commentDialog" data-placement="right" data-mode="compose">
     <div class="comment-popover-pointer" id="commentPointer" aria-hidden="true"></div>
-    <h3 id="commentTitle" class="modal-header">Comment</h3>
-    <div class="comment-input-wrap">
+    <div class="comment-popover-header">
+      <span class="thread-target-tag" id="commentThreadTag" aria-hidden="true" hidden></span>
+      <h3 id="commentTitle" class="modal-header">Comment</h3>
+    </div>
+    <div class="thread-dialog-banner" id="commentThreadBanner" hidden></div>
+    <ul class="thread-message-list" id="commentThreadMessages" hidden></ul>
+    <div class="comment-input-wrap" id="commentInputWrap">
       <textarea id="commentText" class="modal-textarea" placeholder="Add a comment" rows="1"></textarea>
       <button id="commentAdd" class="btn-comment-submit" disabled aria-label="Submit comment">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -2363,6 +2632,7 @@
         </svg>
       </button>
     </div>
+    <p class="thread-reply-error" id="commentThreadError" hidden></p>
     <p id="commentHint" class="comment-popover-hint" aria-live="polite"></p>
   </div>
 </div>
@@ -2467,6 +2737,12 @@ const state = {
   edgeTooltipPending: null,
   edgeTooltipRelationshipId: null,
   edgeHoverFocusRelationshipId: null,
+  threads: Array.isArray(HANDOFF.claude_threads) ? HANDOFF.claude_threads.slice() : [],
+  threadEventSource: null,
+  threadPollTimer: null,
+  activeThread: null,
+  threadReplyInFlight: false,
+  resolvedThreadsOpen: false,
 };
 
 let uiTransitionToken = 0;
@@ -2718,12 +2994,14 @@ function mountedViewNeedsRemount(view) {
   return !mountedViewRuntime.svg || !mountedViewRuntime.svg.isConnected;
 }
 
-function relationshipRouteText(rel) {
-  return displayNameForElementId(rel.source_id) + ' → ' + displayNameForElementId(rel.target_id);
+function relationshipEndpointText(rel, direction) {
+  const endpointId = direction === 'inbound' ? rel.source_id : rel.target_id;
+  const prefix = direction === 'inbound' ? '← ' : '→ ';
+  return prefix + displayNameForElementId(endpointId);
 }
 
-function relationshipCollisionKey(rel) {
-  return [relationshipRouteText(rel), rel.label || ''].join('::');
+function relationshipCollisionKeyForNode(rel, direction) {
+  return [relationshipEndpointText(rel, direction), rel.label || ''].join('::');
 }
 
 function relationshipDetailParts(rel) {
@@ -2736,12 +3014,12 @@ function relationshipDetailParts(rel) {
   return details;
 }
 
-function relationshipCardHtml(rel, showDifferentiator) {
+function relationshipCardHtml(rel, showDifferentiator, endpointText) {
   const detailParts = relationshipDetailParts(rel);
   const bodyText = rel.label || humanizeSlug(rel.id || 'relationship');
   const html = [];
   html.push('<li class="relationship-card">');
-  html.push('<p class="relationship-endpoints"><span>' + esc(displayNameForElementId(rel.source_id)) + '</span><span class="relationship-arrow" aria-hidden="true">→</span><span>' + esc(displayNameForElementId(rel.target_id)) + '</span></p>');
+  html.push('<p class="relationship-endpoints">' + esc(endpointText) + '</p>');
   html.push('<p class="relationship-label">' + esc(bodyText) + '</p>');
   if (showDifferentiator && detailParts.length) {
     html.push('<p class="relationship-card-meta">' + esc(detailParts.join(' • ')) + '</p>');
@@ -3323,6 +3601,9 @@ function buildCommentPayload() {
         comment: c.comment,
       };
     }),
+    open_thread_ids: (state.threads || [])
+      .filter(function (t) { return t && t.status === 'open' && t.thread_id; })
+      .map(function (t) { return t.thread_id; }),
   };
 }
 
@@ -6253,6 +6534,7 @@ function syncMountedDiagramState(options) {
 
   if (state.pendingTarget) applyCommentTargetIndicators(mountedViewRuntime.svg);
   else clearCommentTargetIndicators(mountedViewRuntime.svg);
+  applyThreadIndicators(mountedViewRuntime.svg);
 }
 
 function wireSvgInteractions(svg, view) {
@@ -6290,6 +6572,7 @@ function wireSvgInteractions(svg, view) {
 
   applyDrillabilityAffordances(svg);
   applyCommentTargetIndicators(svg);
+  applyThreadIndicators(svg);
 
   svg.addEventListener('click', function (ev) {
     dismissEdgeTooltip();
@@ -6861,11 +7144,33 @@ function updateDetails() {
     }
 
     const rels = relationshipsForNode(node.id);
-    const relationshipCollisionCounts = new Map();
-    rels.forEach(function (rel) {
-      const key = relationshipCollisionKey(rel);
-      relationshipCollisionCounts.set(key, (relationshipCollisionCounts.get(key) || 0) + 1);
-    });
+    const inboundRelationships = rels.filter(function (rel) { return rel.target_id === node.id; });
+    const outboundRelationships = rels.filter(function (rel) { return rel.source_id === node.id; });
+
+    function relationshipCollisionCountsForDirection(directionRels, direction) {
+      const counts = new Map();
+      directionRels.forEach(function (rel) {
+        const key = relationshipCollisionKeyForNode(rel, direction);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      return counts;
+    }
+
+    const inboundCollisionCounts = relationshipCollisionCountsForDirection(inboundRelationships, 'inbound');
+    const outboundCollisionCounts = relationshipCollisionCountsForDirection(outboundRelationships, 'outbound');
+
+    function relationshipSectionHtml(title, directionRels, direction, collisionCounts) {
+      if (!directionRels.length) return '';
+      const sectionHtml = [];
+      sectionHtml.push('<section class="field-group"><h3 class="field-label">' + esc(title) + '</h3><ul class="relationship-list">');
+      directionRels.slice(0, 20).forEach(function (rel) {
+        const endpointText = relationshipEndpointText(rel, direction);
+        const showDifferentiator = (collisionCounts.get(relationshipCollisionKeyForNode(rel, direction)) || 0) > 1;
+        sectionHtml.push(relationshipCardHtml(rel, showDifferentiator, endpointText));
+      });
+      sectionHtml.push('</ul></section>');
+      return sectionHtml.join('');
+    }
 
     const html = [];
     html.push('<header class="component-header">'
@@ -6887,14 +7192,8 @@ function updateDetails() {
         + '</section>');
     }
 
-    if (rels.length) {
-      html.push('<section class="field-group"><h3 class="field-label">Relationships</h3><ul class="relationship-list">');
-      rels.slice(0, 20).forEach(function (rel) {
-        const showDifferentiator = (relationshipCollisionCounts.get(relationshipCollisionKey(rel)) || 0) > 1;
-        html.push(relationshipCardHtml(rel, showDifferentiator));
-      });
-      html.push('</ul></section>');
-    }
+    html.push(relationshipSectionHtml('Inbound', inboundRelationships, 'inbound', inboundCollisionCounts));
+    html.push(relationshipSectionHtml('Outbound', outboundRelationships, 'outbound', outboundCollisionCounts));
 
     if (node.confidence) {
       html.push('<section class="field-group">'
@@ -6915,8 +7214,22 @@ function updateDetails() {
   });
 }
 
+function userRepliedThreadCount() {
+  return (state.threads || []).filter(function (t) {
+    if (!t || t.status === 'resolved') return false;
+    const messages = Array.isArray(t.messages) ? t.messages : [];
+    if (!messages.length) return false;
+    const last = messages[messages.length - 1];
+    return last && last.author === 'user';
+  }).length;
+}
+
+function readyToSubmitCount() {
+  return state.comments.length + userRepliedThreadCount();
+}
+
 function submitButtonLabel() {
-  const count = state.comments.length;
+  const count = readyToSubmitCount();
   if (state.submitInFlight) {
     return 'Sending ' + count + ' comment' + (count === 1 ? '' : 's') + '…';
   }
@@ -6927,7 +7240,7 @@ function updateSubmitButton() {
   const submitBtn = $('submitBtn');
   if (!submitBtn) return;
   submitBtn.textContent = submitButtonLabel();
-  submitBtn.disabled = state.comments.length === 0 || state.submitInFlight || isJobHandlingInProgress(state.activeJob);
+  submitBtn.disabled = readyToSubmitCount() === 0 || state.submitInFlight || isJobHandlingInProgress(state.activeJob);
 }
 
 function isCommentEditingLocked() {
@@ -6948,63 +7261,803 @@ function commentToneForTarget(target) {
   return THEME.brand;
 }
 
+function authorIdForMessage(message) {
+  if (!message) return 'claude';
+  return message.author === 'user' ? 'user' : 'claude';
+}
+
+function authorNameForMessage(message) {
+  if (!message) return 'Claude';
+  return message.author === 'user' ? 'You' : 'Claude';
+}
+
+function renderAuthorRow(authorId, authorName, createdAt, options) {
+  const opts = options || {};
+  const row = document.createElement('div');
+  row.className = 'comment-card-author-row';
+
+  const avatar = document.createElement('span');
+  avatar.className = 'comment-card-avatar ' + colorToneForAuthorId(authorId);
+  avatar.textContent = avatarLetter(authorName);
+  avatar.setAttribute('aria-hidden', 'true');
+  row.appendChild(avatar);
+
+  const name = document.createElement('span');
+  name.className = 'comment-card-author-name';
+  name.textContent = authorName;
+  row.appendChild(name);
+
+  const ts = formatRelativeTime(createdAt);
+  if (ts) {
+    const sep = document.createElement('span');
+    sep.className = 'comment-card-meta-sep';
+    sep.textContent = '·';
+    sep.setAttribute('aria-hidden', 'true');
+    row.appendChild(sep);
+
+    const time = document.createElement('span');
+    time.className = 'comment-card-time';
+    time.textContent = ts;
+    const iso = formatMessageTimestamp(createdAt);
+    if (iso) time.title = iso;
+    row.appendChild(time);
+  }
+
+  if (opts.trailing) row.appendChild(opts.trailing);
+  return row;
+}
+
+function renderDraftCard(comment, idx) {
+  const card = document.createElement('li');
+  card.className = 'comment-card is-thread is-draft';
+  card.style.setProperty('--comment-index', String(idx));
+
+  const remove = document.createElement('button');
+  remove.className = 'comment-card-delete';
+  remove.type = 'button';
+  remove.setAttribute('aria-label', 'Delete comment');
+  remove.textContent = '×';
+  remove.disabled = isJobHandlingInProgress(state.activeJob);
+  remove.style.marginLeft = 'auto';
+  if (!remove.disabled) {
+    remove.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      state.comments = state.comments.filter(function (entry) {
+        return entry.id !== comment.id;
+      });
+      updateSidebar();
+    });
+  }
+
+  card.appendChild(renderAuthorRow('user', 'You', comment.created_at, { trailing: remove }));
+
+  const body = document.createElement('p');
+  body.className = 'comment-card-body';
+  body.textContent = String(comment.comment || '');
+  card.appendChild(body);
+
+  return card;
+}
+
+function renderThreadCard(thread, options) {
+  const opts = options || {};
+  const card = document.createElement('li');
+  card.className = 'comment-card is-thread';
+  if (opts.resolved) card.classList.add('is-resolved');
+
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  const latest = messages.length ? messages[messages.length - 1] : null;
+
+  let trailing = null;
+  if (opts.resolved) {
+    const badge = document.createElement('span');
+    badge.className = 'comment-card-badge';
+    badge.textContent = 'Resolved';
+    badge.style.marginLeft = 'auto';
+    trailing = badge;
+  }
+
+  card.appendChild(renderAuthorRow(
+    authorIdForMessage(latest),
+    authorNameForMessage(latest),
+    latest && latest.created_at,
+    { trailing: trailing }
+  ));
+
+  const body = document.createElement('p');
+  body.className = 'comment-card-body';
+  body.textContent = String((latest && latest.body) || '(no messages yet)');
+  card.appendChild(body);
+
+  card.addEventListener('click', function () {
+    navigateToThread(thread);
+  });
+  return card;
+}
+
+function threadGroupKey(target) {
+  if (!target) return 'view:__';
+  if (target.element_id) return 'el:' + target.element_id;
+  if (target.relationship_id) return 'rel:' + target.relationship_id;
+  return 'view:' + (target.view_id || '__');
+}
+
+function threadActivityTime(thread) {
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  if (!messages.length) return 0;
+  const last = messages[messages.length - 1];
+  return last && last.created_at ? new Date(last.created_at).getTime() : 0;
+}
+
+function draftAsSyntheticThread(comment) {
+  return {
+    __isDraft: true,
+    __draftRef: comment,
+    thread_id: comment.id,
+    view_id: comment.view_id,
+    element_id: comment.element_id,
+    relationship_id: comment.relationship_id,
+    target_label: comment.target_label,
+    status: 'open',
+    messages: [{
+      id: comment.id,
+      author: 'user',
+      body: comment.comment,
+      created_at: comment.created_at,
+    }],
+  };
+}
+
+function buildSidebarGroups(items) {
+  const groupsByKey = new Map();
+  items.forEach(function (item) {
+    const key = threadGroupKey(item);
+    let group = groupsByKey.get(key);
+    if (!group) {
+      group = {
+        key: key,
+        name: commentTargetName(item),
+        tone: commentToneForTarget(item),
+        items: [],
+        latest: 0,
+      };
+      groupsByKey.set(key, group);
+    }
+    group.items.push(item);
+    const t = threadActivityTime(item);
+    if (t > group.latest) group.latest = t;
+  });
+  const groups = Array.from(groupsByKey.values());
+  groups.forEach(function (g) {
+    g.items.sort(function (a, b) { return threadActivityTime(b) - threadActivityTime(a); });
+  });
+  groups.sort(function (a, b) { return b.latest - a.latest; });
+  return groups;
+}
+
+function renderSidebarGroup(group, draftsLocked) {
+  const section = document.createElement('section');
+  section.className = 'comment-group';
+
+  const header = document.createElement('div');
+  header.className = 'comment-group-header';
+  if (group.tone) header.style.setProperty('--group-tone', group.tone);
+
+  const dot = document.createElement('span');
+  dot.className = 'comment-group-header-dot';
+  dot.setAttribute('aria-hidden', 'true');
+  header.appendChild(dot);
+
+  const name = document.createElement('span');
+  name.className = 'comment-group-header-name';
+  name.textContent = group.name;
+  header.appendChild(name);
+  const count = document.createElement('span');
+  count.className = 'comment-group-header-count';
+  count.textContent = String(group.items.length);
+  header.appendChild(count);
+  section.appendChild(header);
+
+  const list = document.createElement('ul');
+  list.className = 'comment-list';
+  if (draftsLocked) {
+    list.classList.add('is-pending');
+    list.setAttribute('aria-disabled', 'true');
+  }
+  group.items.forEach(function (item, idx) {
+    if (item.__isDraft) {
+      list.appendChild(renderDraftCard(item.__draftRef, idx));
+    } else {
+      list.appendChild(renderThreadCard(item, { resolved: false }));
+    }
+  });
+  section.appendChild(list);
+  return section;
+}
+
+function latestMessageAuthor(thread) {
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  if (!messages.length) return 'claude';
+  const last = messages[messages.length - 1];
+  return last && last.author === 'user' ? 'user' : 'claude';
+}
+
+function appendCommentSection(pane, label, items, draftsLocked) {
+  if (!items.length) return;
+  const section = document.createElement('section');
+  section.className = 'comment-section';
+  const title = document.createElement('h4');
+  title.className = 'comment-section-title';
+  title.textContent = label;
+  section.appendChild(title);
+  const groups = buildSidebarGroups(items);
+  groups.forEach(function (group) {
+    section.appendChild(renderSidebarGroup(group, draftsLocked));
+  });
+  pane.appendChild(section);
+}
+
 function updateCommentSidebar() {
   const pane = $('sidebarBody');
   pane.innerHTML = '';
 
-  if (!state.comments.length) {
-    pane.innerHTML = '<div class="empty-state"><p>Click any element or edge to add a comment</p></div>';
+  const drafts = state.comments.slice();
+  const openThreads = openClaudeThreads();
+  const claudeWaiting = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'claude'; });
+  const userReplied = openThreads.filter(function (t) { return latestMessageAuthor(t) === 'user'; });
+  const resolved = resolvedClaudeThreads();
+
+  if (!drafts.length && !openThreads.length && !resolved.length) {
+    pane.innerHTML = '<div class="empty-state"><p>No comments yet. Click a node to start a thread.</p></div>';
     return;
   }
 
-  const list = document.createElement('ul');
-  list.className = 'comment-list';
-  if (isJobHandlingInProgress(state.activeJob)) {
-    list.classList.add('is-pending');
-    list.setAttribute('aria-disabled', 'true');
+  const draftsLocked = isJobHandlingInProgress(state.activeJob);
+
+  appendCommentSection(pane, 'Open', claudeWaiting, draftsLocked);
+  appendCommentSection(pane, 'Ready to submit', userReplied.concat(drafts.map(draftAsSyntheticThread)), draftsLocked);
+
+  if (resolved.length) {
+    const details = document.createElement('details');
+    details.className = 'resolved-threads-disclosure';
+    details.open = Boolean(state.resolvedThreadsOpen);
+    details.addEventListener('toggle', function () {
+      state.resolvedThreadsOpen = details.open;
+    });
+    const summary = document.createElement('summary');
+    summary.textContent = 'Resolved (' + resolved.length + ')';
+    details.appendChild(summary);
+    const list = document.createElement('ul');
+    list.className = 'comment-list';
+    resolved.forEach(function (thread) {
+      list.appendChild(renderThreadCard(thread, { resolved: true }));
+    });
+    details.appendChild(list);
+    pane.appendChild(details);
   }
+}
 
-  state.comments.forEach(function (comment, idx) {
-    const item = document.createElement('li');
-    item.className = 'comment-card';
-    item.style.setProperty('--comment-index', String(idx));
+// === Claude Comment Threads ===
 
-    const header = document.createElement('header');
-    header.className = 'comment-card-header';
+function normalizeThread(thread) {
+  if (!thread || typeof thread !== 'object') return null;
+  const messages = Array.isArray(thread.messages) ? thread.messages.slice() : [];
+  return Object.assign({}, thread, {
+    thread_id: String(thread.thread_id || ''),
+    view_id: thread.view_id || null,
+    element_id: thread.element_id || null,
+    relationship_id: thread.relationship_id || null,
+    target_label: thread.target_label || null,
+    status: thread.status === 'resolved' ? 'resolved' : 'open',
+    messages: messages,
+  });
+}
 
-    const target = document.createElement('span');
-    target.className = 'comment-card-target';
-    target.textContent = commentTargetName(comment);
-    target.style.setProperty('--comment-tone', commentToneForTarget(comment));
+function openClaudeThreads() {
+  return (state.threads || [])
+    .filter(function (t) { return t && t.status !== 'resolved'; })
+    .sort(function (a, b) { return (a.created_at || '').localeCompare(b.created_at || ''); });
+}
 
-    const remove = document.createElement('button');
-    remove.className = 'comment-card-delete';
-    remove.type = 'button';
-    remove.setAttribute('aria-label', 'Delete comment');
-    remove.textContent = '×';
-    remove.disabled = isJobHandlingInProgress(state.activeJob);
-    if (!remove.disabled) {
-      remove.addEventListener('click', function () {
-        state.comments = state.comments.filter(function (entry) {
-          return entry.id !== comment.id;
-        });
-        updateSidebar();
-      });
+function resolvedClaudeThreads() {
+  return (state.threads || [])
+    .filter(function (t) { return t && t.status === 'resolved'; })
+    .sort(function (a, b) { return (b.resolved_at || '').localeCompare(a.resolved_at || ''); });
+}
+
+function threadById(id) {
+  if (!id) return null;
+  return (state.threads || []).find(function (t) { return t && t.thread_id === id; }) || null;
+}
+
+function threadLatestExcerpt(thread) {
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  if (!messages.length) return '(no messages yet)';
+  const last = messages[messages.length - 1];
+  return String((last && last.body) || '').replace(/\s+/g, ' ').trim();
+}
+
+function upsertThread(thread) {
+  const normalized = normalizeThread(thread);
+  if (!normalized || !normalized.thread_id) return;
+  const list = state.threads || (state.threads = []);
+  const idx = list.findIndex(function (t) { return t && t.thread_id === normalized.thread_id; });
+  if (idx === -1) list.push(normalized);
+  else list[idx] = Object.assign({}, list[idx], normalized);
+  refreshThreadsUi();
+}
+
+function appendThreadMessage(threadId, message) {
+  if (!threadId || !message) return;
+  const thread = threadById(threadId);
+  if (!thread) return;
+  const messages = Array.isArray(thread.messages) ? thread.messages : (thread.messages = []);
+  if (message.id && messages.some(function (m) { return m && m.id === message.id; })) return;
+  if (message.author && message.body != null) {
+    const incomingBody = String(message.body).trim();
+    const optimisticIdx = messages.findIndex(function (m) {
+      return m && m.optimistic
+        && m.author === message.author
+        && String(m.body || '').trim() === incomingBody;
+    });
+    if (optimisticIdx !== -1) {
+      messages[optimisticIdx] = Object.assign({}, message, { optimistic: false });
+      refreshThreadsUi();
+      return;
+    }
+  }
+  messages.push(message);
+  refreshThreadsUi();
+}
+
+function markThreadResolved(threadId, payload) {
+  if (!threadId) return;
+  const thread = threadById(threadId);
+  if (!thread) return;
+  thread.status = 'resolved';
+  thread.resolved_at = (payload && payload.resolved_at) || new Date().toISOString();
+  thread.resolved_by = (payload && payload.resolved_by) || thread.resolved_by || null;
+  refreshThreadsUi();
+}
+
+function refreshThreadsUi() {
+  updateSidebar();
+  applyThreadIndicators(currentDiagramSvg());
+  refreshActiveThreadModal();
+}
+
+function currentDiagramSvg() {
+  return (mountedViewRuntime && mountedViewRuntime.svg) || null;
+}
+
+function threadAnchorElement(svg, thread) {
+  if (!svg || !thread) return null;
+  if (thread.element_id) return findDataBoundElement(svg, 'data-element-id', thread.element_id);
+  if (thread.relationship_id) return findDataBoundElement(svg, 'data-relationship-id', thread.relationship_id);
+  return null;
+}
+
+function computeThreadMarkerPoint(anchorEl) {
+  if (!anchorEl) return null;
+  const tag = String(anchorEl.tagName || '').toLowerCase();
+  if (tag === 'path' && typeof anchorEl.getTotalLength === 'function') {
+    try {
+      const length = anchorEl.getTotalLength();
+      if (isFinite(length) && length > 0) {
+        const midpoint = anchorEl.getPointAtLength(length / 2);
+        return { x: midpoint.x, y: midpoint.y, edge: true };
+      }
+    } catch (_err) {
+      // fall through
+    }
+  }
+  const box = elementBBox(anchorEl);
+  if (!box || !isFinite(box.x) || !isFinite(box.width)) return null;
+  return { x: box.x + box.width, y: box.y, edge: false };
+}
+
+function clearThreadIndicators(svg) {
+  if (!svg) return;
+  svg.querySelectorAll('.claude-thread-marker').forEach(function (el) {
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  });
+}
+
+function applyThreadIndicators(svg) {
+  if (!svg) return;
+  clearThreadIndicators(svg);
+
+  const threads = openClaudeThreads().filter(function (t) {
+    return t.view_id === state.viewId;
+  });
+  if (!threads.length) return;
+
+  const markerSize = 26;
+  const anchorCounts = new Map();
+  threads.forEach(function (thread) {
+    const anchorEl = threadAnchorElement(svg, thread);
+    if (!anchorEl) return;
+    const point = computeThreadMarkerPoint(anchorEl);
+    if (!point) return;
+    const anchorKey = thread.element_id || thread.relationship_id || '';
+    const stackIndex = anchorCounts.get(anchorKey) || 0;
+    anchorCounts.set(anchorKey, stackIndex + 1);
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('class', 'claude-thread-marker');
+    group.setAttribute('data-thread-id', thread.thread_id);
+    // Marker's 90° corner (its local bottom-left) anchors to `point`.
+    // For edge midpoints, center horizontally on the path; for nodes, hang from the top-right.
+    const x = point.edge ? point.x - markerSize / 2 : point.x + stackIndex * (markerSize * 1.1);
+    const y = point.y - markerSize;
+    group.setAttribute('transform', 'translate(' + x + ', ' + y + ')');
+
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-comment-marker');
+    use.setAttribute('href', '#icon-comment-marker');
+    use.setAttribute('width', String(markerSize));
+    use.setAttribute('height', String(markerSize));
+    group.appendChild(use);
+
+    group.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      openThreadModal(thread);
+    });
+
+    svg.appendChild(group);
+  });
+}
+
+function navigateToThread(thread) {
+  openThreadModal(thread);
+}
+
+function formatMessageTimestamp(value) {
+  if (!value) return '';
+  try {
+    const dt = new Date(value);
+    if (isNaN(dt.getTime())) return '';
+    return dt.toLocaleString();
+  } catch (_err) {
+    return '';
+  }
+}
+
+function formatRelativeTime(value) {
+  if (!value) return '';
+  try {
+    const dt = new Date(value);
+    if (isNaN(dt.getTime())) return '';
+    const diffSec = Math.floor((Date.now() - dt.getTime()) / 1000);
+    if (diffSec < 60) return 'just now';
+    if (diffSec < 3600) return Math.floor(diffSec / 60) + 'm';
+    if (diffSec < 86400) return Math.floor(diffSec / 3600) + 'h';
+    if (diffSec < 604800) return Math.floor(diffSec / 86400) + 'd';
+    return dt.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+  } catch (_err) {
+    return '';
+  }
+}
+
+const AVATAR_TONES = ['tone-teal', 'tone-amber', 'tone-blue', 'tone-lilac', 'tone-stone'];
+function colorToneForAuthorId(authorId) {
+  const key = String(authorId || '');
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  }
+  return AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length];
+}
+
+function avatarLetter(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return '?';
+  const first = trimmed.codePointAt(0);
+  return String.fromCodePoint(first).toUpperCase();
+}
+
+function renderThreadMessageList(thread) {
+  const list = $('commentThreadMessages');
+  if (!list) return;
+  list.innerHTML = '';
+  const messages = Array.isArray(thread && thread.messages) ? thread.messages : [];
+  messages.forEach(function (message) {
+    const li = document.createElement('li');
+    li.className = 'thread-message';
+    if (message.id) li.setAttribute('data-message-id', message.id);
+
+    const isClaude = message.author === 'claude';
+
+    const header = document.createElement('div');
+    header.className = 'thread-message-header';
+
+    const avatar = document.createElement('span');
+    avatar.className = 'thread-message-avatar ' + (isClaude ? 'is-claude' : 'is-user');
+    avatar.textContent = isClaude ? 'C' : 'U';
+    avatar.setAttribute('aria-hidden', 'true');
+    header.appendChild(avatar);
+
+    const name = document.createElement('span');
+    name.className = 'thread-message-name';
+    name.textContent = isClaude ? 'Claude' : 'You';
+    header.appendChild(name);
+
+    const ts = formatRelativeTime(message.created_at);
+    if (ts) {
+      const time = document.createElement('span');
+      time.className = 'thread-message-time';
+      time.textContent = ts;
+      const iso = formatMessageTimestamp(message.created_at);
+      if (iso) time.title = iso;
+      header.appendChild(time);
     }
 
-    header.appendChild(target);
-    header.appendChild(remove);
+    li.appendChild(header);
 
     const body = document.createElement('p');
-    body.className = 'comment-card-body';
-    body.textContent = comment.comment;
+    body.className = 'thread-message-body';
+    body.textContent = String(message.body || '');
+    li.appendChild(body);
 
-    item.appendChild(header);
-    item.appendChild(body);
-    list.appendChild(item);
+    list.appendChild(li);
   });
+  list.scrollTop = list.scrollHeight;
+}
 
-  pane.appendChild(list);
+function refreshActiveThreadModal() {
+  if (!state.activeThread) return;
+  const thread = threadById(state.activeThread.thread_id);
+  if (!thread) {
+    closeThreadModal();
+    return;
+  }
+  state.activeThread = thread;
+  applyThreadModalState(thread);
+}
+
+function applyThreadModalState(thread) {
+  const title = $('commentTitle');
+  const banner = $('commentThreadBanner');
+  const inputWrap = $('commentInputWrap');
+  const submit = $('commentAdd');
+  const replyText = $('commentText');
+  const tag = $('commentThreadTag');
+
+  if (title) title.textContent = commentTargetName(thread);
+  if (tag) {
+    tag.style.setProperty('--thread-tone', commentToneForTarget(thread));
+    tag.hidden = false;
+  }
+
+  if (banner) {
+    if (thread.status === 'resolved') {
+      const when = formatMessageTimestamp(thread.resolved_at);
+      const who = thread.resolved_by === 'claude' ? 'Claude' : thread.resolved_by === 'user' ? 'you' : 'someone';
+      banner.textContent = 'Resolved by ' + who + (when ? ' on ' + when : '') + '.';
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  }
+
+  const messages = $('commentThreadMessages');
+  if (messages) messages.hidden = false;
+
+  if (inputWrap) inputWrap.hidden = thread.status === 'resolved';
+  if (replyText) {
+    replyText.disabled = thread.status === 'resolved' || state.threadReplyInFlight;
+    replyText.placeholder = 'Reply to Claude...';
+  }
+  if (submit) {
+    submit.disabled = thread.status === 'resolved'
+      || state.threadReplyInFlight
+      || !replyText
+      || !replyText.value.trim();
+    submit.setAttribute('aria-label', state.threadReplyInFlight ? 'Sending reply' : 'Send reply');
+  }
+  renderThreadMessageList(thread);
+}
+
+function openThreadModal(thread) {
+  if (!thread) return;
+  if (thread.view_id && thread.view_id !== state.viewId && viewsById.has(thread.view_id)) {
+    Promise.resolve(changeView(thread.view_id, { history: 'push', direction: 'forward', animate: false }))
+      .then(function () { openThreadModal(thread); });
+    return;
+  }
+
+  state.activeThread = thread;
+  state.threadReplyInFlight = false;
+  state.pendingTarget = {
+    view_id: thread.view_id,
+    element_id: thread.element_id,
+    relationship_id: thread.relationship_id,
+    target_label: thread.target_label,
+  };
+  state.pendingTargetAnchor = thread.element_id || thread.relationship_id
+    ? { xRatio: 1, yRatio: 0 }
+    : null;
+  state.pendingPlacement = 'right';
+
+  const dialog = $('commentDialog');
+  const overlay = $('commentDialogOverlay');
+  const replyText = $('commentText');
+  const err = $('commentThreadError');
+  if (!dialog || !overlay) return;
+
+  if (state.commentCloseTimer) {
+    clearTimeout(state.commentCloseTimer);
+    state.commentCloseTimer = null;
+  }
+  if (replyText) { replyText.value = ''; replyText.style.height = 'auto'; }
+  if (err) { err.hidden = true; err.textContent = ''; }
+  clearDiscardPrompt();
+
+  dialog.setAttribute('data-mode', 'thread');
+  applyThreadModalState(thread);
+  applyCommentTargetIndicators(currentDiagramSvg());
+
+  overlay.className = 'overlay overlay-popover show';
+  dialog.setAttribute('data-animate-state', 'closed');
+  window.requestAnimationFrame(function () {
+    positionCommentDialog();
+    dialog.setAttribute('data-animate-state', 'open');
+    autosizeCommentTextarea();
+    if (replyText && thread.status !== 'resolved') replyText.focus();
+  });
+}
+
+function closeThreadModal() {
+  closeCommentDialog();
+}
+
+async function submitThreadReply() {
+  const thread = state.activeThread;
+  if (!thread || thread.status === 'resolved' || state.threadReplyInFlight) return;
+  const replyText = $('commentText');
+  const err = $('commentThreadError');
+  const body = replyText ? String(replyText.value || '').trim() : '';
+  if (!body) return;
+  if (!HANDOFF.bridge_url || !HANDOFF.output_root) {
+    if (err) { err.textContent = 'Local bridge is not configured.'; err.hidden = false; }
+    return;
+  }
+
+  state.threadReplyInFlight = true;
+  applyThreadModalState(thread);
+
+  const optimisticId = 'tmp_' + Date.now().toString(36);
+  const optimisticMessage = {
+    id: optimisticId,
+    author: 'user',
+    body: body,
+    created_at: new Date().toISOString(),
+    optimistic: true,
+  };
+  appendThreadMessage(thread.thread_id, optimisticMessage);
+
+  try {
+    const url = HANDOFF.bridge_url.replace(/\/$/, '')
+      + '/claude-threads/' + encodeURIComponent(thread.thread_id) + '/messages';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        output_root: HANDOFF.output_root,
+        author: 'user',
+        body: body,
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error('Bridge returned ' + response.status + ': ' + text);
+    }
+    // Promote the optimistic placeholder to a real message in place. The SSE
+    // event that follows shares the same id, so appendThreadMessage dedupes.
+    let realMessage = null;
+    try {
+      const json = await response.json();
+      realMessage = json && json.message;
+    } catch (_jsonErr) { /* fall through */ }
+    const live = threadById(thread.thread_id);
+    if (live && Array.isArray(live.messages)) {
+      const placeholder = live.messages.find(function (m) { return m && m.id === optimisticId; });
+      if (placeholder && realMessage && realMessage.id) {
+        placeholder.id = realMessage.id;
+        placeholder.created_at = realMessage.created_at || placeholder.created_at;
+        placeholder.optimistic = false;
+      } else if (placeholder) {
+        live.messages = live.messages.filter(function (m) { return m && m.id !== optimisticId; });
+      }
+    }
+    if (replyText) {
+      replyText.value = '';
+      autosizeCommentTextarea();
+    }
+    if (err) { err.hidden = true; err.textContent = ''; }
+  } catch (error) {
+    // Roll back the optimistic append and surface the error
+    const live = threadById(thread.thread_id);
+    if (live && Array.isArray(live.messages)) {
+      live.messages = live.messages.filter(function (m) { return m && m.id !== optimisticId; });
+    }
+    if (err) { err.textContent = String((error && error.message) || error); err.hidden = false; }
+  } finally {
+    state.threadReplyInFlight = false;
+    refreshThreadsUi();
+    if (replyText && state.activeThread && state.activeThread.status !== 'resolved') {
+      window.requestAnimationFrame(function () { try { replyText.focus(); } catch (_err) { /* ignore */ } });
+    }
+  }
+}
+
+function threadEventsUrl() {
+  if (!HANDOFF.bridge_url || !HANDOFF.output_root) return '';
+  return HANDOFF.bridge_url.replace(/\/$/, '')
+    + '/claude-threads/events?output_root=' + encodeURIComponent(HANDOFF.output_root);
+}
+
+function stopClaudeThreadsSubscription() {
+  if (state.threadEventSource) {
+    try { state.threadEventSource.close(); } catch (_err) { /* ignore */ }
+    state.threadEventSource = null;
+  }
+  if (state.threadPollTimer) {
+    clearTimeout(state.threadPollTimer);
+    state.threadPollTimer = null;
+  }
+}
+
+function hydrateThreadsFromSnapshot(payload) {
+  if (!payload) return;
+  const threads = Array.isArray(payload.threads) ? payload.threads : [];
+  state.threads = threads
+    .map(normalizeThread)
+    .filter(function (t) { return t && t.thread_id; });
+  refreshThreadsUi();
+}
+
+function subscribeToClaudeThreads() {
+  const url = threadEventsUrl();
+  if (!url || typeof EventSource === 'undefined') return;
+  stopClaudeThreadsSubscription();
+  try {
+    const source = new EventSource(url);
+    source.addEventListener('snapshot', function (ev) {
+      try { hydrateThreadsFromSnapshot(JSON.parse(ev.data || '{}')); }
+      catch (_err) { /* ignore */ }
+    });
+    source.addEventListener('thread_created', function (ev) {
+      try { upsertThread(JSON.parse(ev.data || '{}').thread); }
+      catch (_err) { /* ignore */ }
+    });
+    source.addEventListener('message_appended', function (ev) {
+      try {
+        const data = JSON.parse(ev.data || '{}');
+        if (data && data.thread_id && data.message) {
+          appendThreadMessage(data.thread_id, data.message);
+        }
+      } catch (_err) { /* ignore */ }
+    });
+    source.addEventListener('thread_resolved', function (ev) {
+      try {
+        const data = JSON.parse(ev.data || '{}');
+        if (data && data.thread_id) markThreadResolved(data.thread_id, data);
+      } catch (_err) { /* ignore */ }
+    });
+    source.onerror = function () {
+      // Reconnect after brief delay
+      if (state.threadPollTimer) return;
+      state.threadPollTimer = window.setTimeout(function () {
+        state.threadPollTimer = null;
+        subscribeToClaudeThreads();
+      }, 3000);
+    };
+    state.threadEventSource = source;
+  } catch (_err) {
+    // swallow; SSE unavailable
+  }
 }
 
 function updateSidebar() {
@@ -7128,7 +8181,7 @@ function attemptCloseCommentDialog(reason) {
   armDiscardPrompt(
     reason === 'escape'
       ? 'Press Escape again to discard'
-      : 'Click empty canvas again or press Escape to discard'
+      : 'Click outside again or press Escape to discard'
   );
   return false;
 }
@@ -7324,10 +8377,25 @@ function finishCloseCommentDialog() {
   $('commentDialog').style.removeProperty('--comment-origin-y');
   $('commentDialog').setAttribute('data-placement', 'right');
   $('commentDialog').setAttribute('data-animate-state', 'closed');
+  $('commentDialog').setAttribute('data-mode', 'compose');
+  const tag = $('commentThreadTag');
+  if (tag) tag.hidden = true;
+  const banner = $('commentThreadBanner');
+  if (banner) banner.hidden = true;
+  const messages = $('commentThreadMessages');
+  if (messages) { messages.hidden = true; messages.innerHTML = ''; }
+  const err = $('commentThreadError');
+  if (err) { err.hidden = true; err.textContent = ''; }
+  const inputWrap = $('commentInputWrap');
+  if (inputWrap) inputWrap.hidden = false;
+  const textarea = $('commentText');
+  if (textarea) { textarea.disabled = false; textarea.placeholder = 'Add a comment'; }
   clearDiscardPrompt();
   state.pendingTarget = null;
   state.pendingTargetAnchor = null;
   state.pendingPlacement = 'right';
+  state.activeThread = null;
+  state.threadReplyInFlight = false;
   applyCommentTargetIndicators(currentDiagramSvg());
 }
 
@@ -7338,12 +8406,32 @@ function openCommentDialog(target, anchor) {
     clearTimeout(state.commentCloseTimer);
     state.commentCloseTimer = null;
   }
+  state.activeThread = null;
+  state.threadReplyInFlight = false;
   state.pendingTarget = target;
   state.pendingTargetAnchor = anchor || null;
   state.pendingPlacement = 'right';
+
+  dialog.setAttribute('data-mode', 'compose');
+  const tag = $('commentThreadTag');
+  if (tag) tag.hidden = true;
+  const banner = $('commentThreadBanner');
+  if (banner) banner.hidden = true;
+  const messages = $('commentThreadMessages');
+  if (messages) { messages.hidden = true; messages.innerHTML = ''; }
+  const err = $('commentThreadError');
+  if (err) { err.hidden = true; err.textContent = ''; }
+  const inputWrap = $('commentInputWrap');
+  if (inputWrap) inputWrap.hidden = false;
+
+  const textarea = $('commentText');
   $('commentTitle').textContent = commentTargetName(target);
-  $('commentText').value = '';
-  $('commentText').style.height = 'auto';
+  if (textarea) {
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    textarea.disabled = false;
+    textarea.placeholder = 'Add a comment';
+  }
   clearDiscardPrompt();
   updateCommentComposerState();
   applyCommentTargetIndicators(currentDiagramSvg());
@@ -7353,7 +8441,7 @@ function openCommentDialog(target, anchor) {
     positionCommentDialog();
     dialog.setAttribute('data-animate-state', 'open');
     autosizeCommentTextarea();
-    $('commentText').focus();
+    if (textarea) textarea.focus();
   });
 }
 
@@ -7428,7 +8516,24 @@ function isPendingTargetMatch(el) {
 
 async function submitPayload() {
   const payload = buildCommentPayload();
-  if (!payload.comments.length) return;
+  // Snapshot the count visible on the submit button at click time — drafts
+  // plus user-replied threads — so the in-flight / completed status card
+  // matches the number the user just acted on.
+  const submittedCount = payload.comments.length + userRepliedThreadCount();
+  if (!payload.comments.length) {
+    // No drafts queued — only user replies to Claude threads, which were
+    // already POSTed to the bridge at the time they were submitted in the
+    // popover. Surface a friendly acknowledgement so the click isn't silent.
+    if (submittedCount > 0) {
+      applyJobStatus({
+        state: 'received',
+        message: 'Your replies were sent automatically. Awaiting Claude.',
+        submitted_comment_count: submittedCount,
+        needs_refresh: false,
+      });
+    }
+    return;
+  }
   state.lastSubmittedPayload = payload;
 
   if (!HANDOFF.bridge_url || !HANDOFF.output_root) {
@@ -7436,7 +8541,7 @@ async function submitPayload() {
       state: 'failed',
       message: 'The local bridge is not configured in this diagram.',
       error: 'The local bridge is not configured in this diagram.',
-      submitted_comment_count: payload.comments.length,
+      submitted_comment_count: submittedCount,
       needs_refresh: false,
     });
     return;
@@ -7447,7 +8552,7 @@ async function submitPayload() {
   applyJobStatus({
     state: 'received',
     message: 'Comments sent. The agent is reviewing them now.',
-    submitted_comment_count: payload.comments.length,
+    submitted_comment_count: submittedCount,
     needs_refresh: false,
   });
 
@@ -7463,7 +8568,7 @@ async function submitPayload() {
         applyJobStatus({
           state: 'received',
           message: 'Another comment update is already in progress. Refreshing status…',
-          submitted_comment_count: payload.comments.length,
+          submitted_comment_count: submittedCount,
           needs_refresh: false,
         });
         hydrateLatestStatus();
@@ -7480,7 +8585,7 @@ async function submitPayload() {
       message: accepted.message,
       status_url: accepted.status_url,
       events_url: accepted.events_url,
-      submitted_comment_count: payload.comments.length,
+      submitted_comment_count: submittedCount,
       needs_refresh: false,
     });
     subscribeToJob({
@@ -7496,7 +8601,7 @@ async function submitPayload() {
       message: claudeDisconnected ? 'Restart Claude in the terminal' : 'The update hit a problem.',
       error: errorMessage,
       error_code: claudeDisconnected ? CLAUDE_NOT_CONNECTED_ERROR_CODE : '',
-      submitted_comment_count: payload.comments.length,
+      submitted_comment_count: submittedCount,
       needs_refresh: false,
     });
   } finally {
@@ -7589,9 +8694,7 @@ $('commentDialogOverlay').addEventListener('click', function (e) {
     openCommentDialog(target, commentAnchorFromEvent(interactionTarget, e));
     return;
   }
-  if (underlying.closest('#canvas')) {
-    attemptCloseCommentDialog('canvas');
-  }
+  attemptCloseCommentDialog('outside');
 });
 
 $('canvas').addEventListener('click', function (e) {
@@ -7607,11 +8710,23 @@ $('canvas').addEventListener('click', function (e) {
   openCommentDialog(target, commentAnchorForCanvasEvent(e));
 });
 
-$('commentAdd').addEventListener('click', addPendingComment);
+function isThreadDialogMode() {
+  const dialog = $('commentDialog');
+  return Boolean(dialog && dialog.getAttribute('data-mode') === 'thread' && state.activeThread);
+}
+
+$('commentAdd').addEventListener('click', function () {
+  if (isThreadDialogMode()) submitThreadReply();
+  else addPendingComment();
+});
 
 $('commentText').addEventListener('input', function () {
-  clearDiscardPrompt();
   autosizeCommentTextarea();
+  if (isThreadDialogMode()) {
+    applyThreadModalState(state.activeThread);
+    return;
+  }
+  clearDiscardPrompt();
   updateCommentComposerState();
 });
 
@@ -7622,11 +8737,12 @@ $('commentText').addEventListener('keydown', function (e) {
     attemptCloseCommentDialog('escape');
     return;
   }
-  if (e.key !== 'Enter' || e.shiftKey || e.altKey || e.isComposing) return;
-  if (!e.metaKey && !e.ctrlKey) return;
+  if (e.key !== 'Enter' || e.isComposing) return;
+  if (e.shiftKey) return;
   e.preventDefault();
   e.stopPropagation();
-  addPendingComment();
+  if (isThreadDialogMode()) submitThreadReply();
+  else addPendingComment();
 });
 
 window.addEventListener('resize', function () {
@@ -7706,6 +8822,11 @@ document.addEventListener('keydown', function (e) {
       attemptCloseCommentDialog('escape');
       return;
     }
+    if (isCommentMode()) {
+      e.preventDefault();
+      setMode('explore', { animate: false });
+      return;
+    }
     $('payloadOverlay').className = 'overlay';
   }
 });
@@ -7725,6 +8846,7 @@ updateThemeToggle();
 updateCommentComposerState();
 render();
 hydrateLatestStatus();
+subscribeToClaudeThreads();
 </script>
 </body>
 </html>

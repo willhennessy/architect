@@ -189,6 +189,18 @@ def load_latest_feedback_pointer(output_root: Path) -> Dict[str, Any] | None:
     return latest if isinstance(latest, dict) else None
 
 
+def load_claude_threads(output_root: Path) -> List[Dict[str, Any]]:
+    threads_path = runtime_dir(output_root) / "claude-comments.json"
+    if not threads_path.exists():
+        return []
+    try:
+        data = json.loads(threads_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    threads = data.get("threads") if isinstance(data, dict) else None
+    return [t for t in threads if isinstance(t, dict)] if isinstance(threads, list) else []
+
+
 def canon_view_type(value: Any) -> str:
     if value is None:
         return ""
@@ -767,6 +779,7 @@ def build_payload(
             "diagram_path": str(diagram_html_path(output_root)),
             "diagram_revision_id": compute_revision_id(output_root),
             "latest_job_id": (load_latest_feedback_pointer(output_root) or {}).get("job_id"),
+            "claude_threads": load_claude_threads(output_root),
         },
     }
 
